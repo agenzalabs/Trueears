@@ -96,6 +96,11 @@ app.on('will-quit', () => {
 });
 
 // IPC Handlers
+ipcMain.on('set-ignore-mouse-events', (event, ignore, options) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    win?.setIgnoreMouseEvents(ignore, options);
+});
+
 ipcMain.on('transcription-complete', async (event, text) => {
     console.log('Transcription received:', text);
     try {

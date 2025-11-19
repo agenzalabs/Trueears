@@ -9,18 +9,11 @@ declare global {
     electronAPI?: {
       onToggleRecording: (callback: () => void) => () => void;
       onOpenSettings: (callback: () => void) => () => void;
+      setIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) => void;
       sendTranscription: (text: string) => void;
     };
   }
 }
-
-// ... (rest of file)
-
-// -- Listeners: Electron IPC & Keyboard Shortcuts --
-// ... (rest of file)
-
-// -- Listeners: Electron IPC & Keyboard Shortcuts --
-// (Moved back inside component)
 
 // Synthesize a pleasant "ding" sound using Web Audio API
 const playSuccessSound = () => {
@@ -75,6 +68,25 @@ export const RecorderOverlay: React.FC = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const isProcessingRef = useRef(false);
+
+  // -- Effect: Manage Click-Through --
+  useEffect(() => {
+    if (window.electronAPI) {
+      // By default, ignore mouse events (allow click-through)
+      // forward: true allows us to still catch mouseenter/mouseleave
+      window.electronAPI.setIgnoreMouseEvents(true, { forward: true });
+    }
+  }, []);
+
+  const handleMouseEnter = () => {
+    // When mouse enters the interactive area, capture events
+    window.electronAPI?.setIgnoreMouseEvents(false);
+  };
+
+  const handleMouseLeave = () => {
+    // When mouse leaves, go back to click-through
+    window.electronAPI?.setIgnoreMouseEvents(true, { forward: true });
+  };
 
   // -- Load API Key (LocalStorage) --
   useEffect(() => {
@@ -324,6 +336,8 @@ export const RecorderOverlay: React.FC = () => {
         Capsule Container
       */}
       <div
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
         className={`
           pointer-events-auto
           flex items-center justify-center
