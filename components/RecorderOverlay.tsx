@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AudioVisualizer } from './AudioVisualizer';
 import { GroqService } from '../services/groqService';
+import { GeminiService } from '../services/geminiService';
 
 // Declare electronAPI for TypeScript visibility
 declare global {
   interface Window {
     electronAPI?: {
       onToggleRecording: (callback: () => void) => () => void;
+      onOpenSettings: (callback: () => void) => () => void;
       sendTranscription: (text: string) => void;
     };
   }
@@ -58,14 +60,17 @@ export const RecorderOverlay: React.FC = () => {
   // 'processing': Sending file to Groq
   // 'success': Text pasted
   // 'error': Something went wrong
-  const [status, setStatus] = useState<'idle' | 'setup' | 'recording' | 'processing' | 'success' | 'error'>('idle');
+  // 'settings': Configuration menu
+  const [status, setStatus] = useState<'idle' | 'setup' | 'recording' | 'processing' | 'success' | 'error' | 'settings'>('idle');
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
 
   // Storage handling
-  const [apiKey, setApiKey] = useState<string>('');
+  const [apiKeys, setApiKeys] = useState({ groq: '', gemini: '' });
+  const [provider, setProvider] = useState<'groq' | 'gemini'>('groq');
   const [isKeyLoaded, setIsKeyLoaded] = useState(false);
 
   const [tempKeyInput, setTempKeyInput] = useState('');
+  const [showKey, setShowKey] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -73,32 +78,61 @@ export const RecorderOverlay: React.FC = () => {
 
   // -- Load API Key (LocalStorage) --
   useEffect(() => {
-    const loadKey = () => {
-      const key = localStorage.getItem('GROQ_API_KEY');
-      if (key) setApiKey(key);
+    const loadKeys = () => {
+      const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
+      const geminiKey = localStorage.getItem('GEMINI_API_KEY') || '';
+      const savedProvider = localStorage.getItem('STT_PROVIDER') as 'groq' | 'gemini' | null;
+      
+      setApiKeys({ groq: groqKey, gemini: geminiKey });
+      if (savedProvider) setProvider(savedProvider);
+      
       setIsKeyLoaded(true);
     };
-    loadKey();
+    loadKeys();
   }, []);
 
   // -- Action: Save API Key --
   const handleSaveKey = () => {
-    if (tempKeyInput.trim().startsWith('gsk_')) {
-      const key = tempKeyInput.trim();
-      setApiKey(key);
-      localStorage.setItem('GROQ_API_KEY', key);
+    const key = tempKeyInput.trim();
+    if (!key) return;
 
-      setStatus('idle');
-      // Immediately start recording after save using the new key explicitly
-      setTimeout(() => startRecording(key), 100);
-    } else {
+    if (provider === 'groq' && !key.startsWith('gsk_')) {
       alert('Invalid Groq API Key. It usually starts with "gsk_"');
+      return;
+    }
+
+    const newKeys = { ...apiKeys, [provider]: key };
+    setApiKeys(newKeys);
+    
+    if (provider === 'groq') {
+        localStorage.setItem('GROQ_API_KEY', key);
+    } else {
+        localStorage.setItem('GEMINI_API_KEY', key);
+    }
+    localStorage.setItem('STT_PROVIDER', provider);
+
+    setStatus('idle');
+    // Only auto-start if we were in setup mode (first run), not settings mode
+    if (status === 'setup') {
+      setTimeout(() => startRecording(key), 100);
+    }
+  };
+
+  // -- Action: Toggle Settings --
+  const toggleSettings = () => {
+    if (status === 'settings') {
+      setStatus('idle');
+    } else {
+      setTempKeyInput(apiKeys[provider]); // Pre-fill current key
+      setShowKey(false); // Reset visibility
+      setStatus('settings');
+      setIsVisible(true);
     }
   };
 
   // -- Action: Start Recording --
   const startRecording = async (manualKey?: string) => {
-    const effectiveKey = manualKey || apiKey;
+    const effectiveKey = manualKey || apiKeys[provider];
 
     // If no API key, force setup mode
     if (!effectiveKey) {
@@ -171,8 +205,15 @@ export const RecorderOverlay: React.FC = () => {
         throw new Error("No audio captured");
       }
 
-      // Send to Groq
-      const text = await GroqService.transcribe(audioBlob, apiKey);
+      // Send to selected provider
+      let text = '';
+      const currentKey = apiKeys[provider];
+
+      if (provider === 'gemini') {
+        text = await GeminiService.transcribe(audioBlob, currentKey);
+      } else {
+        text = await GroqService.transcribe(audioBlob, currentKey);
+      }
 
       if (text) {
         // Send to Electron Main Process
@@ -199,6 +240,8 @@ export const RecorderOverlay: React.FC = () => {
       }
     } catch (error) {
       console.error("Transcription failed", error);
+      // Show error details in alert for debugging
+      alert(`Transcription Error: ${error instanceof Error ? error.message : String(error)}`);
       setStatus('error');
       setTimeout(() => {
         setIsVisible(false);
@@ -206,7 +249,7 @@ export const RecorderOverlay: React.FC = () => {
         isProcessingRef.current = false;
       }, 2000);
     }
-  }, [status, mediaStream, apiKey]);
+  }, [status, mediaStream, apiKeys, provider]);
 
   const lastToggleTimeRef = useRef(0);
 
@@ -222,15 +265,15 @@ export const RecorderOverlay: React.FC = () => {
 
     if (status === 'recording') {
       stopRecording();
-    } else if (status === 'setup') {
-      // Close if toggled while in setup
+    } else if (status === 'setup' || status === 'settings') {
+      // Close if toggled while in setup or settings
       setIsVisible(false);
       setStatus('idle');
     } else {
       // Start Recording
       startRecording();
     }
-  }, [status, stopRecording, apiKey, isKeyLoaded]);
+  }, [status, stopRecording, apiKeys, isKeyLoaded]);
 
   // -- Listeners: Electron IPC & Keyboard Shortcuts --
   useEffect(() => {
@@ -242,9 +285,12 @@ export const RecorderOverlay: React.FC = () => {
       // }
       if (e.key === 'Escape' && isVisible) {
         if (status === 'recording') stopRecording();
+        else if (status === 'settings') {
+            setStatus('idle');
+        }
         else setIsVisible(false);
       }
-      if (status === 'setup' && e.key === 'Enter' && isVisible) {
+      if ((status === 'setup' || status === 'settings') && e.key === 'Enter' && isVisible) {
         handleSaveKey();
       }
     };
@@ -253,15 +299,20 @@ export const RecorderOverlay: React.FC = () => {
 
     // Electron IPC Listener
     let removeIpcListener: (() => void) | undefined;
+    let removeSettingsListener: (() => void) | undefined;
     if (window.electronAPI) {
       removeIpcListener = window.electronAPI.onToggleRecording(() => {
         handleToggle();
+      });
+      removeSettingsListener = window.electronAPI.onOpenSettings(() => {
+        toggleSettings();
       });
     }
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       if (removeIpcListener) removeIpcListener();
+      if (removeSettingsListener) removeSettingsListener();
     };
   }, [handleToggle, isVisible, stopRecording, status, tempKeyInput]);
 
@@ -285,11 +336,84 @@ export const RecorderOverlay: React.FC = () => {
           will-change-[width, height, transform]
           overflow-hidden
           ${status === 'setup' ? 'w-80 h-12 rounded-xl' : ''}
+          ${status === 'settings' ? 'w-80 h-48 rounded-xl' : ''}
           ${status === 'recording' ? 'w-40 h-9' : ''}
           ${(status === 'idle' || status === 'processing' || status === 'success' || status === 'error') ? 'w-9 h-9' : ''}
         `}
       >
         <div className="relative w-full h-full flex items-center justify-center">
+
+          {/* SETTINGS MODE */}
+          {status === 'settings' && (
+            <div className="flex flex-col w-full h-full p-4 gap-3 animate-fadeIn text-white">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Settings</span>
+                <button onClick={() => setStatus('idle')} className="text-gray-500 hover:text-white">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              {/* Provider Selection */}
+              <div className="flex gap-2 bg-white/5 p-1 rounded-lg">
+                <button 
+                  onClick={() => {
+                    setProvider('groq');
+                    setTempKeyInput(apiKeys.groq);
+                  }}
+                  className={`flex-1 text-xs py-1.5 rounded-md transition-colors ${provider === 'groq' ? 'bg-white text-black font-bold' : 'text-gray-400 hover:text-white'}`}
+                >
+                  Groq
+                </button>
+                <button 
+                  onClick={() => {
+                    setProvider('gemini');
+                    setTempKeyInput(apiKeys.gemini);
+                  }}
+                  className={`flex-1 text-xs py-1.5 rounded-md transition-colors ${provider === 'gemini' ? 'bg-white text-black font-bold' : 'text-gray-400 hover:text-white'}`}
+                >
+                  Gemini
+                </button>
+              </div>
+
+              {/* API Key Input */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] text-gray-500 font-mono">API KEY</label>
+                <div className="relative">
+                  <input
+                    type={showKey ? "text" : "password"}
+                    placeholder={provider === 'groq' ? "gsk_..." : "Gemini API Key"}
+                    className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 pr-8 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-white/30 transition-colors font-mono"
+                    value={tempKeyInput}
+                    onChange={(e) => setTempKeyInput(e.target.value)}
+                  />
+                  <button
+                    onClick={() => setShowKey(!showKey)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                  >
+                    {showKey ? (
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                      </svg>
+                    ) : (
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                onClick={handleSaveKey}
+                className="mt-auto w-full bg-white text-black text-xs font-bold py-1.5 rounded hover:bg-gray-200 transition-colors"
+              >
+                Save Changes
+              </button>
+            </div>
+          )}
 
           {/* SETUP MODE: Input Field */}
           {status === 'setup' && (
@@ -297,7 +421,7 @@ export const RecorderOverlay: React.FC = () => {
               <input
                 autoFocus
                 type="password"
-                placeholder="Enter Groq API Key (gsk_...)"
+                placeholder={provider === 'groq' ? "Enter Groq API Key (gsk_...)" : "Enter Gemini API Key"}
                 className="flex-1 bg-transparent border-none outline-none text-white text-xs placeholder-gray-500 font-mono"
                 value={tempKeyInput}
                 onChange={(e) => setTempKeyInput(e.target.value)}
@@ -321,7 +445,7 @@ export const RecorderOverlay: React.FC = () => {
 
           {/* STATUS ICONS */}
           <div
-            className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${status !== 'recording' && status !== 'setup' ? 'opacity-100 scale-100' : 'opacity-0 scale-50 pointer-events-none'}`}
+            className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${status !== 'recording' && status !== 'setup' && status !== 'settings' ? 'opacity-100 scale-100' : 'opacity-0 scale-50 pointer-events-none'}`}
           >
             {status === 'success' ? (
               <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -333,7 +457,22 @@ export const RecorderOverlay: React.FC = () => {
               </svg>
             ) : (
               // Idle or Processing (Subtle pulse if processing)
-              <div className={`w-1.5 h-1.5 rounded-full ${status === 'processing' ? 'bg-white/60 animate-pulse' : 'bg-white/20'}`} />
+              <div className="relative group flex items-center justify-center w-full h-full">
+                <div className={`w-1.5 h-1.5 rounded-full ${status === 'processing' ? 'bg-white/60 animate-pulse' : 'bg-white/20'}`} />
+                
+                {/* Settings Trigger (Only visible on hover of the dot in idle) */}
+                {status === 'idle' && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); toggleSettings(); }}
+                    className="absolute -top-3 -right-3 p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-gray-400 hover:text-white"
+                  >
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </div>

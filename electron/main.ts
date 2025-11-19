@@ -11,7 +11,7 @@ function createWindow() {
     const primaryDisplay = screen.getPrimaryDisplay();
     const { width, height } = primaryDisplay.workAreaSize;
     const windowWidth = 400;
-    const windowHeight = 200;
+    const windowHeight = 600; // Increased height to accommodate settings menu
 
     mainWindow = new BrowserWindow({
         width: windowWidth,
@@ -38,6 +38,8 @@ function createWindow() {
 
     if (process.env.VITE_DEV_SERVER_URL) {
         mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+    } else if (!app.isPackaged) {
+        mainWindow.loadURL('http://localhost:3000');
     } else {
         mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
     }
@@ -56,6 +58,16 @@ app.whenReady().then(() => {
             mainWindow.setAlwaysOnTop(true, 'screen-saver');
             mainWindow.webContents.send('toggle-recording');
             // Show window WITHOUT stealing focus
+            mainWindow.showInactive();
+        }
+    });
+
+    // Register a 'CommandOrControl+Shift+L' shortcut listener for Settings.
+    const retSettings = globalShortcut.register('CommandOrControl+Shift+L', () => {
+        console.log('CommandOrControl+Shift+L is pressed');
+        if (mainWindow) {
+            mainWindow.setAlwaysOnTop(true, 'screen-saver');
+            mainWindow.webContents.send('open-settings');
             mainWindow.showInactive();
         }
     });
