@@ -1,5 +1,8 @@
 {
-  "name": "gemini-voice-dictation-demo",
+  "name": "scribe",
+  "productName": "Scribe",
+  "description": "Minimalist AI dictation",
+  "author": "Shayan Khan",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,6 +14,21 @@
     "electron:build": "tsc -p electron/tsconfig.json && node electron/create-package-json.js && vite build && electron-builder",
     "electron:dev": "concurrently -k \"vite\" \"npm run electron:wait\"",
     "electron:wait": "wait-on tcp:3000 && tsc -p electron/tsconfig.json && node electron/create-package-json.js && electron ."
+  },
+  "build": {
+    "appId": "com.scribe",
+    "productName": "Scribe",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    }
   },
   "dependencies": {
     "@google/genai": "^1.30.0",
