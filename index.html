@@ -3,15 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/x-icon" href="/build/icon.ico" />
     <title>Gemini Voice Dictation</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
-      body {
+      html, body, #root {
         font-family: 'Inter', sans-serif;
-        background-color: #f3f4f6;
+        background: transparent !important;
+        margin: 0;
+        padding: 0;
       }
       /* Custom scrollbar for aesthetics */
       ::-webkit-scrollbar {
@@ -21,27 +24,17 @@
         background: transparent;
       }
       ::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
+        background: rgba(203, 213, 225, 0.3);
         border-radius: 4px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8;
+        background: rgba(148, 163, 184, 0.5);
       }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0"
-  }
-}
-</script>
-<link rel="stylesheet" href="/src/index.css">
-</head>
+    <link rel="stylesheet" href="/src/index.css">
+  </head>
   <body>
     <div id="root"></div>
-  <script type="module" src="/src/index.tsx"></script>
-</body>
+    <script type="module" src="/src/index.tsx"></script>
+  </body>
 </html>

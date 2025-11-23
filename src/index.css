@@ -8,10 +8,15 @@
 }
 
 html,
-body {
-  background-color: transparent;
+body,
+#root {
+  background: transparent !important;
   margin: 0;
   padding: 0;
   overflow: hidden;
-  /* Prevent scrollbars */
+  -webkit-app-region: no-drag;
+}
+
+* {
+  box-sizing: border-box;
 }

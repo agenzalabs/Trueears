@@ -1,6 +1,6 @@
 # Voice Dictation
 
-A minimalist, AI-powered voice dictation application built with Electron, React, and Vite. This tool allows you to record your voice using a global hotkey and automatically pastes the transcribed text into your active application using **Groq's Whisper models** or **Google's Gemini models**.
+A minimalist, AI-powered voice dictation application built with Tauri, React, and Vite. This tool allows you to record your voice using a global hotkey and automatically pastes the transcribed text into your active application using **Groq's Whisper models** or **Google's Gemini models**.
 
 ## Features
 
@@ -9,12 +9,24 @@ A minimalist, AI-powered voice dictation application built with Electron, React,
 - 🤖 **Multi-Provider Support**: Choose between Groq (Whisper Large V3 Turbo) for speed or Google Gemini (Flash 1.5/2.0) for advanced reasoning and transcription.
 - 📋 **Auto-Paste**: Automatically types the transcribed text into the currently active text field.
 - 🪟 **Minimalist Overlay**: A non-intrusive floating overlay shows recording status and audio visualization.
-- ⚡ **Fast & Lightweight**: Built on Vite and Electron for performance.
+- ⚡ **Fast & Lightweight**: Built on Vite and Tauri for performance.
 
 ## Prerequisites
 
 - Node.js (v18 or higher recommended)
+- Rust (latest stable version)
 - A **Groq API Key** or a **Google Gemini API Key**
+
+### Installing Rust
+
+If you don't have Rust installed, download and install it from [rustup.rs](https://rustup.rs/):
+
+```bash
+# Windows (PowerShell)
+winget install Rustlang.Rustup
+
+# Or use the installer from rustup.rs
+```
 
 ## Installation
 
@@ -43,20 +55,22 @@ A minimalist, AI-powered voice dictation application built with Electron, React,
 To run the application in development mode with hot-reloading:
 
 ```bash
-npm run electron:dev
+npm run tauri:dev
 ```
 
-This will start the Vite dev server and launch the Electron application.
+This will start the Vite dev server and launch the Tauri application with hot-reload capabilities.
 
 ## Building
 
 To build the application for production:
 
 ```bash
-npm run electron:build
+npm run tauri:build
 ```
 
-The output executable will be generated in the `dist` or `release` folder (depending on electron-builder configuration).
+The output executable will be generated in the `src-tauri/target/release/bundle/` folder:
+- Windows: `src-tauri/target/release/bundle/nsis/Scribe_0.0.0_x64-setup.exe`
+- The bundle size is approximately **15-20 MB** (vs ~150MB with Electron).
 
 ## Usage
 
@@ -70,30 +84,33 @@ The output executable will be generated in the `dist` or `release` folder (depen
 ## Tech Stack
 
 - **Frontend**: React, Vite, TailwindCSS
-- **Backend/Shell**: Electron
+- **Backend**: Tauri (Rust)
 - **AI Services**: 
   - Groq API (REST)
   - Google Gemini SDK (`@google/genai`)
 - **Audio**: Native Web Audio API
-- **Automation**: Nut.js (for auto-typing)
+- **Automation**: Rust (`enigo` for keyboard, `arboard` for clipboard)
 
 ## Project Structure
 
 ```
 STT/
-├── electron/           # Electron main process code
-│   ├── main.ts         # Main entry point & window management
-│   ├── preload.ts      # IPC bridge between Main and Renderer
-│   ├── automation.ts   # Keyboard automation (Nut.js) logic
-│   └── shortcuts.ts    # Global hotkey registration
-├── src/                # React renderer process code
+├── src-tauri/          # Tauri Rust backend
+│   ├── src/
+│   │   ├── main.rs     # Entry point (unused with lib.rs)
+│   │   ├── lib.rs      # Main Tauri application logic
+│   │   ├── automation.rs   # Keyboard & clipboard automation
+│   │   ├── shortcuts.rs    # Global hotkey handling
+│   │   └── window.rs       # Active window detection
+│   ├── Cargo.toml      # Rust dependencies
+│   └── tauri.conf.json # Tauri configuration
+├── src/                # React frontend
 │   ├── components/     # UI Components (Overlay, Settings, etc.)
 │   ├── hooks/          # Custom hooks (useAudioRecorder, useDictation)
 │   ├── services/       # AI Service integrations (Groq, Gemini)
-│   ├── utils/          # Audio processing and helpers
+│   ├── utils/          # Audio processing, helpers, and Tauri API wrapper
 │   └── App.tsx         # Main application component
-├── dist-electron/      # Compiled Electron files (generated)
-├── public/             # Static assets
+├── dist/               # Built frontend assets (generated)
 ├── index.html          # Entry HTML file
 ├── package.json        # Project dependencies and scripts
 └── vite.config.ts      # Vite configuration

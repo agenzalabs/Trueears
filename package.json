@@ -6,44 +6,26 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build && electron-builder",
+    "vite:dev": "vite",
+    "vite:build": "vite build",
+    "dev": "tauri dev",
+    "build": "tauri build",
     "preview": "vite preview",
-    "electron:build": "tsc -p electron/tsconfig.json && node electron/create-package-json.js && vite build && electron-builder",
-    "electron:dev": "concurrently -k \"vite\" \"npm run electron:wait\"",
-    "electron:wait": "wait-on tcp:3000 && tsc -p electron/tsconfig.json && node electron/create-package-json.js && electron ."
-  },
-  "build": {
-    "appId": "com.scribe",
-    "productName": "Scribe",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "dist-electron/**/*"
-    ],
-    "win": {
-      "target": "nsis",
-      "icon": "build/icon.ico"
-    }
+    "tauri": "tauri"
   },
   "dependencies": {
     "@google/genai": "^1.30.0",
-    "@nut-tree-fork/nut-js": "^4.2.6",
+    "@tauri-apps/api": "^2.9.0",
+    "@tauri-apps/plugin-global-shortcut": "^2.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.2.7",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
-    "concurrently": "^9.2.1",
-    "electron": "^39.2.2",
-    "electron-builder": "^26.0.12",
     "typescript": "~5.8.2",
-    "vite": "^6.2.0",
-    "wait-on": "^9.0.3"
+    "vite": "^6.2.0"
   }
 }

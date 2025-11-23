@@ -8,11 +8,13 @@ export const useAudioRecorder = () => {
   const audioChunksRef = useRef<Blob[]>([]);
 
   const startRecording = async () => {
+    console.log('[useAudioRecorder] startRecording called');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setMediaStream(stream);
       setIsRecording(true);
       audioChunksRef.current = [];
+      console.log('[useAudioRecorder] MediaStream acquired, isRecording set to true');
 
       const recorder = new MediaRecorder(stream);
       mediaRecorderRef.current = recorder;
@@ -20,34 +22,48 @@ export const useAudioRecorder = () => {
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
+          console.log('[useAudioRecorder] Audio chunk received, size:', event.data.size);
         }
       };
 
       recorder.start();
+      console.log('[useAudioRecorder] MediaRecorder started');
     } catch (err) {
-      console.error("Microphone error:", err);
+      console.error("[useAudioRecorder] Microphone error:", err);
       throw err;
     }
   };
 
   const stopRecording = useCallback(async (): Promise<Blob> => {
-    if (!isRecording || !mediaRecorderRef.current) {
+    console.log('[useAudioRecorder] stopRecording called, isRecording:', isRecording, 'mediaRecorderRef:', !!mediaRecorderRef.current);
+    
+    if (!mediaRecorderRef.current) {
+      console.warn('[useAudioRecorder] No media recorder found');
+      return new Blob([]);
+    }
+
+    if (!isRecording) {
+      console.warn('[useAudioRecorder] Not recording, but mediaRecorder exists');
       return new Blob([]);
     }
 
     const recorder = mediaRecorderRef.current;
     const stream = mediaStream;
 
+    console.log('[useAudioRecorder] Stopping MediaRecorder...');
     return new Promise<Blob>((resolve) => {
       recorder.onstop = () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        console.log('[useAudioRecorder] MediaRecorder stopped, blob size:', audioBlob.size, 'chunks:', audioChunksRef.current.length);
         
         // Cleanup
         if (stream) {
           stream.getTracks().forEach(t => t.stop());
+          console.log('[useAudioRecorder] MediaStream tracks stopped');
         }
         setMediaStream(null);
         setIsRecording(false);
+        console.log('[useAudioRecorder] States reset, isRecording set to false');
         
         resolve(audioBlob);
       };

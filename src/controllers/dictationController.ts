@@ -2,6 +2,7 @@ import { GroqService } from '../services/groqService';
 import { GeminiService } from '../services/geminiService';
 import { playSuccessSound } from '../utils/soundUtils';
 import { Provider } from '../hooks/useSettings';
+import { tauriAPI } from '../utils/tauriApi';
 
 export const processTranscription = async (audioBlob: Blob, provider: Provider, apiKey: string, model: string): Promise<string> => {
   if (provider === 'gemini') {
@@ -11,11 +12,11 @@ export const processTranscription = async (audioBlob: Blob, provider: Provider, 
   }
 };
 
-export const finalizeDictation = (text: string) => {
-  if (window.electronAPI) {
-    window.electronAPI.sendTranscription(text);
-  } else {
-    console.warn("Electron API not available, cannot type text:", text);
+export const finalizeDictation = async (text: string) => {
+  try {
+    await tauriAPI.sendTranscription(text);
+    playSuccessSound();
+  } catch (error) {
+    console.error("Failed to send transcription:", error);
   }
-  playSuccessSound();
 };

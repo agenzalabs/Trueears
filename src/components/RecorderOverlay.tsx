@@ -8,19 +8,7 @@ import { SettingsView } from './SettingsView';
 import { SetupView } from './SetupView';
 import { StatusIndicator } from './StatusIndicator';
 import { WarningView } from './WarningView';
-
-// Declare electronAPI for TypeScript visibility
-declare global {
-  interface Window {
-    electronAPI?: {
-      onToggleRecording: (callback: () => void) => () => void;
-      onOpenSettings: (callback: () => void) => () => void;
-      onShowWarning: (callback: (message: string) => void) => () => void;
-      setIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) => void;
-      sendTranscription: (text: string) => void;
-    };
-  }
-}
+import { tauriAPI } from '../utils/tauriApi';
 
 export const RecorderOverlay: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -34,19 +22,29 @@ export const RecorderOverlay: React.FC = () => {
   // Derived status for rendering
   const status = uiMode !== 'none' ? uiMode : recordingStatus;
 
-  // -- Effect: Manage Click-Through --
+  // -- Effect: Manage Click-Through and Debug Tauri --
   useEffect(() => {
-    if (window.electronAPI) {
-      window.electronAPI.setIgnoreMouseEvents(true, { forward: true });
-    }
+    console.log('[RecorderOverlay] Checking Tauri availability...');
+    console.log('[RecorderOverlay] window.__TAURI__ exists:', !!(window as any).__TAURI__);
+    console.log('[RecorderOverlay] window.__TAURI_INTERNALS__ exists:', !!(window as any).__TAURI_INTERNALS__);
+    console.log('[RecorderOverlay] window keys:', Object.keys(window).filter(k => k.includes('TAURI')));
+    
+    // Don't ignore mouse events by default - let UI state determine it
+    // tauriAPI.setIgnoreMouseEvents(true);
   }, []);
 
   const handleMouseEnter = () => {
-    window.electronAPI?.setIgnoreMouseEvents(false);
+    // Only manage mouse events when in non-interactive mode
+    if (uiMode === 'none') {
+      tauriAPI.setIgnoreMouseEvents(false);
+    }
   };
 
   const handleMouseLeave = () => {
-    window.electronAPI?.setIgnoreMouseEvents(true, { forward: true });
+    // Only manage mouse events when in non-interactive mode
+    if (uiMode === 'none') {
+      tauriAPI.setIgnoreMouseEvents(true);
+    }
   };
 
   // -- Effect: Auto-hide after success/error --
@@ -58,6 +56,31 @@ export const RecorderOverlay: React.FC = () => {
       prevRecordingStatus.current = recordingStatus;
   }, [recordingStatus]);
 
+  // -- Effect: Manage mouse events based on UI mode and visibility --
+  useEffect(() => {
+    if (!isVisible) {
+      // When completely hidden, ignore mouse events
+      tauriAPI.setIgnoreMouseEvents(true);
+    } else if (uiMode === 'settings' || uiMode === 'setup' || uiMode === 'warning') {
+      // When showing interactive UI, enable mouse events
+      tauriAPI.setIgnoreMouseEvents(false);
+    } else if (uiMode === 'none') {
+      // In normal mode, ignore events unless hovering
+      tauriAPI.setIgnoreMouseEvents(true);
+    }
+  }, [isVisible, uiMode]);
+
+  // -- Effect: Auto-hide idle state after 5 seconds --
+  useEffect(() => {
+    // Only auto-hide if we're visible, in idle state, and uiMode is 'none'
+    if (isVisible && recordingStatus === 'idle' && uiMode === 'none') {
+      const timer = setTimeout(() => {
+        setIsVisible(false);
+      }, 5000); // 5 seconds
+
+      return () => clearTimeout(timer);
+    }
+  }, [isVisible, recordingStatus, uiMode]);
 
   // -- Action: Save API Key --
   const handleSaveSettings = (newProvider: 'groq' | 'gemini', key: string, model: string) => {
@@ -82,6 +105,8 @@ export const RecorderOverlay: React.FC = () => {
     }
     
     setUiMode('none');
+    // Re-enable mouse event ignoring after saving settings
+    tauriAPI.setIgnoreMouseEvents(true);
   };
 
   const handleSaveSetup = (key: string) => {
@@ -97,6 +122,8 @@ export const RecorderOverlay: React.FC = () => {
       
       // If we were in setup mode, try to start recording
       setUiMode('none');
+      // Re-enable mouse event ignoring after saving setup
+      tauriAPI.setIgnoreMouseEvents(true);
       setTimeout(() => handleStartRecording(trimmedKey), 100);
   };
 
@@ -104,25 +131,36 @@ export const RecorderOverlay: React.FC = () => {
   const toggleSettings = () => {
     if (uiMode === 'settings') {
       setUiMode('none');
+      // Re-enable mouse event ignoring when closing settings
+      tauriAPI.setIgnoreMouseEvents(true);
     } else {
       setUiMode('settings');
       setIsVisible(true);
+      // Enable mouse events when opening settings
+      tauriAPI.setIgnoreMouseEvents(false);
     }
   };
 
   // -- Action: Start Recording --
   const handleStartRecording = async (manualKey?: string) => {
+    console.log('[RecorderOverlay] handleStartRecording called');
     const effectiveKey = manualKey || apiKeys[provider];
+    console.log('[RecorderOverlay] Effective key exists:', !!effectiveKey);
 
     // If no API key, force setup mode
     if (!effectiveKey) {
+      console.log('[RecorderOverlay] No API key - showing setup');
       setUiMode('setup');
       setIsVisible(true); // Ensure visible for setup
+      // Enable mouse events for setup screen
+      tauriAPI.setIgnoreMouseEvents(false);
       return;
     }
 
+    console.log('[RecorderOverlay] Starting dictation...');
     await startDictation();
     setIsVisible(true);
+    console.log('[RecorderOverlay] Dictation started, window visible');
   };
 
   // -- Action: Stop Recording --
@@ -134,72 +172,127 @@ export const RecorderOverlay: React.FC = () => {
 
   // -- Trigger: Toggle Visibility --
   const handleToggle = useCallback(async () => {
+    console.log('[RecorderOverlay] handleToggle called');
+    console.log('[RecorderOverlay] State:', { recordingStatus, uiMode, isKeyLoaded, isVisible });
+    
     const now = Date.now();
     if (now - lastToggleTimeRef.current < 500) {
+      console.log('[RecorderOverlay] Debounced - ignoring rapid toggle');
       return; // Ignore rapid toggles (debounce)
     }
     lastToggleTimeRef.current = now;
 
-    if (!isKeyLoaded) return; // Wait for storage check
+    if (!isKeyLoaded) {
+      console.log('[RecorderOverlay] Keys not loaded yet - waiting');
+      return; // Wait for storage check
+    }
+
+    // Prevent starting a new recording while processing or showing success/error
+    if (recordingStatus === 'processing' || recordingStatus === 'success' || recordingStatus === 'error') {
+      console.log('[RecorderOverlay] Still processing previous recording - ignoring toggle');
+      showToast('Please wait for the current transcription to complete', 'error');
+      return;
+    }
 
     if (recordingStatus === 'recording') {
+      console.log('[RecorderOverlay] Stopping recording');
       handleStopRecording();
     } else if (uiMode === 'setup' || uiMode === 'settings') {
+      console.log('[RecorderOverlay] Closing setup/settings');
       // Close if toggled while in setup or settings
       setIsVisible(false);
       setUiMode('none');
+      // Re-enable mouse event ignoring when closing
+      tauriAPI.setIgnoreMouseEvents(true);
     } else {
+      console.log('[RecorderOverlay] Starting recording');
       // Start Recording
       handleStartRecording();
     }
-  }, [recordingStatus, uiMode, handleStopRecording, apiKeys, isKeyLoaded, provider]); // Added dependencies
+  }, [recordingStatus, uiMode, handleStopRecording, apiKeys, isKeyLoaded, provider, showToast]); // Added dependencies
 
-  // -- Listeners: Electron IPC & Keyboard Shortcuts --
+  // Refs to hold latest callbacks for Tauri event listeners
+  const handleToggleRef = useRef(handleToggle);
+  const toggleSettingsRef = useRef(toggleSettings);
+  
+  // Keep refs up to date
+  useEffect(() => {
+    handleToggleRef.current = handleToggle;
+    toggleSettingsRef.current = toggleSettings;
+  });
+
+  // -- Keyboard Shortcuts (Escape key) --
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isVisible) {
         if (recordingStatus === 'recording') handleStopRecording();
         else if (uiMode === 'settings') {
             setUiMode('none');
+            // Re-enable mouse event ignoring when closing settings with Escape
+            tauriAPI.setIgnoreMouseEvents(true);
         }
         else setIsVisible(false);
       }
-      // Enter key handling is now inside sub-components for setup/settings
     };
 
     window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isVisible, handleStopRecording, recordingStatus, uiMode]);
 
-    // Electron IPC Listener
-    let removeIpcListener: (() => void) | undefined;
-    let removeSettingsListener: (() => void) | undefined;
-    let removeWarningListener: (() => void) | undefined;
-
-    if (window.electronAPI) {
-      removeIpcListener = window.electronAPI.onToggleRecording(() => {
-        handleToggle();
+  // -- Tauri Event Listeners (setup ONCE) --
+  useEffect(() => {
+    console.log('[RecorderOverlay] Setting up Tauri event listeners...');
+    
+    const setupListeners = async () => {
+      console.log('[RecorderOverlay] Starting listener setup...');
+      
+      // Wait a bit for Tauri context to be available after HMR
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const unlistenToggle = await tauriAPI.onToggleRecording(() => {
+        console.log('[RecorderOverlay] Toggle recording callback fired!');
+        // Use the ref to get latest version of callback
+        handleToggleRef.current();
       });
-      removeSettingsListener = window.electronAPI.onOpenSettings(() => {
-        toggleSettings();
+      
+      const unlistenSettings = await tauriAPI.onOpenSettings(() => {
+        console.log('[RecorderOverlay] Open settings callback fired!');
+        toggleSettingsRef.current();
       });
-      removeWarningListener = window.electronAPI.onShowWarning((msg) => {
+      
+      const unlistenWarning = await tauriAPI.onShowWarning((msg) => {
+        console.log('[RecorderOverlay] Warning callback fired:', msg);
         setWarningMessage(msg);
         setUiMode('warning');
         setIsVisible(true);
-        // Auto hide warning after 3s
         setTimeout(() => {
             setIsVisible(false);
             setUiMode('none');
         }, 3000);
       });
-    }
+
+      console.log('[RecorderOverlay] All listeners set up successfully!');
+      return { unlistenToggle, unlistenSettings, unlistenWarning };
+    };
+
+    let unlisteners: Awaited<ReturnType<typeof setupListeners>> | null = null;
+    
+    setupListeners().then((result) => {
+      unlisteners = result;
+      console.log('[RecorderOverlay] Listeners ready!');
+    }).catch(error => {
+      console.error('[RecorderOverlay] Failed to setup listeners:', error);
+    });
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      if (removeIpcListener) removeIpcListener();
-      if (removeSettingsListener) removeSettingsListener();
-      if (removeWarningListener) removeWarningListener();
+      console.log('[RecorderOverlay] Cleaning up Tauri listeners...');
+      if (unlisteners) {
+        unlisteners.unlistenToggle();
+        unlisteners.unlistenSettings();
+        unlisteners.unlistenWarning();
+      }
     };
-  }, [handleToggle, isVisible, handleStopRecording, recordingStatus, uiMode]);
+  }, []); // Empty deps - setup ONCE on mount
 
   if (!isVisible) return null;
 
@@ -211,7 +304,7 @@ export const RecorderOverlay: React.FC = () => {
         isVisible={isToastVisible} 
         onClose={hideToast} 
       />
-      <div className="fixed z-[9999] bottom-10 left-1/2 -translate-x-1/2 pointer-events-none flex flex-col items-center justify-end">
+      <div className="fixed z-[9999] bottom-32 left-1/2 -translate-x-1/2 pointer-events-none flex flex-col items-center justify-end">
       {/* 
         Capsule Container
       */}
@@ -248,7 +341,11 @@ export const RecorderOverlay: React.FC = () => {
                 apiKeys={apiKeys}
                 models={models}
                 onSave={handleSaveSettings}
-                onClose={() => setUiMode('none')}
+                onClose={() => {
+                  setUiMode('none');
+                  // Re-enable mouse event ignoring when closing settings
+                  tauriAPI.setIgnoreMouseEvents(true);
+                }}
             />
           )}
 
