@@ -27,7 +27,8 @@ export const useSettings = () => {
     const loadKeys = () => {
       const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
       const geminiKey = localStorage.getItem('GEMINI_API_KEY') || '';
-      const savedProvider = localStorage.getItem('STT_PROVIDER') as Provider | null;
+      // Check for new key first, fallback to old key for backward compatibility
+      const savedProvider = (localStorage.getItem('SCRIBE_PROVIDER') || localStorage.getItem('STT_PROVIDER')) as Provider | null;
       
       const groqModel = localStorage.getItem('GROQ_MODEL') || DEFAULT_GROQ_MODEL;
       const geminiModel = localStorage.getItem('GEMINI_MODEL') || DEFAULT_GEMINI_MODEL;
@@ -50,7 +51,9 @@ export const useSettings = () => {
     } else {
         localStorage.setItem('GEMINI_API_KEY', key);
     }
-    localStorage.setItem('STT_PROVIDER', providerToSave);
+    localStorage.setItem('SCRIBE_PROVIDER', providerToSave);
+    // Remove old key if it exists (migration)
+    localStorage.removeItem('STT_PROVIDER');
   };
 
   const saveModel = (model: string, providerToSave: Provider) => {
@@ -66,7 +69,9 @@ export const useSettings = () => {
 
   const setProviderAndSave = (newProvider: Provider) => {
       setProvider(newProvider);
-      localStorage.setItem('STT_PROVIDER', newProvider);
+      localStorage.setItem('SCRIBE_PROVIDER', newProvider);
+      // Remove old key if it exists (migration)
+      localStorage.removeItem('STT_PROVIDER');
   }
 
   return {

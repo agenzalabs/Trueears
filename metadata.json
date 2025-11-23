@@ -1,7 +1,0 @@
-{
-  "name": "Gemini Voice Dictation Demo",
-  "description": "A minimalistic voice recorder overlay that simulates a Chrome Extension experience. Focus on an input, press Ctrl+K to record, and let Gemini transcribe and paste the text.",
-  "requestFramePermissions": [
-    "microphone"
-  ]
-}

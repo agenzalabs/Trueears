@@ -239,8 +239,8 @@ To add macOS support:
 
 ## Next Steps
 
-1. **Test the application**: Run `npm run tauri:dev` and test all features
-2. **Build for production**: Run `npm run tauri:build`
+1. **Test the application**: Run `npm run dev` and test all features
+2. **Build for production**: Run `npm run build`
 3. **Distribute**: Share the installer from `src-tauri/target/release/bundle/nsis/`
 4. **Monitor**: Check for any runtime issues or bugs
 5. **Optimize**: Profile memory and CPU usage if needed
@@ -271,4 +271,3 @@ To add macOS support:
 
 **Migration Date**: November 23, 2025
 **Tauri Version**: 2.9.2
-**Estimated Migration Time**: 5-8 hours (as planned)

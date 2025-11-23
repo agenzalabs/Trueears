@@ -33,7 +33,7 @@ winget install Rustlang.Rustup
 1. Clone the repository:
    ```bash
    git clone <repository-url>
-   cd STT
+   cd scribe
    ```
 
 2. Install dependencies:
@@ -94,7 +94,7 @@ The output executable will be generated in the `src-tauri/target/release/bundle/
 ## Project Structure
 
 ```
-STT/
+scribe/
 ├── src-tauri/          # Tauri Rust backend
 │   ├── src/
 │   │   ├── main.rs     # Entry point (unused with lib.rs)
