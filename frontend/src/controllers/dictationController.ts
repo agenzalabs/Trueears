@@ -1,14 +1,46 @@
 import { GroqService } from '../services/groqService';
 import { GeminiService } from '../services/geminiService';
+import { GroqChatService } from '../services/groqChatService';
+import { AppProfileService } from '../services/appProfileService';
 import { playSuccessSound } from '../utils/soundUtils';
 import { Provider } from '../hooks/useSettings';
 import { tauriAPI } from '../utils/tauriApi';
+import { ActiveWindowInfo } from '../types/appProfile';
 
 export const processTranscription = async (audioBlob: Blob, provider: Provider, apiKey: string, model: string): Promise<string> => {
   if (provider === 'gemini') {
     return await GeminiService.transcribe(audioBlob, apiKey, model);
   } else {
     return await GroqService.transcribe(audioBlob, apiKey, model);
+  }
+};
+
+export const postProcessTranscription = async (
+  rawText: string,
+  windowInfo: ActiveWindowInfo | null,
+  llmApiKey: string,
+  llmModel: string,
+  defaultPrompt: string
+): Promise<string> => {
+  try {
+    console.log('[DictationController] Window info:', windowInfo);
+    const systemPrompt = AppProfileService.getSystemPrompt(windowInfo, defaultPrompt);
+    console.log('[DictationController] Using system prompt:', systemPrompt.substring(0, 100) + '...');
+    console.log('[DictationController] Raw text to format:', rawText);
+    
+    const formattedText = await GroqChatService.formatTranscription(
+      rawText,
+      systemPrompt,
+      llmApiKey,
+      llmModel
+    );
+    
+    console.log('[DictationController] Formatted result:', formattedText);
+    return formattedText;
+  } catch (error) {
+    console.error('[DictationController] Post-processing failed, using raw text:', error);
+    // Fallback to raw text if LLM fails
+    return rawText;
   }
 };
 

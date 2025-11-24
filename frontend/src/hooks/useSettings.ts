@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { DEFAULT_LLM_MODEL, DEFAULT_SYSTEM_PROMPT, BASE_SYSTEM_PROMPT } from '../types/appProfile';
 
 export type Provider = 'groq' | 'gemini';
 
@@ -17,11 +18,22 @@ export const GEMINI_MODELS = [
   'gemini-1.5-pro'
 ];
 
+export const LLM_MODELS = [
+  'openai/gpt-oss-120b',
+  'openai/gpt-oss-20b',
+];
+
 export const useSettings = () => {
   const [apiKeys, setApiKeys] = useState({ groq: '', gemini: '' });
   const [models, setModels] = useState({ groq: DEFAULT_GROQ_MODEL, gemini: DEFAULT_GEMINI_MODEL });
   const [provider, setProvider] = useState<Provider>('groq');
   const [isKeyLoaded, setIsKeyLoaded] = useState(false);
+  
+  // LLM post-processing settings
+  const [llmEnabled, setLlmEnabled] = useState(false);
+  const [llmApiKey, setLlmApiKey] = useState('');
+  const [llmModel, setLlmModel] = useState(DEFAULT_LLM_MODEL);
+  const [defaultSystemPrompt, setDefaultSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
 
   useEffect(() => {
     const loadKeys = () => {
@@ -36,6 +48,17 @@ export const useSettings = () => {
       setApiKeys({ groq: groqKey, gemini: geminiKey });
       setModels({ groq: groqModel, gemini: geminiModel });
       if (savedProvider) setProvider(savedProvider);
+      
+      // Load LLM settings
+      const savedLlmEnabled = localStorage.getItem('SCRIBE_LLM_ENABLED') === 'true';
+      const savedLlmApiKey = localStorage.getItem('SCRIBE_LLM_API_KEY') || groqKey; // Default to groq key
+      const savedLlmModel = localStorage.getItem('SCRIBE_LLM_MODEL') || DEFAULT_LLM_MODEL;
+      const savedSystemPrompt = localStorage.getItem('SCRIBE_DEFAULT_SYSTEM_PROMPT') || DEFAULT_SYSTEM_PROMPT;
+      
+      setLlmEnabled(savedLlmEnabled);
+      setLlmApiKey(savedLlmApiKey);
+      setLlmModel(savedLlmModel);
+      setDefaultSystemPrompt(savedSystemPrompt);
       
       setIsKeyLoaded(true);
     };
@@ -74,6 +97,26 @@ export const useSettings = () => {
       localStorage.removeItem('STT_PROVIDER');
   }
 
+  const saveLlmEnabled = (enabled: boolean) => {
+    setLlmEnabled(enabled);
+    localStorage.setItem('SCRIBE_LLM_ENABLED', enabled.toString());
+  };
+
+  const saveLlmApiKey = (key: string) => {
+    setLlmApiKey(key);
+    localStorage.setItem('SCRIBE_LLM_API_KEY', key);
+  };
+
+  const saveLlmModel = (model: string) => {
+    setLlmModel(model);
+    localStorage.setItem('SCRIBE_LLM_MODEL', model);
+  };
+
+  const saveDefaultSystemPrompt = (prompt: string) => {
+    setDefaultSystemPrompt(prompt);
+    localStorage.setItem('SCRIBE_DEFAULT_SYSTEM_PROMPT', prompt);
+  };
+
   return {
     apiKeys,
     models,
@@ -81,6 +124,15 @@ export const useSettings = () => {
     setProvider: setProviderAndSave,
     isKeyLoaded,
     saveKey,
-    saveModel
+    saveModel,
+    // LLM settings
+    llmEnabled,
+    llmApiKey,
+    llmModel,
+    defaultSystemPrompt,
+    saveLlmEnabled,
+    saveLlmApiKey,
+    saveLlmModel,
+    saveDefaultSystemPrompt,
   };
 };

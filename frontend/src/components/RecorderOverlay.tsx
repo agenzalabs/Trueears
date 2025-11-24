@@ -4,19 +4,31 @@ import { useSettings } from '../hooks/useSettings';
 import { useDictation } from '../hooks/useDictation';
 import { Toast } from './Toast';
 import { useToast } from '../hooks/useToast';
-import { SettingsView } from './SettingsView';
 import { SetupView } from './SetupView';
 import { StatusIndicator } from './StatusIndicator';
 import { WarningView } from './WarningView';
 import { tauriAPI } from '../utils/tauriApi';
+import { ActiveWindowInfo } from '../types/appProfile';
 
 export const RecorderOverlay: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
-  const [uiMode, setUiMode] = useState<'none' | 'setup' | 'settings' | 'warning'>('none');
+  const [uiMode, setUiMode] = useState<'none' | 'setup' | 'warning'>('none');
   const [warningMessage, setWarningMessage] = useState('');
   
-  const { apiKeys, models, provider, setProvider, isKeyLoaded, saveKey, saveModel } = useSettings();
-  const { status: recordingStatus, mediaStream, startDictation, stopDictation } = useDictation();
+  const { 
+    apiKeys, 
+    models, 
+    provider, 
+    setProvider, 
+    isKeyLoaded, 
+    saveKey, 
+    saveModel,
+    llmEnabled,
+    llmApiKey,
+    llmModel,
+    defaultSystemPrompt,
+  } = useSettings();
+  const { status: recordingStatus, mediaStream, startDictation, stopDictation, activeWindowInfo } = useDictation();
   const { isVisible: isToastVisible, message: toastMessage, type: toastType, showToast, hideToast } = useToast();
 
   // Derived status for rendering
@@ -61,7 +73,7 @@ export const RecorderOverlay: React.FC = () => {
     if (!isVisible) {
       // When completely hidden, ignore mouse events
       tauriAPI.setIgnoreMouseEvents(true);
-    } else if (uiMode === 'settings' || uiMode === 'setup' || uiMode === 'warning') {
+    } else if (uiMode === 'setup' || uiMode === 'warning') {
       // When showing interactive UI, enable mouse events
       tauriAPI.setIgnoreMouseEvents(false);
     } else if (uiMode === 'none') {
@@ -82,32 +94,7 @@ export const RecorderOverlay: React.FC = () => {
     }
   }, [isVisible, recordingStatus, uiMode]);
 
-  // -- Action: Save API Key --
-  const handleSaveSettings = (newProvider: 'groq' | 'gemini', key: string, model: string) => {
-    const trimmedKey = key.trim();
-    const trimmedModel = model.trim();
-    
-    if (!trimmedKey) return;
-
-    if (newProvider === 'groq' && !trimmedKey.startsWith('gsk_')) {
-      showToast('Invalid Groq API Key. It usually starts with "gsk_"', 'error');
-      return;
-    }
-
-    // Update provider if changed
-    if (newProvider !== provider) {
-        setProvider(newProvider);
-    }
-
-    saveKey(trimmedKey, newProvider);
-    if (trimmedModel) {
-        saveModel(trimmedModel, newProvider);
-    }
-    
-    setUiMode('none');
-    // Re-enable mouse event ignoring after saving settings
-    tauriAPI.setIgnoreMouseEvents(true);
-  };
+  // Removed handleSaveSettings - settings now in separate window
 
   const handleSaveSetup = (key: string) => {
       const trimmedKey = key.trim();
@@ -127,23 +114,15 @@ export const RecorderOverlay: React.FC = () => {
       setTimeout(() => handleStartRecording(trimmedKey), 100);
   };
 
-  // -- Action: Toggle Settings --
-  const toggleSettings = () => {
-    if (uiMode === 'settings') {
-      setUiMode('none');
-      // Re-enable mouse event ignoring when closing settings
-      tauriAPI.setIgnoreMouseEvents(true);
-    } else {
-      setUiMode('settings');
-      setIsVisible(true);
-      // Enable mouse events when opening settings
-      tauriAPI.setIgnoreMouseEvents(false);
-    }
+  // -- Action: Open Settings Window --
+  const openSettings = async () => {
+    console.log('[RecorderOverlay] Opening settings window');
+    await tauriAPI.openSettingsWindow();
   };
 
   // -- Action: Start Recording --
-  const handleStartRecording = async (manualKey?: string) => {
-    console.log('[RecorderOverlay] handleStartRecording called');
+  const handleStartRecording = async (manualKey?: string, windowInfo?: ActiveWindowInfo | null) => {
+    console.log('[RecorderOverlay] handleStartRecording called with window info:', windowInfo);
     const effectiveKey = manualKey || apiKeys[provider];
     console.log('[RecorderOverlay] Effective key exists:', !!effectiveKey);
 
@@ -158,20 +137,33 @@ export const RecorderOverlay: React.FC = () => {
     }
 
     console.log('[RecorderOverlay] Starting dictation...');
-    await startDictation();
+    await startDictation(windowInfo);
     setIsVisible(true);
     console.log('[RecorderOverlay] Dictation started, window visible');
   };
 
   // -- Action: Stop Recording --
   const handleStopRecording = useCallback(async () => {
-    await stopDictation(provider, apiKeys[provider], models[provider], (msg) => showToast(msg, 'error'));
-  }, [stopDictation, provider, apiKeys, models, showToast]);
+    await stopDictation(
+      provider, 
+      apiKeys[provider], 
+      models[provider], 
+      (msg) => showToast(msg, 'error'),
+      llmEnabled,
+      llmApiKey || apiKeys.groq, // Fallback to groq key if no LLM key
+      llmModel,
+      defaultSystemPrompt
+    );
+  }, [stopDictation, provider, apiKeys, models, showToast, llmEnabled, llmApiKey, llmModel, defaultSystemPrompt]);
 
   const lastToggleTimeRef = useRef(0);
+  const pendingWindowInfoRef = useRef<ActiveWindowInfo | null>(null);
 
   // -- Trigger: Toggle Visibility --
-  const handleToggle = useCallback(async () => {
+  const handleToggle = useCallback(async (windowInfo?: ActiveWindowInfo | null) => {
+    if (windowInfo) {
+      pendingWindowInfoRef.current = windowInfo;
+    }
     console.log('[RecorderOverlay] handleToggle called');
     console.log('[RecorderOverlay] State:', { recordingStatus, uiMode, isKeyLoaded, isVisible });
     
@@ -197,9 +189,9 @@ export const RecorderOverlay: React.FC = () => {
     if (recordingStatus === 'recording') {
       console.log('[RecorderOverlay] Stopping recording');
       handleStopRecording();
-    } else if (uiMode === 'setup' || uiMode === 'settings') {
-      console.log('[RecorderOverlay] Closing setup/settings');
-      // Close if toggled while in setup or settings
+    } else if (uiMode === 'setup') {
+      console.log('[RecorderOverlay] Closing setup');
+      // Close if toggled while in setup
       setIsVisible(false);
       setUiMode('none');
       // Re-enable mouse event ignoring when closing
@@ -207,37 +199,50 @@ export const RecorderOverlay: React.FC = () => {
     } else {
       console.log('[RecorderOverlay] Starting recording');
       // Start Recording
-      handleStartRecording();
+      handleStartRecording(undefined, pendingWindowInfoRef.current);
+      pendingWindowInfoRef.current = null;
     }
   }, [recordingStatus, uiMode, handleStopRecording, apiKeys, isKeyLoaded, provider, showToast]); // Added dependencies
 
   // Refs to hold latest callbacks for Tauri event listeners
   const handleToggleRef = useRef(handleToggle);
-  const toggleSettingsRef = useRef(toggleSettings);
   
   // Keep refs up to date
   useEffect(() => {
     handleToggleRef.current = handleToggle;
-    toggleSettingsRef.current = toggleSettings;
   });
 
-  // -- Keyboard Shortcuts (Escape key) --
+  // -- Keyboard Shortcuts (Escape key + F12 for DevTools) --
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isVisible) {
         if (recordingStatus === 'recording') handleStopRecording();
-        else if (uiMode === 'settings') {
-            setUiMode('none');
-            // Re-enable mouse event ignoring when closing settings with Escape
-            tauriAPI.setIgnoreMouseEvents(true);
-        }
         else setIsVisible(false);
+      }
+      
+      // F12 to open DevTools
+      if (e.key === 'F12') {
+        e.preventDefault();
+        try {
+          const { getCurrentWindow } = await import('@tauri-apps/api/window');
+          const window = getCurrentWindow();
+          // @ts-ignore - isDevToolsOpen might not be in types
+          if (window.isDevToolsOpen && await window.isDevToolsOpen()) {
+            // @ts-ignore
+            await window.closeDevTools();
+          } else {
+            // @ts-ignore
+            await window.openDevTools();
+          }
+        } catch (err) {
+          console.error('Failed to toggle DevTools:', err);
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isVisible, handleStopRecording, recordingStatus, uiMode]);
+  }, [isVisible, handleStopRecording, recordingStatus]);
 
   // -- Tauri Event Listeners (setup ONCE) --
   useEffect(() => {
@@ -249,15 +254,10 @@ export const RecorderOverlay: React.FC = () => {
       // Wait a bit for Tauri context to be available after HMR
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      const unlistenToggle = await tauriAPI.onToggleRecording(() => {
-        console.log('[RecorderOverlay] Toggle recording callback fired!');
+      const unlistenToggle = await tauriAPI.onToggleRecording((windowInfo) => {
+        console.log('[RecorderOverlay] Toggle recording callback fired with window info:', windowInfo);
         // Use the ref to get latest version of callback
-        handleToggleRef.current();
-      });
-      
-      const unlistenSettings = await tauriAPI.onOpenSettings(() => {
-        console.log('[RecorderOverlay] Open settings callback fired!');
-        toggleSettingsRef.current();
+        handleToggleRef.current(windowInfo);
       });
       
       const unlistenWarning = await tauriAPI.onShowWarning((msg) => {
@@ -272,7 +272,7 @@ export const RecorderOverlay: React.FC = () => {
       });
 
       console.log('[RecorderOverlay] All listeners set up successfully!');
-      return { unlistenToggle, unlistenSettings, unlistenWarning };
+      return { unlistenToggle, unlistenWarning };
     };
 
     let unlisteners: Awaited<ReturnType<typeof setupListeners>> | null = null;
@@ -288,7 +288,6 @@ export const RecorderOverlay: React.FC = () => {
       console.log('[RecorderOverlay] Cleaning up Tauri listeners...');
       if (unlisteners) {
         unlisteners.unlistenToggle();
-        unlisteners.unlistenSettings();
         unlisteners.unlistenWarning();
       }
     };
@@ -321,9 +320,7 @@ export const RecorderOverlay: React.FC = () => {
           rounded-full
           transition-all duration-300 cubic-bezier(0.2, 0.8, 0.2, 1)
           will-change-[width, height, transform]
-          ${status === 'settings' ? 'overflow-visible' : 'overflow-hidden'}
           ${status === 'setup' ? 'w-80 h-12 rounded-xl' : ''}
-          ${status === 'settings' ? 'w-80 h-64 rounded-xl' : ''}
           ${status === 'warning' ? 'w-64 h-10 rounded-xl' : ''}
           ${status === 'recording' ? 'w-40 h-9' : ''}
           ${(status === 'idle' || status === 'processing' || status === 'success' || status === 'error') ? 'w-9 h-9' : ''}
@@ -333,21 +330,6 @@ export const RecorderOverlay: React.FC = () => {
 
           {/* WARNING MODE */}
           {status === 'warning' && <WarningView message={warningMessage} />}
-
-          {/* SETTINGS MODE */}
-          {status === 'settings' && (
-            <SettingsView 
-                currentProvider={provider}
-                apiKeys={apiKeys}
-                models={models}
-                onSave={handleSaveSettings}
-                onClose={() => {
-                  setUiMode('none');
-                  // Re-enable mouse event ignoring when closing settings
-                  tauriAPI.setIgnoreMouseEvents(true);
-                }}
-            />
-          )}
 
           {/* SETUP MODE: Input Field */}
           {status === 'setup' && (
@@ -366,7 +348,7 @@ export const RecorderOverlay: React.FC = () => {
           </div>
 
           {/* STATUS ICONS */}
-          <StatusIndicator status={status} onSettingsClick={toggleSettings} />
+          <StatusIndicator status={status} onSettingsClick={openSettings} />
         </div>
       </div>
       </div>

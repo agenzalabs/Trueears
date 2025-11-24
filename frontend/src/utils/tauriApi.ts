@@ -1,6 +1,7 @@
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { ActiveWindowInfo } from '../types/appProfile';
 
 console.log('[tauriAPI] Module loaded');
 
@@ -10,16 +11,16 @@ const isTauri = () => {
 };
 
 export const tauriAPI = {
-    onToggleRecording: async (callback: () => void) => {
+    onToggleRecording: async (callback: (windowInfo?: ActiveWindowInfo | null) => void) => {
         console.log('[tauriAPI] Setting up toggle-recording listener, isTauri:', isTauri());
         try {
             if (!isTauri()) {
                 console.warn('[tauriAPI] Not in Tauri context, skipping listener setup');
                 return () => {};
             }
-            const unlisten = await listen('toggle-recording', () => {
-                console.log('[tauriAPI] toggle-recording event received!');
-                callback();
+            const unlisten = await listen<ActiveWindowInfo | null>('toggle-recording', (event) => {
+                console.log('[tauriAPI] toggle-recording event received with payload:', event.payload);
+                callback(event.payload);
             });
             console.log('[tauriAPI] toggle-recording listener registered successfully');
             return unlisten;
@@ -102,6 +103,36 @@ export const tauriAPI = {
             await window.hide();
         } catch (error) {
             console.error('[tauriAPI] Failed to hide window:', error);
+        }
+    },
+    
+    getActiveWindowInfo: async (): Promise<ActiveWindowInfo | null> => {
+        console.log('[tauriAPI] Getting active window info, isTauri:', isTauri());
+        try {
+            if (!isTauri()) {
+                console.warn('[tauriAPI] Not in Tauri context, returning null');
+                return null;
+            }
+            const windowInfo = await invoke<ActiveWindowInfo | null>('get_active_window_info');
+            console.log('[tauriAPI] Active window info:', windowInfo);
+            return windowInfo;
+        } catch (error) {
+            console.error('[tauriAPI] Failed to get active window info:', error);
+            return null;
+        }
+    },
+
+    openSettingsWindow: async (): Promise<void> => {
+        console.log('[tauriAPI] Opening settings window, isTauri:', isTauri());
+        try {
+            if (!isTauri()) {
+                console.warn('[tauriAPI] Not in Tauri context, cannot open settings window');
+                return;
+            }
+            await invoke('open_settings_window');
+            console.log('[tauriAPI] Settings window opened');
+        } catch (error) {
+            console.error('[tauriAPI] Failed to open settings window:', error);
         }
     }
 };
