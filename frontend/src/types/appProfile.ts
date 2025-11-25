@@ -10,6 +10,7 @@ export interface AppProfile {
   displayName: string;      // e.g., "VS Code", "Slack"
   systemPrompt: string;     // LLM system prompt
   enabled: boolean;
+  windowTitlePattern?: string; // Optional regex pattern to match window title for more specific matching
 }
 
 export interface LLMSettings {

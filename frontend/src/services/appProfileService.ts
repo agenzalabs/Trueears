@@ -33,25 +33,36 @@ export class AppProfileService {
 
     const profileList = profiles || this.getProfiles();
     
-    // Try exact match on app name (case-insensitive)
-    const exactMatch = profileList.find(
-      profile => 
-        profile.enabled && 
-        profile.appName.toLowerCase() === windowInfo.app_name.toLowerCase()
-    );
-
-    if (exactMatch) {
-      return exactMatch;
-    }
-
-    // Try partial match (e.g., "chrome.exe" might match various browsers)
-    const partialMatch = profileList.find(
+    // Get candidates: enabled profiles where appName matches (case-insensitive, partial)
+    const candidates = profileList.filter(
       profile => 
         profile.enabled && 
         windowInfo.app_name.toLowerCase().includes(profile.appName.toLowerCase().replace('.exe', ''))
     );
 
-    return partialMatch || null;
+    if (candidates.length === 0) {
+      return null;
+    }
+
+    // Among candidates, find those with windowTitlePattern that matches
+    const titleMatches = candidates.filter(profile => {
+      if (!profile.windowTitlePattern) return false;
+      try {
+        const regex = new RegExp(profile.windowTitlePattern, 'i');
+        return regex.test(windowInfo.window_title);
+      } catch (error) {
+        console.warn(`Invalid regex pattern for profile ${profile.id}: ${profile.windowTitlePattern}`, error);
+        return false;
+      }
+    });
+
+    // If any title matches, take the first one
+    if (titleMatches.length > 0) {
+      return titleMatches[0];
+    }
+
+    // Otherwise, take the first candidate (backwards compatibility)
+    return candidates[0];
   }
 
   static getSystemPrompt(windowInfo: ActiveWindowInfo | null, defaultPrompt?: string): string {

@@ -145,7 +145,20 @@ export const AppProfilesSettings: React.FC = () => {
                   onChange={(e) => setEditForm({ ...editForm, appName: e.target.value })}
                   placeholder="e.g., Code.exe, slack.exe"
                 />
-                <p className="text-xs text-gray-600">Case-insensitive. Will match partial names.</p>
+                <p className="text-xs text-gray-600">Case-insensitive. Will match partial names. Multiple profiles can share the same app name for different window titles.</p>
+              </div>
+
+              {/* Window Title Pattern */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-gray-300">Window Title Pattern (Optional)</label>
+                <input
+                  type="text"
+                  className="bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-white font-mono focus:outline-none focus:border-white/30 transition-colors"
+                  value={editForm.windowTitlePattern || ''}
+                  onChange={(e) => setEditForm({ ...editForm, windowTitlePattern: e.target.value || undefined })}
+                  placeholder="e.g., WhatsApp, Gmail (regex supported)"
+                />
+                <p className="text-xs text-gray-600">Optional regex pattern to match window title for specific tabs/windows. Case-insensitive.</p>
               </div>
 
               {/* System Prompt */}
