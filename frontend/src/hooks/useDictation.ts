@@ -38,7 +38,7 @@ export const useDictation = () => {
     llmModel?: string,
     defaultPrompt?: string
   ) => {
-    console.log('[useDictation] stopDictation called, isRecording:', isRecording, 'isProcessingRef:', isProcessingRef.current);
+    console.log('[useDictation] stopDictation called with llmEnabled:', llmEnabled);
     
     if (!isRecording) {
       console.warn('[useDictation] Not recording, ignoring stop request');

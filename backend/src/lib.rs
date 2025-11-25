@@ -3,12 +3,37 @@ mod shortcuts;
 mod window;
 
 use window::ActiveWindowInfo;
+use tauri::Emitter;
 
 #[tauri::command]
 async fn set_ignore_mouse_events(window: tauri::Window, ignore: bool) -> Result<(), String> {
     window
         .set_ignore_cursor_events(ignore)
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_store_value(app: tauri::AppHandle, key: String) -> Result<Option<String>, String> {
+    use tauri_plugin_store::StoreExt;
+    let store = app.store("settings.json").map_err(|e| e.to_string())?;
+    let value = store.get(&key).and_then(|v| v.as_str().map(|s| s.to_string()));
+    log::info!("get_store_value: key={}, value={:?}", key, value);
+    Ok(value)
+}
+
+#[tauri::command]
+async fn set_store_value(app: tauri::AppHandle, key: String, value: String) -> Result<(), String> {
+    use tauri_plugin_store::StoreExt;
+    let store = app.store("settings.json").map_err(|e| e.to_string())?;
+    store.set(key.clone(), value.clone());
+    store.save().map_err(|e| e.to_string())?;
+    log::info!("set_store_value: key={}, value={}", key, value);
+    
+    // Emit event to all windows
+    app.emit("settings-changed", ()).map_err(|e| e.to_string())?;
+    log::info!("settings-changed event emitted");
+    
+    Ok(())
 }
 
 #[tauri::command]
@@ -72,6 +97,7 @@ async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_store::Builder::new().build())
         .setup(|app| {
             use tauri::Manager;
             
@@ -98,7 +124,9 @@ pub fn run() {
             set_ignore_mouse_events,
             transcription_complete,
             get_active_window_info,
-            open_settings_window
+            open_settings_window,
+            get_store_value,
+            set_store_value
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,6 +1,7 @@
 import { listen, emit } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { Store } from '@tauri-apps/plugin-store';
 import { ActiveWindowInfo } from '../types/appProfile';
 
 console.log('[tauriAPI] Module loaded');
@@ -137,12 +138,7 @@ export const tauriAPI = {
     },
 
     emitSettingsChanged: async (): Promise<void> => {
-        try {
-            if (!isTauri()) return;
-            await emit('settings-changed');
-        } catch (error) {
-            console.error('[tauriAPI] Failed to emit settings-changed:', error);
-        }
+        // Event is now emitted from backend
     },
 
     onSettingsChanged: async (callback: () => void) => {
@@ -156,6 +152,26 @@ export const tauriAPI = {
         } catch (error) {
             console.error('[tauriAPI] Failed to register settings-changed listener:', error);
             return () => {};
+        }
+    },
+
+    getStoreValue: async (key: string): Promise<string | null> => {
+        try {
+            if (!isTauri()) return null;
+            const value = await invoke<string | null>('get_store_value', { key });
+            return value;
+        } catch (error) {
+            console.error('[tauriAPI] Failed to get store value:', error);
+            return null;
+        }
+    },
+
+    setStoreValue: async (key: string, value: string): Promise<void> => {
+        try {
+            if (!isTauri()) return;
+            await invoke('set_store_value', { key, value });
+        } catch (error) {
+            console.error('[tauriAPI] Failed to set store value:', error);
         }
     }
 };
