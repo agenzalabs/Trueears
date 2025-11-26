@@ -35,6 +35,9 @@ export const useSettings = () => {
   const [llmApiKey, setLlmApiKey] = useState('');
   const [llmModel, setLlmModel] = useState(DEFAULT_LLM_MODEL);
   const [defaultSystemPrompt, setDefaultSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
+  
+  // Onboarding state - default to false so banner shows until we confirm it's complete
+  const [onboardingComplete, setOnboardingComplete] = useState(false);
 
   const loadKeys = async () => {
     // Try to load from store first
@@ -47,6 +50,7 @@ export const useSettings = () => {
     let savedLlmApiKey = await tauriAPI.getStoreValue('SCRIBE_LLM_API_KEY');
     let savedLlmModel = await tauriAPI.getStoreValue('SCRIBE_LLM_MODEL');
     let savedSystemPrompt = await tauriAPI.getStoreValue('SCRIBE_DEFAULT_SYSTEM_PROMPT');
+    let savedOnboardingComplete = await tauriAPI.getStoreValue('SCRIBE_ONBOARDING_COMPLETE');
 
     console.log('[useSettings] loadKeys - store values:', {
       groqKey, geminiKey, savedProvider, groqModel, geminiModel,
@@ -99,6 +103,7 @@ export const useSettings = () => {
     setLlmApiKey(savedLlmApiKey || groqKey || '');
     setLlmModel(savedLlmModel || DEFAULT_LLM_MODEL);
     setDefaultSystemPrompt(savedSystemPrompt || DEFAULT_SYSTEM_PROMPT);
+    setOnboardingComplete(savedOnboardingComplete === 'true');
     
     setIsKeyLoaded(true);
   };
@@ -187,6 +192,11 @@ export const useSettings = () => {
     tauriAPI.emitSettingsChanged();
   };
 
+  const markOnboardingComplete = async () => {
+    setOnboardingComplete(true);
+    await tauriAPI.setStoreValue('SCRIBE_ONBOARDING_COMPLETE', 'true');
+  };
+
   return {
     apiKeys,
     models,
@@ -204,5 +214,8 @@ export const useSettings = () => {
     saveLlmApiKey,
     saveLlmModel,
     saveDefaultSystemPrompt,
+    // Onboarding
+    onboardingComplete,
+    markOnboardingComplete,
   };
 };

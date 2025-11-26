@@ -100,6 +100,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .setup(|app| {
             use tauri::Manager;
+            use tauri_plugin_store::StoreExt;
             
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -117,6 +118,30 @@ pub fn run() {
 
             // Register global shortcuts
             shortcuts::register_shortcuts(&app.handle())?;
+
+            // First-run onboarding: auto-open settings if no API key is configured
+            let store = app.store("settings.json").map_err(|e| e.to_string())?;
+            let has_groq_key = store.get("GROQ_API_KEY")
+                .and_then(|v| v.as_str().map(|s| s.to_string()))
+                .map(|s| !s.is_empty())
+                .unwrap_or(false);
+            let onboarding_complete = store.get("SCRIBE_ONBOARDING_COMPLETE")
+                .and_then(|v| v.as_str().map(|s| s.to_string()))
+                .map(|s| s == "true")
+                .unwrap_or(false);
+            
+            if !has_groq_key && !onboarding_complete {
+                log::info!("First run detected: no API key and onboarding not complete. Opening settings.");
+                let app_handle = app.handle().clone();
+                // Spawn async task to open settings window after a short delay
+                tauri::async_runtime::spawn(async move {
+                    // Small delay to ensure main window is ready
+                    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                    if let Err(e) = open_settings_window(app_handle).await {
+                        log::error!("Failed to auto-open settings: {}", e);
+                    }
+                });
+            }
 
             Ok(())
         })

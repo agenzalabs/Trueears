@@ -16,11 +16,28 @@ pub fn register_shortcuts(app: &AppHandle) -> Result<(), Box<dyn std::error::Err
             if event.state == ShortcutState::Pressed {
                 log::info!("Recording shortcut pressed");
 
+                // Get active window info first
+                let window_info = get_active_window_info();
+                
+                // Close settings window only if user is NOT in the Settings window
+                // Check by window title to avoid focus detection issues with global hotkeys
+                let is_in_settings = window_info.as_ref()
+                    .map(|info| info.window_title.contains("Scribe Settings"))
+                    .unwrap_or(false);
+                
+                if let Some(settings_window) = app_handle.get_webview_window("settings") {
+                    if !is_in_settings {
+                        log::info!("Closing settings window - user is in another app");
+                        let _ = settings_window.close();
+                    } else {
+                        log::info!("Keeping settings window open - user is dictating into it");
+                    }
+                }
+
                 if let Some(window) = app_handle.get_webview_window("main") {
-                    // Get active window info
-                    let window_info = get_active_window_info();
-                    
-                    if window_info.is_none() {
+                    // Skip if user is in Settings (let them dictate into it)
+                    // but still need valid window info
+                    if window_info.is_none() && !is_in_settings {
                         log::warn!("No valid active window detected");
                         let _ = window.emit("show-warning", "Please select a text box first");
                         let _ = window.show();

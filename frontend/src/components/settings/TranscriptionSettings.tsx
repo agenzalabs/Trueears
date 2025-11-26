@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CustomSelect } from '../CustomSelect';
 import { GROQ_MODELS } from '../../hooks/useSettings';
 
@@ -7,6 +7,8 @@ interface TranscriptionSettingsProps {
   models: Record<string, string>;
   saveKey: (key: string, provider: 'groq' | 'gemini') => void;
   saveModel: (model: string, provider: 'groq' | 'gemini') => void;
+  onboardingComplete: boolean;
+  markOnboardingComplete: () => void;
 }
 
 export const TranscriptionSettings: React.FC<TranscriptionSettingsProps> = ({
@@ -14,21 +16,61 @@ export const TranscriptionSettings: React.FC<TranscriptionSettingsProps> = ({
   models,
   saveKey,
   saveModel,
+  onboardingComplete,
+  markOnboardingComplete,
 }) => {
   const [apiKey, setApiKey] = useState(apiKeys.groq || '');
   const [model, setModel] = useState(models.groq || GROQ_MODELS[0]);
   const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [showBanner, setShowBanner] = useState(!onboardingComplete);
+
+  // Sync banner visibility when onboardingComplete prop changes (after async load)
+  useEffect(() => {
+    if (onboardingComplete) {
+      setShowBanner(false);
+    }
+  }, [onboardingComplete]);
 
   const handleSave = () => {
     saveKey(apiKey, 'groq');
     saveModel(model, 'groq');
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+    // Mark onboarding complete when user saves a valid key
+    if (apiKey.trim()) {
+      markOnboardingComplete();
+      setShowBanner(false);
+    }
+  };
+
+  const handleDismissBanner = () => {
+    markOnboardingComplete();
+    setShowBanner(false);
   };
 
   return (
     <div className="max-w-2xl mx-auto p-8">
+      {/* Get Started Banner - shown on first run */}
+      {showBanner && (
+        <div className="mb-6 p-4 bg-white/5 border border-white/10 rounded-lg flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+            <p className="text-sm text-gray-300">
+              Add your API key and save. Press <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-xs font-mono">Ctrl+Shift+K</kbd> to dictate.
+            </p>
+          </div>
+          <button
+            onClick={handleDismissBanner}
+            className="text-gray-500 hover:text-white transition-colors p-1"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       <div className="mb-6">
         <h2 className="text-2xl font-bold mb-2">Transcription Settings</h2>
         <p className="text-gray-400 text-sm">
