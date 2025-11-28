@@ -3,6 +3,7 @@ import { TranscriptionSettings } from './settings/TranscriptionSettings';
 import { LLMSettings } from './settings/LLMSettings';
 import { AppProfilesSettings } from './settings/AppProfilesSettings';
 import { AboutSettings } from './settings/AboutSettings';
+import { OnboardingWizard } from './onboarding/OnboardingWizard';
 import { useSettings } from '../hooks/useSettings';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
@@ -11,6 +12,7 @@ type SettingsTab = 'transcription' | 'llm' | 'profiles' | 'about';
 export const SettingsWindow: React.FC = () => {
   const [activeTab, setActiveTab] = useState<SettingsTab>('transcription');
   const settings = useSettings();
+  const { onboardingComplete, isKeyLoaded } = settings;
 
   const handleClose = async () => {
     try {
@@ -35,6 +37,16 @@ export const SettingsWindow: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Wait for settings to load
+  if (!isKeyLoaded) {
+    return <div className="h-screen bg-[#0a0a0a] text-white flex items-center justify-center">Loading...</div>;
+  }
+
+  // Show Onboarding Wizard if not complete
+  if (!onboardingComplete) {
+    return <OnboardingWizard />;
+  }
 
   return (
     <div className="flex h-screen bg-[#0a0a0a] text-white">

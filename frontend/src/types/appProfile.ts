@@ -95,4 +95,29 @@ export const DEFAULT_APP_PROFILES: AppProfile[] = [
     systemPrompt: 'Format as formal document content. Use proper grammar, professional language, and paragraph structure.',
     enabled: true,
   },
+  // --- Tutorial Profiles (For Onboarding) ---
+  {
+    id: 'tutorial-slack',
+    appName: 'scribe.exe', 
+    displayName: 'Tutorial (Slack Mode)',
+    windowTitlePattern: 'Tutorial - Slack',
+    systemPrompt: 'Format as a casual chat message. Keep the tone conversational and friendly. Use emojis only if specifically told by user.',
+    enabled: true,
+  },
+  {
+    id: 'tutorial-gmail',
+    appName: 'scribe.exe',
+    displayName: 'Tutorial (Gmail Mode)',
+    windowTitlePattern: 'Tutorial - Gmail',
+    systemPrompt: 'Format as a professional email body. Use proper grammar, formal tone, and clear paragraph structure. Do not include subject lines unless explicitly dictated.',
+    enabled: true,
+  },
+  {
+    id: 'tutorial-notion',
+    appName: 'scribe.exe',
+    displayName: 'Tutorial (Notion Mode)',
+    windowTitlePattern: 'Tutorial - Notion',
+    systemPrompt: 'Format as structured markdown notes. Use bullet points (-) for lists and clear organization.',
+    enabled: true,
+  },
 ];

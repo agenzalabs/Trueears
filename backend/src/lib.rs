@@ -76,6 +76,7 @@ async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
     .title("Scribe Settings")
     .inner_size(900.0, 600.0)
     .min_inner_size(800.0, 500.0)
+    .maximized(true)
     .resizable(true)
     .center()
     .visible(true)

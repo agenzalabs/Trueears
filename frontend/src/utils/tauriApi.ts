@@ -173,5 +173,18 @@ export const tauriAPI = {
         } catch (error) {
             console.error('[tauriAPI] Failed to set store value:', error);
         }
+    },
+
+    setWindowTitle: async (title: string): Promise<void> => {
+        try {
+            document.title = title; // Sync DOM title
+            if (!isTauri()) return;
+            console.log('[tauriAPI] Setting window title to:', title);
+            const window = getCurrentWindow();
+            await window.setTitle(title);
+            console.log('[tauriAPI] Window title set command sent');
+        } catch (error) {
+            console.error('[tauriAPI] Failed to set window title:', error);
+        }
     }
 };

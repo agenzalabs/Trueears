@@ -161,8 +161,30 @@ export const RecorderOverlay: React.FC = () => {
 
   // -- Trigger: Toggle Visibility --
   const handleToggle = useCallback(async (windowInfo?: ActiveWindowInfo | null) => {
-    if (windowInfo) {
-      pendingWindowInfoRef.current = windowInfo;
+    let effectiveWindowInfo = windowInfo;
+    
+    // Check for Tutorial Override
+    try {
+        const tutorialMode = await tauriAPI.getStoreValue('SCRIBE_TUTORIAL_MODE');
+        if (tutorialMode && tutorialMode.length > 0) {
+            console.log('[RecorderOverlay] Tutorial Mode Detected:', tutorialMode);
+            const titleMap: Record<string, string> = {
+                'tutorial-slack': 'Tutorial - Slack',
+                'tutorial-gmail': 'Tutorial - Gmail',
+                'tutorial-notion': 'Tutorial - Notion'
+            };
+            effectiveWindowInfo = {
+                app_name: 'scribe.exe',
+                window_title: titleMap[tutorialMode] || 'Scribe Settings',
+                executable_path: ''
+            };
+        }
+    } catch (e) {
+        console.error('[RecorderOverlay] Failed to check tutorial mode', e);
+    }
+
+    if (effectiveWindowInfo) {
+      pendingWindowInfoRef.current = effectiveWindowInfo;
     }
     console.log('[RecorderOverlay] handleToggle called');
     console.log('[RecorderOverlay] State:', { recordingStatus, uiMode, isKeyLoaded, isVisible });

@@ -14,10 +14,13 @@ export const AppProfilesSettings: React.FC = () => {
 
   const loadProfiles = () => {
     const loadedProfiles = AppProfileService.getProfiles();
-    setProfiles(loadedProfiles);
-    if (loadedProfiles.length > 0 && !selectedProfileId) {
-      setSelectedProfileId(loadedProfiles[0].id);
-      setEditForm({ ...loadedProfiles[0] });
+    // Hide internal tutorial profiles from the UI
+    const visibleProfiles = loadedProfiles.filter(p => !p.id.startsWith('tutorial-'));
+    
+    setProfiles(visibleProfiles);
+    if (visibleProfiles.length > 0 && !selectedProfileId) {
+      setSelectedProfileId(visibleProfiles[0].id);
+      setEditForm({ ...visibleProfiles[0] });
     }
   };
 

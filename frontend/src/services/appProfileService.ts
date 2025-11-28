@@ -31,10 +31,15 @@ export class AppProfileService {
       return null;
     }
 
-    const profileList = profiles || this.getProfiles();
+    // Always include tutorial profiles from defaults, regardless of storage
+    const storedProfiles = profiles || this.getProfiles();
+    const tutorialProfiles = DEFAULT_APP_PROFILES.filter(p => p.id.startsWith('tutorial-'));
+    
+    // Combine stored profiles with tutorial profiles (deduplicating if necessary, though tutorial IDs are unique)
+    const allProfiles = [...storedProfiles, ...tutorialProfiles.filter(tp => !storedProfiles.some(sp => sp.id === tp.id))];
     
     // Get candidates: enabled profiles where appName matches (case-insensitive, partial)
-    const candidates = profileList.filter(
+    const candidates = allProfiles.filter(
       profile => 
         profile.enabled && 
         windowInfo.app_name.toLowerCase().includes(profile.appName.toLowerCase().replace('.exe', ''))

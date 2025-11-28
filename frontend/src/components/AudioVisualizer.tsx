@@ -3,9 +3,10 @@ import React, { useEffect, useRef } from 'react';
 interface AudioVisualizerProps {
   stream: MediaStream | null;
   isRecording: boolean;
+  barColor?: string;
 }
 
-export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ stream, isRecording }) => {
+export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ stream, isRecording, barColor = '#FFFFFF' }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>(0);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -119,7 +120,10 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ stream, isReco
 
           // Opacity also scales with volume for a "glowing" effect
           const opacity = 0.5 + (percent * 0.5);
-          ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+          
+          ctx.save();
+          ctx.globalAlpha = opacity;
+          ctx.fillStyle = barColor;
           
           ctx.beginPath();
           if (ctx.roundRect) {
@@ -128,6 +132,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ stream, isReco
               ctx.rect(x, y, barWidth, height); 
           }
           ctx.fill();
+          ctx.restore();
       }
     };
 
@@ -141,7 +146,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ stream, isReco
         audioContext.close();
       }
     };
-  }, [stream, isRecording]);
+  }, [stream, isRecording, barColor]);
 
   return (
     <canvas 
