@@ -138,6 +138,49 @@ pub fn run() {
                 }
             }
 
+            // Resize main window to span all monitors
+            // Add padding to account for Windows display scaling issues
+            if let Some(window) = app.get_webview_window("main") {
+                let monitors = window.available_monitors().unwrap_or_default();
+                if !monitors.is_empty() {
+                    let mut min_x = i32::MAX;
+                    let mut min_y = i32::MAX;
+                    let mut max_x = i32::MIN;
+                    let mut max_y = i32::MIN;
+                    
+                    for monitor in &monitors {
+                        let pos = monitor.position();
+                        let size = monitor.size();
+                        min_x = min_x.min(pos.x);
+                        min_y = min_y.min(pos.y);
+                        max_x = max_x.max(pos.x + size.width as i32);
+                        max_y = max_y.max(pos.y + size.height as i32);
+                    }
+                    
+                    // Get maximum scale factor across all monitors to account for DPI scaling
+                    let max_scale_factor = monitors.iter()
+                        .map(|m| m.scale_factor())
+                        .fold(1.0_f64, |a, b| a.max(b));
+                    
+                    // Add generous padding to ensure full coverage on all devices
+                    // 200px base padding scaled by DPI should cover any edge cases
+                    let padding = (200.0 * max_scale_factor) as i32;
+                    min_x -= padding;
+                    min_y -= padding;
+                    max_x += padding;
+                    max_y += padding;
+                    
+                    let total_width = (max_x - min_x) as u32;
+                    let total_height = (max_y - min_y) as u32;
+                    
+                    log::info!("Setting main window to span all monitors: pos=({}, {}), size={}x{}, scale={}", 
+                        min_x, min_y, total_width, total_height, max_scale_factor);
+                    
+                    let _ = window.set_position(tauri::PhysicalPosition::new(min_x, min_y));
+                    let _ = window.set_size(tauri::PhysicalSize::new(total_width, total_height));
+                }
+            }
+
             // Register global shortcuts
             shortcuts::register_shortcuts(&app.handle())?;
 
