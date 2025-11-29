@@ -156,6 +156,10 @@ export const SettingsWindow: React.FC = () => {
             saveModel={settings.saveGroqModel}
             onboardingComplete={settings.onboardingComplete}
             markOnboardingComplete={settings.markOnboardingComplete}
+            language={settings.language}
+            autoDetectLanguage={settings.autoDetectLanguage}
+            saveLanguage={settings.saveLanguage}
+            saveAutoDetectLanguage={settings.saveAutoDetectLanguage}
           />
         )}
         {activeTab === 'llm' && <LLMSettings {...settings} />}

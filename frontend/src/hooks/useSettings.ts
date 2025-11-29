@@ -26,6 +26,10 @@ export const useSettings = () => {
   const [llmModel, setLlmModel] = useState(DEFAULT_LLM_MODEL);
   const [defaultSystemPrompt, setDefaultSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
   
+  // Language settings
+  const [language, setLanguage] = useState<string>('en');
+  const [autoDetectLanguage, setAutoDetectLanguage] = useState(false);
+  
   // Onboarding state - default to false so banner shows until we confirm it's complete
   const [onboardingComplete, setOnboardingComplete] = useState(false);
 
@@ -70,6 +74,19 @@ export const useSettings = () => {
       await tauriAPI.setStoreValue('SCRIBE_DEFAULT_SYSTEM_PROMPT', savedSystemPrompt);
     }
 
+    // Load language settings
+    let savedLanguage = await tauriAPI.getStoreValue('SCRIBE_LANGUAGE');
+    let savedAutoDetect = await tauriAPI.getStoreValue('SCRIBE_AUTO_DETECT_LANGUAGE');
+
+    if (savedLanguage === null) {
+      savedLanguage = localStorage.getItem('SCRIBE_LANGUAGE') || 'en';
+      await tauriAPI.setStoreValue('SCRIBE_LANGUAGE', savedLanguage);
+    }
+    if (savedAutoDetect === null) {
+      savedAutoDetect = localStorage.getItem('SCRIBE_AUTO_DETECT_LANGUAGE') || 'false';
+      await tauriAPI.setStoreValue('SCRIBE_AUTO_DETECT_LANGUAGE', savedAutoDetect);
+    }
+
     setApiKey(groqKey || '');
     setModel(groqModel || DEFAULT_GROQ_MODEL);
     
@@ -77,6 +94,10 @@ export const useSettings = () => {
     setLlmApiKey(savedLlmApiKey || groqKey || '');
     setLlmModel(savedLlmModel || DEFAULT_LLM_MODEL);
     setDefaultSystemPrompt(savedSystemPrompt || DEFAULT_SYSTEM_PROMPT);
+    
+    setLanguage(savedLanguage || 'en');
+    setAutoDetectLanguage(savedAutoDetect === 'true');
+    
     setOnboardingComplete(savedOnboardingComplete === 'true');
     
     setIsKeyLoaded(true);
@@ -145,6 +166,18 @@ export const useSettings = () => {
     await tauriAPI.setStoreValue('SCRIBE_ONBOARDING_COMPLETE', 'true');
   };
 
+  const saveLanguage = async (lang: string) => {
+    setLanguage(lang);
+    await tauriAPI.setStoreValue('SCRIBE_LANGUAGE', lang);
+    tauriAPI.emitSettingsChanged();
+  };
+
+  const saveAutoDetectLanguage = async (enabled: boolean) => {
+    setAutoDetectLanguage(enabled);
+    await tauriAPI.setStoreValue('SCRIBE_AUTO_DETECT_LANGUAGE', enabled.toString());
+    tauriAPI.emitSettingsChanged();
+  };
+
   return {
     apiKey,
     model,
@@ -163,5 +196,10 @@ export const useSettings = () => {
     // Onboarding
     onboardingComplete,
     markOnboardingComplete,
+    // Language settings
+    language,
+    autoDetectLanguage,
+    saveLanguage,
+    saveAutoDetectLanguage,
   };
 };

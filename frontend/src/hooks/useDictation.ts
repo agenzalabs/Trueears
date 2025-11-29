@@ -34,7 +34,8 @@ export const useDictation = () => {
     llmEnabled?: boolean,
     llmApiKey?: string,
     llmModel?: string,
-    defaultPrompt?: string
+    defaultPrompt?: string,
+    language?: string
   ) => {
     console.log('[useDictation] stopDictation called with llmEnabled:', llmEnabled);
     
@@ -62,7 +63,7 @@ export const useDictation = () => {
       }
 
       console.log('[useDictation] Starting transcription...');
-      let rawText = await processTranscription(audioBlob, apiKey, model);
+      let rawText = await processTranscription(audioBlob, apiKey, model, language);
       console.log('[useDictation] Transcription result:', rawText);
 
       let finalText = rawText;

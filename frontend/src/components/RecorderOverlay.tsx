@@ -24,6 +24,8 @@ export const RecorderOverlay: React.FC = () => {
     llmApiKey,
     llmModel,
     defaultSystemPrompt,
+    language,
+    autoDetectLanguage,
   } = useSettings();
   const { status: recordingStatus, mediaStream, startDictation, stopDictation, activeWindowInfo } = useDictation();
   const { isVisible: isToastVisible, message: toastMessage, type: toastType, showToast, hideToast } = useToast();
@@ -141,6 +143,8 @@ export const RecorderOverlay: React.FC = () => {
 
   // -- Action: Stop Recording --
   const handleStopRecording = useCallback(async () => {
+    // Use selected language, or undefined if auto-detect is enabled
+    const transcriptionLanguage = autoDetectLanguage ? undefined : (language || 'en');
     await stopDictation(
       apiKey, 
       model, 
@@ -148,9 +152,10 @@ export const RecorderOverlay: React.FC = () => {
       llmEnabled,
       llmApiKey || apiKey,
       llmModel,
-      defaultSystemPrompt
+      defaultSystemPrompt,
+      transcriptionLanguage
     );
-  }, [stopDictation, apiKey, model, showToast, llmEnabled, llmApiKey, llmModel, defaultSystemPrompt]);
+  }, [stopDictation, apiKey, model, showToast, llmEnabled, llmApiKey, llmModel, defaultSystemPrompt, language, autoDetectLanguage]);
 
   const lastToggleTimeRef = useRef(0);
   const pendingWindowInfoRef = useRef<ActiveWindowInfo | null>(null);
@@ -321,7 +326,7 @@ export const RecorderOverlay: React.FC = () => {
         isVisible={isToastVisible} 
         onClose={hideToast} 
       />
-      <div className="fixed z-[9999] bottom-32 left-1/2 -translate-x-1/2 pointer-events-none flex flex-col items-center justify-end">
+      <div className="fixed z-9999 bottom-32 left-1/2 -translate-x-1/2 pointer-events-none flex flex-col items-center justify-end">
       {/* 
         Capsule Container
       */}

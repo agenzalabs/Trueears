@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { StepConnect } from './StepConnect';
+import { StepLanguage } from './StepLanguage';
 import { StepPermissions } from './StepPermissions';
 import { StepMicCheck } from './StepMicCheck';
 import { StepTrigger } from './StepTrigger';
@@ -7,13 +8,13 @@ import { StepTutorial } from './StepTutorial';
 import { StepSuccess } from './StepSuccess';
 import { useSettings } from '../../hooks/useSettings';
 
-type Step = 'connect' | 'permissions' | 'mic-check' | 'trigger' | 'tutorial' | 'success';
+type Step = 'connect' | 'language' | 'permissions' | 'mic-check' | 'trigger' | 'tutorial' | 'success';
 
 export const OnboardingWizard: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<Step>('connect');
   const { markOnboardingComplete } = useSettings();
 
-  const steps: Step[] = ['connect', 'permissions', 'mic-check', 'trigger', 'tutorial', 'success'];
+  const steps: Step[] = ['connect', 'language', 'permissions', 'mic-check', 'trigger', 'tutorial', 'success'];
   const currentIndex = steps.indexOf(currentStep);
 
   const handleNext = () => {
@@ -32,6 +33,7 @@ export const OnboardingWizard: React.FC = () => {
   // Progress bar logic (Success step hides progress bar)
   const progressSteps = [
     { id: 'connect', label: 'Connect' },
+    { id: 'language', label: 'Lang' },
     { id: 'permissions', label: 'Perms' },
     { id: 'setup', label: 'Set Up' },
     { id: 'tutorial', label: 'Learn' }
@@ -39,16 +41,17 @@ export const OnboardingWizard: React.FC = () => {
 
   const getActiveProgressIndex = () => {
     if (currentStep === 'connect') return 0;
-    if (currentStep === 'permissions') return 1;
-    if (currentStep === 'mic-check' || currentStep === 'trigger') return 2;
-    if (currentStep === 'tutorial') return 3;
-    return 4; // Success
+    if (currentStep === 'language') return 1;
+    if (currentStep === 'permissions') return 2;
+    if (currentStep === 'mic-check' || currentStep === 'trigger') return 3;
+    if (currentStep === 'tutorial') return 4;
+    return 5; // Success
   };
 
   const activeProgressIndex = getActiveProgressIndex();
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-[#000] text-white font-sans overflow-hidden p-8">
+    <div className="flex items-center justify-center min-h-screen bg-black text-white font-sans overflow-hidden p-8">
       {/* Main Modal Container */}
       <div className="relative w-[960px] h-[640px] bg-[#050505] border border-white/10 rounded-3xl shadow-[0_0_120px_-30px_rgba(16,185,129,0.05)] flex overflow-hidden">
         
@@ -57,7 +60,7 @@ export const OnboardingWizard: React.FC = () => {
         ) : (
           <>
             {/* Left Panel - Interactive */}
-            <div className="w-[42%] p-12 flex flex-col border-r border-white/10 bg-gradient-to-b from-[#0a0a0a] to-[#050505] relative z-10">
+            <div className="w-[42%] p-12 flex flex-col border-r border-white/10 bg-linear-to-b from-[#0a0a0a] to-[#050505] relative z-10">
               
               {/* Progress Header */}
               <div className="flex items-center gap-3 mb-12 opacity-80">
@@ -74,7 +77,7 @@ export const OnboardingWizard: React.FC = () => {
                         )}
                       </div>
                       {idx < progressSteps.length - 1 && (
-                        <div className={`h-[1px] w-6 ${idx < activeProgressIndex ? 'bg-emerald-500/30' : 'bg-[#222]'}`} />
+                        <div className={`h-px w-6 ${idx < activeProgressIndex ? 'bg-emerald-500/30' : 'bg-[#222]'}`} />
                       )}
                     </React.Fragment>
                   );
@@ -84,6 +87,7 @@ export const OnboardingWizard: React.FC = () => {
               {/* Step Content */}
               <div className="flex-1 flex flex-col relative">
                 {currentStep === 'connect' && <StepConnect onNext={handleNext} />}
+                {currentStep === 'language' && <StepLanguage onNext={handleNext} />}
                 {currentStep === 'permissions' && <StepPermissions onNext={handleNext} />}
                 {currentStep === 'mic-check' && <StepMicCheck onNext={handleNext} />}
                 {currentStep === 'trigger' && <StepTrigger onNext={handleNext} />}
@@ -104,6 +108,7 @@ export const OnboardingWizard: React.FC = () => {
               
               <div className="relative w-full h-full flex items-center justify-center p-12">
                  {currentStep === 'connect' && <StepConnect.Visual />}
+                 {currentStep === 'language' && <StepLanguage.Visual />}
                  {currentStep === 'permissions' && <StepPermissions.Visual />}
                  {currentStep === 'mic-check' && <StepMicCheck.Visual />}
                  {currentStep === 'trigger' && <StepTrigger.Visual />}
