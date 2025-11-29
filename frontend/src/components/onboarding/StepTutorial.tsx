@@ -94,8 +94,7 @@ const TutorialVisual: React.FC = () => {
             <div className="w-2 h-2 rounded-full bg-[#444]" />
           </div>
           <div className="p-8 font-sans text-gray-300 h-full flex flex-col">
-            <div className="text-2xl font-bold text-white mb-4">Project Ideas</div>
-            <textarea 
+                              <div className="text-2xl font-bold text-white mb-4">Smart Formatting</div>            <textarea 
               className="w-full h-full resize-none outline-none bg-transparent text-sm text-gray-300 placeholder-gray-600 leading-relaxed"
               placeholder="Dictate a note..."
               defaultValue={"- AI Integration\n- Voice UI\n- Native Rust Backend"}

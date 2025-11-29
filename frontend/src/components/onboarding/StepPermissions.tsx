@@ -61,8 +61,7 @@ export const StepPermissions: React.FC<StepProps> & { Visual: React.FC } = ({ on
           {/* Verified Card */}
           <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4">
             <div className="flex justify-between items-center mb-1">
-              <span className="text-sm font-bold text-white">Input Injection</span>
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-mono">ACTIVE</span>
+                                    <span className="text-sm font-bold text-white">Typing Automation</span>              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-mono">ACTIVE</span>
             </div>
             <p className="text-[11px] text-gray-500">Native clipboard access verified.</p>
           </div>

@@ -14,6 +14,8 @@ export const SettingsWindow: React.FC = () => {
   const settings = useSettings();
   const { onboardingComplete, isKeyLoaded } = settings;
 
+  console.log('[SettingsWindow] Render state:', { onboardingComplete, isKeyLoaded });
+
   const handleClose = async () => {
     try {
       const window = getCurrentWindow();
@@ -38,16 +40,41 @@ export const SettingsWindow: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Handle window visibility
+  useEffect(() => {
+    console.log('[SettingsWindow] Component mounted, executing visibility logic');
+    const showWindow = async () => {
+        // Small delay to ensure WebView has painted the black background from index.html
+        console.log('[SettingsWindow] Waiting 50ms before showing window...');
+        setTimeout(async () => {
+            try {
+                const window = getCurrentWindow();
+                console.log('[SettingsWindow] Calling window.show()');
+                await window.show();
+                console.log('[SettingsWindow] Calling window.setFocus()');
+                await window.setFocus();
+                console.log('[SettingsWindow] Window shown and focused');
+            } catch (err) {
+                console.error('[SettingsWindow] Failed to show settings window:', err);
+            }
+        }, 50);
+    };
+    showWindow();
+  }, []);
+
   // Wait for settings to load
   if (!isKeyLoaded) {
-    return <div className="h-screen bg-[#0a0a0a] text-white flex items-center justify-center">Loading...</div>;
+    console.log('[SettingsWindow] Waiting for keys to load...');
+    return <div className="h-screen bg-[#0a0a0a]" />; // Render pure black while loading
   }
 
   // Show Onboarding Wizard if not complete
   if (!onboardingComplete) {
+    console.log('[SettingsWindow] Onboarding incomplete, showing wizard');
     return <OnboardingWizard />;
   }
 
+  console.log('[SettingsWindow] Rendering main settings UI');
   return (
     <div className="flex h-screen bg-[#0a0a0a] text-white">
       {/* Left Sidebar Navigation */}

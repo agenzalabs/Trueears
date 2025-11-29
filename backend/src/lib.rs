@@ -74,22 +74,31 @@ async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
         tauri::WebviewUrl::App("/".into())
     )
     .title("Scribe Settings")
-    .inner_size(900.0, 600.0)
-    .min_inner_size(800.0, 500.0)
-    .maximized(true)
+    .inner_size(1024.0, 768.0)
+    .min_inner_size(800.0, 600.0)
+    .maximized(false)
     .resizable(true)
     .center()
-    .visible(true)
+    .visible(false)
     .decorations(true)
-    .always_on_top(false)
+    .always_on_top(true)
     .skip_taskbar(false)
+    .transparent(false)
     .build()
     .map_err(|e| e.to_string())?;
     
-    // Ensure the window is interactive and focused
+    // Ensure the window is interactive
     settings_window.set_ignore_cursor_events(false).map_err(|e| e.to_string())?;
-    settings_window.set_focus().map_err(|e| e.to_string())?;
-    log::info!("Settings window created, shown, and focused");
+    
+    // Failsafe: Force show window after 500ms if frontend hasn't done it
+    let window_clone = settings_window.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+        let _ = window_clone.show();
+        let _ = window_clone.set_focus();
+    });
+    
+    log::info!("Settings window created (hidden), scheduled backup show");
     
     Ok(())
 }
@@ -131,8 +140,8 @@ pub fn run() {
                 .map(|s| s == "true")
                 .unwrap_or(false);
             
-            if !has_groq_key && !onboarding_complete {
-                log::info!("First run detected: no API key and onboarding not complete. Opening settings.");
+            if !onboarding_complete {
+                log::info!("First run detected: onboarding not complete. Opening settings.");
                 let app_handle = app.handle().clone();
                 // Spawn async task to open settings window after a short delay
                 tauri::async_runtime::spawn(async move {
