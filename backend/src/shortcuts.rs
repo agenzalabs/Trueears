@@ -1,4 +1,6 @@
 use crate::window::get_active_window_info;
+use crate::ONBOARDING_TRIGGER_ACTIVE;
+use std::sync::atomic::Ordering;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
@@ -15,6 +17,12 @@ pub fn register_shortcuts(app: &AppHandle) -> Result<(), Box<dyn std::error::Err
         move |_app, _shortcut, event| {
             if event.state == ShortcutState::Pressed {
                 log::info!("Recording shortcut pressed");
+
+                // Skip if onboarding trigger step is active
+                if ONBOARDING_TRIGGER_ACTIVE.load(Ordering::SeqCst) {
+                    log::info!("Skipping recording toggle - onboarding trigger step active");
+                    return;
+                }
 
                 // Get active window info first
                 let window_info = get_active_window_info();

@@ -2,8 +2,12 @@ mod automation;
 mod shortcuts;
 mod window;
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use window::ActiveWindowInfo;
 use tauri::Emitter;
+
+// Global state to track if onboarding trigger step is active
+pub static ONBOARDING_TRIGGER_ACTIVE: AtomicBool = AtomicBool::new(false);
 
 #[tauri::command]
 async fn set_ignore_mouse_events(window: tauri::Window, ignore: bool) -> Result<(), String> {
@@ -51,6 +55,13 @@ async fn transcription_complete(text: String) -> Result<(), String> {
 async fn get_active_window_info() -> Result<Option<ActiveWindowInfo>, String> {
     log::info!("get_active_window_info command called");
     Ok(window::get_active_window_info())
+}
+
+#[tauri::command]
+async fn set_onboarding_trigger_active(active: bool) -> Result<(), String> {
+    log::info!("set_onboarding_trigger_active: {}", active);
+    ONBOARDING_TRIGGER_ACTIVE.store(active, Ordering::SeqCst);
+    Ok(())
 }
 
 #[tauri::command]
@@ -162,7 +173,8 @@ pub fn run() {
             get_active_window_info,
             open_settings_window,
             get_store_value,
-            set_store_value
+            set_store_value,
+            set_onboarding_trigger_active
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

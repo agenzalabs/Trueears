@@ -186,5 +186,15 @@ export const tauriAPI = {
         } catch (error) {
             console.error('[tauriAPI] Failed to set window title:', error);
         }
+    },
+
+    setOnboardingTriggerActive: async (active: boolean): Promise<void> => {
+        try {
+            if (!isTauri()) return;
+            console.log('[tauriAPI] Setting onboarding trigger active:', active);
+            await invoke('set_onboarding_trigger_active', { active });
+        } catch (error) {
+            console.error('[tauriAPI] Failed to set onboarding trigger active:', error);
+        }
     }
 };

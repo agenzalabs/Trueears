@@ -13,28 +13,41 @@ const TriggerVisual: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const newKeys = new Set(activeKeys);
-      if (e.key === 'Control') newKeys.add('Control');
-      if (e.key === 'Shift') newKeys.add('Shift');
-      if (e.key.toLowerCase() === 'k') newKeys.add('k');
-      setActiveKeys(newKeys);
+      setActiveKeys(prev => {
+        const newKeys = new Set(prev);
+        if (e.key === 'Control') newKeys.add('Control');
+        if (e.key === 'Shift') newKeys.add('Shift');
+        if (e.key.toLowerCase() === 'k') newKeys.add('k');
+        return newKeys;
+      });
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      const newKeys = new Set(activeKeys);
-      if (e.key === 'Control') newKeys.delete('Control');
-      if (e.key === 'Shift') newKeys.delete('Shift');
-      if (e.key.toLowerCase() === 'k') newKeys.delete('k');
-      setActiveKeys(newKeys);
+      setActiveKeys(prev => {
+        const newKeys = new Set(prev);
+        if (e.key === 'Control') newKeys.delete('Control');
+        if (e.key === 'Shift') newKeys.delete('Shift');
+        if (e.key.toLowerCase() === 'k') newKeys.delete('k');
+        return newKeys;
+      });
+    };
+
+    // Listen for custom event from StepTrigger when global shortcut fires
+    const handleShortcutTriggered = () => {
+      setActiveKeys(new Set(['Control', 'Shift', 'k']));
+      setTimeout(() => setActiveKeys(new Set()), 500);
     };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener(TRIGGER_EVENT, handleShortcutTriggered);
+
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener(TRIGGER_EVENT, handleShortcutTriggered);
     };
-  }, [activeKeys]);
+  }, []);
 
   return (
     <div className="w-96 bg-white rounded-2xl p-10 text-black shadow-2xl text-center">
@@ -71,29 +84,43 @@ export const StepTrigger: React.FC<StepProps> & { Visual: React.FC } = ({ onNext
   const [success, setSuccess] = useState(false);
   const [activeKeys, setActiveKeys] = useState<Set<string>>(new Set());
 
+  // Disable recorder while on this step - tell backend to skip shortcut
+  useEffect(() => {
+    tauriAPI.setOnboardingTriggerActive(true);
+    return () => {
+      tauriAPI.setOnboardingTriggerActive(false);
+    };
+  }, []);
+
   useEffect(() => {
     console.log('[StepTrigger] Setting up listeners...');
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      const newKeys = new Set(activeKeys);
-      if (e.key === 'Control') newKeys.add('Control');
-      if (e.key === 'Shift') newKeys.add('Shift');
-      if (e.key.toLowerCase() === 'k') newKeys.add('k');
-      setActiveKeys(newKeys);
+      setActiveKeys(prev => {
+        const newKeys = new Set(prev);
+        if (e.key === 'Control') newKeys.add('Control');
+        if (e.key === 'Shift') newKeys.add('Shift');
+        if (e.key.toLowerCase() === 'k') newKeys.add('k');
 
-      // Check for combination based on tracked keys
-      if (newKeys.has('Control') && newKeys.has('Shift') && newKeys.has('k')) {
-        console.log('[StepTrigger] Combo Detected via Key Tracking!');
-        setSuccess(true);
-      }
+        // Check for combination based on tracked keys
+        if (newKeys.has('Control') && newKeys.has('Shift') && newKeys.has('k')) {
+          console.log('[StepTrigger] Combo Detected via Key Tracking!');
+          setSuccess(true);
+          window.dispatchEvent(new CustomEvent(TRIGGER_EVENT));
+        }
+
+        return newKeys;
+      });
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      const newKeys = new Set(activeKeys);
-      if (e.key === 'Control') newKeys.delete('Control');
-      if (e.key === 'Shift') newKeys.delete('Shift');
-      if (e.key.toLowerCase() === 'k') newKeys.delete('k');
-      setActiveKeys(newKeys);
+      setActiveKeys(prev => {
+        const newKeys = new Set(prev);
+        if (e.key === 'Control') newKeys.delete('Control');
+        if (e.key === 'Shift') newKeys.delete('Shift');
+        if (e.key.toLowerCase() === 'k') newKeys.delete('k');
+        return newKeys;
+      });
     };
 
     // Strategy 2: Listen for Tauri Global Shortcut
@@ -103,6 +130,8 @@ export const StepTrigger: React.FC<StepProps> & { Visual: React.FC } = ({ onNext
         unlistenTauri = await tauriAPI.onToggleRecording(() => {
           console.log('[StepTrigger] Tauri Global Shortcut Detected!');
           setSuccess(true);
+          // Dispatch custom event for TriggerVisual to highlight all keys
+          window.dispatchEvent(new CustomEvent(TRIGGER_EVENT));
         });
       } catch (err) {
         console.error('[StepTrigger] Failed to setup Tauri listener:', err);
@@ -118,7 +147,7 @@ export const StepTrigger: React.FC<StepProps> & { Visual: React.FC } = ({ onNext
       window.removeEventListener('keyup', handleKeyUp);
       if (unlistenTauri) unlistenTauri();
     };
-  }, [activeKeys]); // Re-run when activeKeys changes to keep closure fresh
+  }, []);
 
   return (
     <div className="h-full flex flex-col">
