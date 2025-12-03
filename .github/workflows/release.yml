@@ -45,17 +45,36 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'Scribe v__VERSION__'
           releaseBody: |
-            ## What's New
+            ## What's New in v0.2.0
 
-            See [CHANGELOG.md](https://github.com/devv-shayan/Scribe/blob/main/CHANGELOG.md) for full details.
+            ### ✨ New Features
+            - **Light/Dark Theme Support** - App now adapts to your system theme preference
+            - **Multi-Language Transcription** - Added support for transcribing in multiple languages
+            - **Comprehensive Onboarding Wizard** - New first-run experience to help you get started
+            - **Shell Integration** - Enhanced integration with system shell
+
+            ### 🐛 Bug Fixes
+            - Fixed recorder overlay window visibility and UI positioning
+            - Fixed mic stream leaks when switching audio devices
+            - Cleared clipboard after paste to prevent data leaks
+            - Prevented shortcut interference during onboarding trigger step
+            - Improved settings window startup and visibility
+
+            ### 🔧 Improvements
+            - Main window now spans across all monitors for better multi-monitor support
+            - Simplified to Groq-only transcription provider for better reliability
+            - Added pointer cursors to onboarding buttons for better UX
+            - Enhanced UI components throughout the app
+
+            ---
 
             ## Installation
 
             Download the installer for your platform:
-            - **Windows**: Download the `.msi` or `.exe` installer below
+            - **Windows (.msi)**: Recommended for most users
+            - **Windows (.exe)**: NSIS installer alternative
 
-            ---
-            *Built with [Tauri](https://tauri.app)*
+            **[Full Changelog](https://github.com/devv-shayan/Scribe/blob/main/CHANGELOG.md)**
           releaseDraft: false
           prerelease: false
           projectPath: './backend'
