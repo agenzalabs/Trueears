@@ -44,7 +44,18 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Scribe v__VERSION__'
-          releaseBody: 'See the assets to download and install this version.'
+          releaseBody: |
+            ## What's New
+
+            See [CHANGELOG.md](https://github.com/devv-shayan/Scribe/blob/main/CHANGELOG.md) for full details.
+
+            ## Installation
+
+            Download the installer for your platform:
+            - **Windows**: Download the `.msi` or `.exe` installer below
+
+            ---
+            *Built with [Tauri](https://tauri.app)*
           releaseDraft: false
           prerelease: false
           projectPath: './backend'
