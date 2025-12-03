@@ -1,5 +1,8 @@
 import React from 'react';
 
+// Declare the global version injected by Vite
+declare const __APP_VERSION__: string;
+
 interface AboutSettingsProps {
   theme: 'light' | 'dark';
 }
@@ -14,7 +17,7 @@ export const AboutSettings: React.FC<AboutSettingsProps> = ({ theme }) => {
       <div className={`space-y-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
         <div>
           <p className={`text-sm mb-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Version</p>
-          <p className={`text-lg font-mono ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>0.2.0</p>
+          <p className={`text-lg font-mono ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{__APP_VERSION__}</p>
         </div>
 
         <div>
