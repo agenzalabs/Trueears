@@ -3,6 +3,7 @@ import { tauriAPI } from '../../utils/tauriApi';
 
 interface StepProps {
   onNext: () => void;
+  onPrev?: () => void;
 }
 
 // Shared state for visualization communication (simple solution for same-tree components)
@@ -80,7 +81,7 @@ const TriggerVisual: React.FC = () => {
   );
 };
 
-export const StepTrigger: React.FC<StepProps> & { Visual: React.FC } = ({ onNext }) => {
+export const StepTrigger: React.FC<StepProps> & { Visual: React.FC } = ({ onNext, onPrev }) => {
   const [success, setSuccess] = useState(false);
   const [activeKeys, setActiveKeys] = useState<Set<string>>(new Set());
 
@@ -152,22 +153,30 @@ export const StepTrigger: React.FC<StepProps> & { Visual: React.FC } = ({ onNext
   return (
     <div className="h-full flex flex-col">
       <div>
-        <h1 className="font-['Syne'] font-extrabold text-4xl leading-[0.95] tracking-tight mb-4">
+        <h1 className="font-['Syne'] font-extrabold text-4xl leading-[0.95] tracking-tight mb-4 text-gray-900">
           Global<br/>Trigger
         </h1>
         <p className="text-gray-500 text-sm font-medium max-w-xs leading-relaxed mb-8">
-          Press the keyboard shortcut <kbd className="bg-[#222] border border-[#333] px-1.5 py-0.5 rounded text-xs text-white">Ctrl</kbd>+<kbd className="bg-[#222] border border-[#333] px-1.5 py-0.5 rounded text-xs text-white">Shift</kbd>+<kbd className="bg-[#222] border border-[#333] px-1.5 py-0.5 rounded text-xs text-white">K</kbd> to test the activation sequence.
+          Press the keyboard shortcut <kbd className="bg-white border border-gray-200 px-1.5 py-0.5 rounded text-xs text-gray-800 shadow-sm">Ctrl</kbd>+<kbd className="bg-white border border-gray-200 px-1.5 py-0.5 rounded text-xs text-gray-800 shadow-sm">Shift</kbd>+<kbd className="bg-white border border-gray-200 px-1.5 py-0.5 rounded text-xs text-gray-800 shadow-sm">K</kbd> to test the activation sequence.
         </p>
       </div>
 
-      <div className="mt-auto pt-8">
+      <div className="mt-auto pt-8 flex gap-3">
+        {onPrev && (
+          <button
+            onClick={onPrev}
+            className="px-6 py-4 rounded-xl border border-gray-200 text-xs font-bold text-gray-500 hover:text-emerald-600 hover:border-emerald-500 transition-all cursor-pointer"
+          >
+            Back
+          </button>
+        )}
         <button
           onClick={onNext}
           disabled={!success}
-          className={`w-full py-4 rounded-xl font-['Syne'] font-bold text-xs uppercase tracking-wider transition-all duration-300
+          className={`flex-1 py-4 rounded-xl font-['Syne'] font-bold text-xs uppercase tracking-wider transition-all duration-300
             ${success 
-              ? 'bg-white text-black hover:bg-emerald-100 shadow-lg cursor-pointer' 
-              : 'bg-[#222] text-gray-600 cursor-not-allowed'
+              ? 'bg-white text-gray-900 border border-gray-200 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 shadow-sm hover:shadow-lg cursor-pointer' 
+              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
             }`}
         >
           {success ? 'Continue' : 'Press Shortcut...'}

@@ -3,6 +3,7 @@ import { tauriAPI } from '../../utils/tauriApi';
 
 interface StepProps {
   onNext: () => void;
+  onPrev?: () => void;
 }
 
 // Event for syncing (Quick solution for decoupled layout)
@@ -88,14 +89,14 @@ const TutorialVisual: React.FC = () => {
         </div>
 
         {/* Notion */}
-        <div className={`absolute inset-0 bg-[#191919] rounded-xl shadow-2xl overflow-hidden transition-all duration-500 ease-out
+        <div className={`absolute inset-0 bg-white rounded-xl shadow-2xl overflow-hidden transition-all duration-500 ease-out
           ${activeTab === 2 ? 'opacity-100 translate-y-0 scale-100 z-10' : 'opacity-0 translate-y-8 scale-95 pointer-events-none'}`}>
-          <div className="h-8 bg-[#252525] border-b border-[#333] flex items-center px-3 gap-1.5">
-            <div className="w-2 h-2 rounded-full bg-[#444]" />
+          <div className="h-8 bg-gray-50 border-b border-gray-200 flex items-center px-3 gap-1.5">
+            <div className="w-2 h-2 rounded-full bg-gray-200" />
           </div>
-          <div className="p-8 font-sans text-gray-300 h-full flex flex-col">
-                              <div className="text-2xl font-bold text-white mb-4">Smart Formatting</div>            <textarea 
-              className="w-full h-full resize-none outline-none bg-transparent text-sm text-gray-300 placeholder-gray-600 leading-relaxed"
+          <div className="p-8 font-sans text-gray-600 h-full flex flex-col">
+                              <div className="text-2xl font-bold text-gray-800 mb-4">Smart Formatting</div>            <textarea 
+              className="w-full h-full resize-none outline-none bg-transparent text-sm text-gray-600 placeholder-gray-400 leading-relaxed"
               placeholder="Dictate a note..."
               defaultValue={"- AI Integration\n- Voice UI\n- Native Rust Backend"}
               autoFocus={activeTab === 2}
@@ -108,7 +109,7 @@ const TutorialVisual: React.FC = () => {
   );
 };
 
-export const StepTutorial: React.FC<StepProps> & { Visual: React.FC } = ({ onNext }) => {
+export const StepTutorial: React.FC<StepProps> & { Visual: React.FC } = ({ onNext, onPrev }) => {
   const [activeTab, setActiveTab] = useState(0);
 
   const content = [
@@ -176,13 +177,15 @@ export const StepTutorial: React.FC<StepProps> & { Visual: React.FC } = ({ onNex
   const handlePrevStep = () => {
     if (activeTab > 0) {
       changeTab(activeTab - 1);
+    } else if (onPrev) {
+      onPrev();
     }
   };
 
   return (
     <div className="h-full flex flex-col">
       <div>
-        <h1 className="font-['Syne'] font-extrabold text-4xl leading-[0.95] tracking-tight mb-4 min-h-[80px]">
+        <h1 className="font-['Syne'] font-extrabold text-4xl leading-[0.95] tracking-tight mb-4 min-h-[80px] text-gray-900">
           {content[activeTab].title}
         </h1>
         <p className="text-gray-500 text-sm font-medium max-w-xs leading-relaxed mb-8 min-h-[60px]">
@@ -193,14 +196,13 @@ export const StepTutorial: React.FC<StepProps> & { Visual: React.FC } = ({ onNex
       <div className="mt-auto pt-8 flex gap-3">
         <button
           onClick={handlePrevStep}
-          disabled={activeTab === 0}
-          className="px-6 py-4 rounded-xl border border-white/10 text-xs font-bold text-gray-400 hover:text-white hover:border-white/30 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+          className="px-6 py-4 rounded-xl border border-gray-200 text-xs font-bold text-gray-500 hover:text-emerald-600 hover:border-emerald-500 transition-all cursor-pointer"
         >
           Prev
         </button>
         <button
           onClick={handleNextStep}
-          className="flex-1 py-4 rounded-xl font-['Syne'] font-bold text-xs uppercase tracking-wider bg-white text-black hover:bg-emerald-100 shadow-lg transition-all cursor-pointer"
+          className="flex-1 py-4 rounded-xl font-['Syne'] font-bold text-xs uppercase tracking-wider bg-white text-gray-900 border border-gray-200 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 shadow-sm hover:shadow-lg transition-all cursor-pointer"
         >
           {activeTab === 2 ? 'Finish Setup' : 'Next Tip'}
         </button>

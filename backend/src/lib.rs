@@ -95,16 +95,17 @@ async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
     .always_on_top(false)
     .skip_taskbar(false)
     .transparent(false)
+    .initialization_script("document.documentElement.style.background = '#f8fafc'; document.body.style.background = '#f8fafc';")
     .build()
     .map_err(|e| e.to_string())?;
     
     // Ensure the window is interactive
     settings_window.set_ignore_cursor_events(false).map_err(|e| e.to_string())?;
     
-    // Failsafe: Force show window after 500ms if frontend hasn't done it
+    // Failsafe: Force show window after 2000ms if frontend hasn't done it
     let window_clone = settings_window.clone();
     tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+        tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
         let _ = window_clone.show();
         let _ = window_clone.set_focus();
     });

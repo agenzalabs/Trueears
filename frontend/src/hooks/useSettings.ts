@@ -32,6 +32,9 @@ export const useSettings = () => {
   
   // Onboarding state - default to false so banner shows until we confirm it's complete
   const [onboardingComplete, setOnboardingComplete] = useState(false);
+  
+  // Theme state - default to 'light'
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   const loadKeys = async () => {
     // Try to load from store first
@@ -42,6 +45,7 @@ export const useSettings = () => {
     let savedLlmModel = await tauriAPI.getStoreValue('SCRIBE_LLM_MODEL');
     let savedSystemPrompt = await tauriAPI.getStoreValue('SCRIBE_DEFAULT_SYSTEM_PROMPT');
     let savedOnboardingComplete = await tauriAPI.getStoreValue('SCRIBE_ONBOARDING_COMPLETE');
+    let savedTheme = await tauriAPI.getStoreValue('SCRIBE_THEME');
 
     console.log('[useSettings] loadKeys - store values:', {
       groqKey, groqModel,
@@ -50,8 +54,9 @@ export const useSettings = () => {
 
     // If store is empty, migrate from localStorage
     if (groqKey === null) {
-      groqKey = localStorage.getItem('GROQ_API_KEY') || '';
-      await tauriAPI.setStoreValue('GROQ_API_KEY', groqKey);
+      // groqKey = localStorage.getItem('GROQ_API_KEY') || '';
+      // await tauriAPI.setStoreValue('GROQ_API_KEY', groqKey);
+      groqKey = '';
     }
     if (groqModel === null) {
       groqModel = localStorage.getItem('GROQ_MODEL') || DEFAULT_GROQ_MODEL;
@@ -99,6 +104,11 @@ export const useSettings = () => {
     setAutoDetectLanguage(savedAutoDetect === 'true');
     
     setOnboardingComplete(savedOnboardingComplete === 'true');
+    
+    // Load theme
+    const validTheme = (savedTheme === 'dark' || savedTheme === 'light') ? savedTheme : 'light';
+    setTheme(validTheme);
+    document.documentElement.setAttribute('data-theme', validTheme);
     
     setIsKeyLoaded(true);
   };
@@ -178,6 +188,13 @@ export const useSettings = () => {
     tauriAPI.emitSettingsChanged();
   };
 
+  const saveTheme = async (newTheme: 'light' | 'dark') => {
+    setTheme(newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+    await tauriAPI.setStoreValue('SCRIBE_THEME', newTheme);
+    tauriAPI.emitSettingsChanged();
+  };
+
   return {
     apiKey,
     model,
@@ -201,5 +218,8 @@ export const useSettings = () => {
     autoDetectLanguage,
     saveLanguage,
     saveAutoDetectLanguage,
+    // Theme settings
+    theme,
+    saveTheme,
   };
 };

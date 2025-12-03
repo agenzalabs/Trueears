@@ -42,10 +42,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   }, [keyInput, modelInput, onSave]);
 
   return (
-    <div className="flex flex-col w-full h-full p-4 gap-3 animate-fadeIn text-white">
+    <div className="flex flex-col w-full h-full p-4 gap-3 animate-fadeIn text-gray-800">
       <div className="flex items-center justify-between mb-1">
         <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Settings</span>
-        <button onClick={onClose} className="text-gray-500 hover:text-white cursor-pointer">
+        <button onClick={onClose} className="text-gray-500 hover:text-gray-800 cursor-pointer">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -58,7 +58,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <label className="text-[10px] text-gray-500 font-mono">API KEY</label>
           <button 
             onClick={() => open('https://console.groq.com/keys')}
-            className="text-[9px] text-gray-500 hover:text-white underline decoration-gray-600 hover:decoration-white transition-colors cursor-pointer"
+            className="text-[9px] text-gray-500 hover:text-gray-800 underline decoration-gray-600 hover:decoration-gray-400 transition-colors cursor-pointer"
           >
             Get Key ↗
           </button>
@@ -67,13 +67,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <input
             type={showKey ? "text" : "password"}
             placeholder="gsk_..."
-            className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 pr-8 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-white/30 transition-colors font-mono"
+            className="w-full bg-white/5 border border-gray-300 rounded px-2 py-1.5 pr-8 text-xs text-gray-800 placeholder-gray-600 focus:outline-none focus:border-gray-400 transition-colors font-mono"
             value={keyInput}
             onChange={(e) => setKeyInput(e.target.value)}
           />
           <button
             onClick={() => setShowKey(!showKey)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors cursor-pointer"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-800 transition-colors cursor-pointer"
           >
             {showKey ? (
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">

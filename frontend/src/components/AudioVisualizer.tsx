@@ -6,7 +6,7 @@ interface AudioVisualizerProps {
   barColor?: string;
 }
 
-export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ stream, isRecording, barColor = '#FFFFFF' }) => {
+export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ stream, isRecording, barColor }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>(0);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -15,6 +15,9 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ stream, isReco
 
   useEffect(() => {
     if (!stream || !isRecording || !canvasRef.current) return;
+    
+    // Get bar color from CSS variable if not provided
+    const effectiveBarColor = barColor || getComputedStyle(document.documentElement).getPropertyValue('--visualizer-bar').trim() || '#1f2937';
 
     // Use the browser's native audio context (usually 44.1kHz or 48kHz) for visualization
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -131,7 +134,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ stream, isReco
           
           ctx.save();
           ctx.globalAlpha = opacity;
-          ctx.fillStyle = barColor;
+          ctx.fillStyle = effectiveBarColor;
           
           ctx.beginPath();
           if (ctx.roundRect) {

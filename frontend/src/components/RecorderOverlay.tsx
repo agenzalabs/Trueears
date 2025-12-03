@@ -30,7 +30,10 @@ export const RecorderOverlay: React.FC = () => {
     defaultSystemPrompt,
     language,
     autoDetectLanguage,
+    theme,
   } = useSettings();
+  
+  const isDark = theme === 'dark';
   const { status: recordingStatus, mediaStream, startDictation, stopDictation, activeWindowInfo } = useDictation();
   const { isVisible: isToastVisible, message: toastMessage, type: toastType, showToast, hideToast } = useToast();
 
@@ -361,9 +364,6 @@ export const RecorderOverlay: React.FC = () => {
         className={`
           pointer-events-auto
           flex items-center justify-center
-          bg-[#0a0a0a] 
-          border border-white/10 
-          shadow-[0_8px_32px_rgba(0,0,0,0.5)]
           backdrop-blur-xl
           rounded-full
           transition-all duration-300
@@ -372,6 +372,11 @@ export const RecorderOverlay: React.FC = () => {
           ${status === 'recording' ? 'w-40 h-9' : ''}
           ${(status === 'idle' || status === 'processing' || status === 'success' || status === 'error') ? 'w-9 h-9' : ''}
         `}
+        style={{
+          backgroundColor: isDark ? '#0a0a0a' : '#f8fafc',
+          border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid #d1d5db',
+          boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.5)' : '0 8px 32px rgba(0,0,0,0.15)',
+        }}
       >
         <div className="relative w-full h-full flex items-center justify-center">
 
@@ -382,6 +387,7 @@ export const RecorderOverlay: React.FC = () => {
           {status === 'setup' && (
             <SetupView 
                 onSave={handleSaveSetup}
+                isDark={isDark}
             />
           )}
 
@@ -390,11 +396,11 @@ export const RecorderOverlay: React.FC = () => {
             className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${status === 'recording' && mediaStream ? 'opacity-100 delay-100' : 'opacity-0 pointer-events-none'}`}
           >
             {/* Visualizer logic remains same */}
-            {status === 'recording' && mediaStream && <AudioVisualizer stream={mediaStream} isRecording={true} />}
+            {status === 'recording' && mediaStream && <AudioVisualizer stream={mediaStream} isRecording={true} barColor={isDark ? '#ffffff' : '#1f2937'} />}
           </div>
 
           {/* STATUS ICONS */}
-          <StatusIndicator status={status} onSettingsClick={openSettings} />
+          <StatusIndicator status={status} onSettingsClick={openSettings} isDark={isDark} />
         </div>
       </div>
       </div>

@@ -67,7 +67,7 @@ export const StepSuccess: React.FC<StepProps> = ({ onNext }) => {
     <div className="h-full w-full flex relative">
       
       {/* Left Panel (Interactive) */}
-      <div className="w-[42%] p-12 flex flex-col border-r border-white/10 bg-gradient-to-b from-[#0a0a0a] to-[#050505] relative z-10">
+      <div className="w-[42%] p-12 flex flex-col border-r border-gray-100 bg-white relative z-10">
         {/* Fake Nav for consistency */}
         <div className="flex gap-3 mb-12 opacity-40">
            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
@@ -75,20 +75,20 @@ export const StepSuccess: React.FC<StepProps> = ({ onNext }) => {
         </div>
 
         <div className="flex-1">
-          <div className="inline-block px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[10px] font-bold text-emerald-400 mb-6 tracking-wide">
+          <div className="inline-block px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[10px] font-bold text-emerald-600 mb-6 tracking-wide">
             SETUP COMPLETE
           </div>
           
-          <h1 className="font-['Syne'] font-extrabold text-4xl leading-[0.95] tracking-tight mb-6">
+          <h1 className="font-['Syne'] font-extrabold text-4xl leading-[0.95] tracking-tight mb-6 text-gray-900">
             You've unlocked<br/>
-            Scribe <span className="text-emerald-500">Pro</span> 🎉
+            Scribe <span className="text-emerald-600">Pro</span> 🎉
           </h1>
 
           <p className="text-gray-500 text-sm font-medium leading-relaxed mb-8">
             Enjoy unlimited access to context-aware dictation.
           </p>
 
-          <ul className="space-y-3 text-sm text-gray-400 font-medium">
+          <ul className="space-y-3 text-sm text-gray-500 font-medium">
             <li className="flex items-center gap-3">
               <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
               Unlimited LPU™ Inference
@@ -107,7 +107,7 @@ export const StepSuccess: React.FC<StepProps> = ({ onNext }) => {
         <div className="mt-auto pt-8">
           <button
             onClick={onNext}
-            className="w-full py-4 rounded-xl font-['Syne'] font-bold text-xs uppercase tracking-wider bg-white text-black hover:bg-emerald-100 shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+            className="w-full py-4 rounded-xl font-['Syne'] font-bold text-xs uppercase tracking-wider bg-white text-gray-900 border border-gray-200 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer"
           >
             Enter Scribe
           </button>
@@ -115,7 +115,7 @@ export const StepSuccess: React.FC<StepProps> = ({ onNext }) => {
       </div>
 
       {/* Right Panel (Visual) */}
-      <div className="w-[58%] bg-[#020202] relative overflow-hidden flex items-center justify-center">
+      <div className="w-[58%] bg-[#f8fafc] relative overflow-hidden flex items-center justify-center">
         {/* Background Atmosphere */}
         <div className="absolute inset-0 opacity-40 pointer-events-none" 
              style={{ 
@@ -134,7 +134,7 @@ export const StepSuccess: React.FC<StepProps> = ({ onNext }) => {
                <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
              </svg>
           </div>
-          <div className="text-5xl font-['Syne'] font-extrabold text-white tracking-tighter">
+          <div className="text-5xl font-['Syne'] font-extrabold text-gray-800 tracking-tighter">
             Scribe <span className="bg-emerald-500 text-black px-2 rounded-lg text-3xl align-middle ml-1">PRO</span>
           </div>
         </div>

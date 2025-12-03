@@ -37,7 +37,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: '20px', color: 'white', backgroundColor: '#0a0a0a' }}>
+        <div style={{ padding: '20px', color: '#1f2937', backgroundColor: '#f8fafc' }}>
           <h1>Something went wrong</h1>
           <pre style={{ color: '#ef4444' }}>{this.state.error?.toString()}</pre>
           <button onClick={() => window.location.reload()}>Reload</button>

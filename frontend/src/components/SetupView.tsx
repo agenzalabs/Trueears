@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 
 interface SetupViewProps {
   onSave: (key: string) => void;
+  isDark?: boolean;
 }
 
-export const SetupView: React.FC<SetupViewProps> = ({ onSave }) => {
+export const SetupView: React.FC<SetupViewProps> = ({ onSave, isDark = false }) => {
   const [keyInput, setKeyInput] = useState('');
 
   return (
@@ -13,7 +14,8 @@ export const SetupView: React.FC<SetupViewProps> = ({ onSave }) => {
         autoFocus
         type="password"
         placeholder="Enter Groq API Key (gsk_...)"
-        className="flex-1 bg-transparent border-none outline-none text-white text-xs placeholder-gray-500 font-mono"
+        className="flex-1 bg-transparent border-none outline-none text-xs font-mono"
+        style={{ color: isDark ? '#ffffff' : '#1f2937' }}
         value={keyInput}
         onChange={(e) => setKeyInput(e.target.value)}
         onKeyDown={(e) => {
@@ -24,7 +26,11 @@ export const SetupView: React.FC<SetupViewProps> = ({ onSave }) => {
       />
       <button
         onClick={() => onSave(keyInput)}
-        className="text-[10px] bg-white text-black font-bold px-2 py-1 rounded hover:bg-gray-200 transition-colors"
+        className="text-[10px] font-bold px-2 py-1 rounded transition-colors"
+        style={{ 
+          backgroundColor: isDark ? '#ffffff' : '#ffffff', 
+          color: '#000000',
+        }}
       >
         SAVE
       </button>
