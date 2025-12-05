@@ -18,9 +18,12 @@ pub fn register_shortcuts(app: &AppHandle) -> Result<(), Box<dyn std::error::Err
             if event.state == ShortcutState::Pressed {
                 log::info!("Recording shortcut pressed");
 
-                // Skip if onboarding trigger step is active
+                // Skip normal toggle behavior during onboarding but still notify frontend
                 if ONBOARDING_TRIGGER_ACTIVE.load(Ordering::SeqCst) {
-                    log::info!("Skipping recording toggle - onboarding trigger step active");
+                    log::info!("Onboarding trigger active - emitting onboarding-trigger event");
+                    if let Some(window) = app_handle.get_webview_window("main") {
+                        let _ = window.emit("onboarding-trigger", ());
+                    }
                     return;
                 }
 

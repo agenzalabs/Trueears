@@ -58,9 +58,11 @@ async fn get_active_window_info() -> Result<Option<ActiveWindowInfo>, String> {
 }
 
 #[tauri::command]
-async fn set_onboarding_trigger_active(active: bool) -> Result<(), String> {
+async fn set_onboarding_trigger_active(app: tauri::AppHandle, active: bool) -> Result<(), String> {
     log::info!("set_onboarding_trigger_active: {}", active);
     ONBOARDING_TRIGGER_ACTIVE.store(active, Ordering::SeqCst);
+    // Broadcast state so frontends can ignore toggle-recording while onboarding step is active
+    let _ = app.emit("onboarding-trigger-state", active);
     Ok(())
 }
 

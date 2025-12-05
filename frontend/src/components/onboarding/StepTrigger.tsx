@@ -126,14 +126,18 @@ export const StepTrigger: React.FC<StepProps> & { Visual: React.FC } = ({ onNext
 
     // Strategy 2: Listen for Tauri Global Shortcut
     let unlistenTauri: (() => void) | undefined;
+    let unlistenOnboarding: (() => void) | undefined;
+
+    const handleShortcutDetected = () => {
+      console.log('[StepTrigger] Shortcut detected via Tauri event');
+      setSuccess(true);
+      window.dispatchEvent(new CustomEvent(TRIGGER_EVENT));
+    };
+
     const setupTauriListener = async () => {
       try {
-        unlistenTauri = await tauriAPI.onToggleRecording(() => {
-          console.log('[StepTrigger] Tauri Global Shortcut Detected!');
-          setSuccess(true);
-          // Dispatch custom event for TriggerVisual to highlight all keys
-          window.dispatchEvent(new CustomEvent(TRIGGER_EVENT));
-        });
+        unlistenTauri = await tauriAPI.onToggleRecording(handleShortcutDetected);
+        unlistenOnboarding = await tauriAPI.onOnboardingTrigger(handleShortcutDetected);
       } catch (err) {
         console.error('[StepTrigger] Failed to setup Tauri listener:', err);
       }
@@ -147,6 +151,7 @@ export const StepTrigger: React.FC<StepProps> & { Visual: React.FC } = ({ onNext
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       if (unlistenTauri) unlistenTauri();
+      if (unlistenOnboarding) unlistenOnboarding();
     };
   }, []);
 

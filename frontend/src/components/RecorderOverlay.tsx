@@ -18,6 +18,7 @@ export const RecorderOverlay: React.FC = () => {
   const [uiMode, setUiMode] = useState<'none' | 'setup' | 'warning'>('none');
   const [warningMessage, setWarningMessage] = useState('');
   const [windowPadding, setWindowPadding] = useState(250); // Default padding, will be calculated
+  const [onboardingTriggerActive, setOnboardingTriggerActive] = useState(false);
   
   const { 
     apiKey, 
@@ -186,6 +187,11 @@ export const RecorderOverlay: React.FC = () => {
 
   // -- Trigger: Toggle Visibility --
   const handleToggle = useCallback(async (windowInfo?: ActiveWindowInfo | null) => {
+    if (onboardingTriggerActive) {
+      console.log('[RecorderOverlay] Ignoring toggle - onboarding trigger step active');
+      return;
+    }
+
     let effectiveWindowInfo = windowInfo;
     
     // Check for Tutorial Override
@@ -249,7 +255,7 @@ export const RecorderOverlay: React.FC = () => {
       handleStartRecording(undefined, pendingWindowInfoRef.current);
       pendingWindowInfoRef.current = null;
     }
-  }, [recordingStatus, uiMode, handleStopRecording, apiKey, isKeyLoaded, showToast]);
+  }, [recordingStatus, uiMode, handleStopRecording, apiKey, isKeyLoaded, showToast, onboardingTriggerActive, handleStartRecording]);
 
   // Refs to hold latest callbacks for Tauri event listeners
   const handleToggleRef = useRef(handleToggle);
@@ -303,6 +309,7 @@ export const RecorderOverlay: React.FC = () => {
     
     let unlistenToggle: (() => void) | null = null;
     let unlistenWarning: (() => void) | null = null;
+    let unlistenOnboardingState: (() => void) | null = null;
     
     const setupListeners = async () => {
       console.log('[RecorderOverlay] Starting listener setup...');
@@ -324,6 +331,11 @@ export const RecorderOverlay: React.FC = () => {
             setIsVisible(false);
             setUiMode('none');
         }, 3000);
+      });
+
+      unlistenOnboardingState = await tauriAPI.onOnboardingTriggerState((active) => {
+        console.log('[RecorderOverlay] onboarding-trigger-state changed:', active);
+        setOnboardingTriggerActive(active);
       });
 
       console.log('[RecorderOverlay] All listeners set up successfully!');

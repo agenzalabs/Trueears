@@ -30,6 +30,44 @@ export const tauriAPI = {
             return () => {};
         }
     },
+
+    onOnboardingTrigger: async (callback: () => void) => {
+        console.log('[tauriAPI] Setting up onboarding-trigger listener, isTauri:', isTauri());
+        try {
+            if (!isTauri()) {
+                console.warn('[tauriAPI] Not in Tauri context, skipping listener setup');
+                return () => {};
+            }
+            const unlisten = await listen('onboarding-trigger', () => {
+                console.log('[tauriAPI] onboarding-trigger event received');
+                callback();
+            });
+            console.log('[tauriAPI] onboarding-trigger listener registered successfully');
+            return unlisten;
+        } catch (error) {
+            console.error('[tauriAPI] Failed to register onboarding-trigger listener:', error);
+            return () => {};
+        }
+    },
+
+    onOnboardingTriggerState: async (callback: (active: boolean) => void) => {
+        console.log('[tauriAPI] Setting up onboarding-trigger-state listener, isTauri:', isTauri());
+        try {
+            if (!isTauri()) {
+                console.warn('[tauriAPI] Not in Tauri context, skipping listener setup');
+                return () => {};
+            }
+            const unlisten = await listen<boolean>('onboarding-trigger-state', (event) => {
+                console.log('[tauriAPI] onboarding-trigger-state event received:', event.payload);
+                callback(!!event.payload);
+            });
+            console.log('[tauriAPI] onboarding-trigger-state listener registered successfully');
+            return unlisten;
+        } catch (error) {
+            console.error('[tauriAPI] Failed to register onboarding-trigger-state listener:', error);
+            return () => {};
+        }
+    },
     
     onOpenSettings: async (callback: () => void) => {
         console.log('[tauriAPI] Setting up open-settings listener, isTauri:', isTauri());
