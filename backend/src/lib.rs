@@ -1,4 +1,5 @@
 mod automation;
+mod auth;
 mod shortcuts;
 mod window;
 
@@ -117,6 +118,42 @@ async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+// ============ Authentication Commands ============
+
+#[tauri::command]
+async fn start_google_login(app: tauri::AppHandle) -> Result<(), String> {
+    log::info!("start_google_login command called");
+    
+    // Load config from environment
+    let config = auth::OAuthConfig::from_env()
+        .ok_or_else(|| "Missing GOOGLE_CLIENT_ID environment variable".to_string())?;
+    
+    auth::start_google_oauth(app, config).await
+}
+
+#[tauri::command]
+async fn get_auth_state() -> Result<auth::AuthState, String> {
+    log::info!("get_auth_state command called");
+    Ok(auth::get_auth_state())
+}
+
+#[tauri::command]
+async fn logout() -> Result<(), String> {
+    log::info!("logout command called");
+    
+    let api_url = std::env::var("API_URL")
+        .unwrap_or_else(|_| "http://localhost:3001".to_string());
+    
+    auth::logout(&api_url).await
+}
+
+#[tauri::command]
+async fn get_user_info() -> Result<Option<auth::UserInfo>, String> {
+    log::info!("get_user_info command called");
+    Ok(auth::get_stored_user_info())
+}
+
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -126,6 +163,13 @@ pub fn run() {
         .setup(|app| {
             use tauri::Manager;
             use tauri_plugin_store::StoreExt;
+            
+            // Load .env file from project root
+            if let Err(e) = dotenvy::dotenv() {
+                log::warn!("No .env file found: {}", e);
+            } else {
+                log::info!("Loaded .env file");
+            }
             
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -220,7 +264,12 @@ pub fn run() {
             open_settings_window,
             get_store_value,
             set_store_value,
-            set_onboarding_trigger_active
+            set_onboarding_trigger_active,
+            // Auth commands
+            start_google_login,
+            get_auth_state,
+            logout,
+            get_user_info
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

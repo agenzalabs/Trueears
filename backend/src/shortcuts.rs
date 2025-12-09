@@ -5,7 +5,28 @@ use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 pub fn register_shortcuts(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    // Register Ctrl+Shift+K (or Cmd+Shift+K on macOS) for recording toggle
+    // Unregister all existing shortcuts first to prevent "already registered" errors
+    let _ = app.global_shortcut().unregister_all();
+    log::info!("Unregistered all existing shortcuts");
+    
+    // Register recording shortcut (Ctrl+Shift+K / Cmd+Shift+K)
+    if let Err(e) = register_recording_shortcut(app) {
+        log::error!("Failed to register recording shortcut: {}", e);
+        return Err(e);
+    }
+    
+    // Register settings shortcut (Ctrl+Shift+; / Cmd+Shift+;)
+    // Using semicolon instead of L to avoid conflicts with other apps
+    if let Err(e) = register_settings_shortcut(app) {
+        log::warn!("Failed to register settings shortcut (non-fatal): {}", e);
+        // Don't return error - settings can still be opened from the app
+    }
+
+    log::info!("Global shortcuts registered successfully");
+    Ok(())
+}
+
+fn register_recording_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let recording_shortcut = if cfg!(target_os = "macos") {
         Shortcut::new(Some(Modifiers::META | Modifiers::SHIFT), Code::KeyK)
     } else {
@@ -83,11 +104,16 @@ pub fn register_shortcuts(app: &AppHandle) -> Result<(), Box<dyn std::error::Err
         }
     })?;
 
-    // Register Ctrl+Shift+L (or Cmd+Shift+L on macOS) for settings
+    log::info!("Recording shortcut (Ctrl+Shift+K) registered");
+    Ok(())
+}
+
+fn register_settings_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    // Using S key for Settings shortcut
     let settings_shortcut = if cfg!(target_os = "macos") {
-        Shortcut::new(Some(Modifiers::META | Modifiers::SHIFT), Code::KeyL)
+        Shortcut::new(Some(Modifiers::META | Modifiers::SHIFT), Code::KeyS)
     } else {
-        Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyL)
+        Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyS)
     };
 
     app.global_shortcut().on_shortcut(settings_shortcut, {
@@ -107,6 +133,6 @@ pub fn register_shortcuts(app: &AppHandle) -> Result<(), Box<dyn std::error::Err
         }
     })?;
 
-    log::info!("Global shortcuts registered successfully");
+    log::info!("Settings shortcut (Ctrl+Shift+S) registered");
     Ok(())
 }
