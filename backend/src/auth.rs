@@ -264,38 +264,164 @@ fn run_callback_server<R: tauri::Runtime>(
                 if let Some(code) = extract_code_from_url(&url) {
                     log::info!("Authorization code received");
                     
-                    // Send success response to browser
+                    // Send success response to browser with Scribe branding
                     let response = tiny_http::Response::from_string(
                         r#"<!DOCTYPE html>
 <html>
 <head>
-    <title>Authentication Successful</title>
+    <title>Scribe - Authentication Successful</title>
     <style>
+        * { box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
-            background: linear-gradient(135deg, #10b981, #059669);
+            background: #f8fafc;
+            overflow: hidden;
+        }
+        .bg-pattern {
+            position: fixed;
+            inset: 0;
+            opacity: 0.4;
+            background-image: radial-gradient(rgba(16, 185, 129, 0.15) 1px, transparent 1px);
+            background-size: 40px 40px;
+            mask-image: radial-gradient(circle at center, black 30%, transparent 80%);
+            -webkit-mask-image: radial-gradient(circle at center, black 30%, transparent 80%);
         }
         .container {
+            position: relative;
+            z-index: 10;
             background: white;
-            padding: 40px 60px;
-            border-radius: 16px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+            padding: 60px 72px;
+            border-radius: 28px;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.08);
             text-align: center;
+            max-width: 520px;
+            min-width: 440px;
+            border: 1px solid rgba(0,0,0,0.05);
+            animation: slideUp 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
-        h1 { color: #10b981; margin: 0 0 10px 0; }
-        p { color: #666; margin: 0; }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            border-radius: 22px;
+            margin: 0 auto 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 40px rgba(16, 185, 129, 0.3);
+        }
+        .logo svg { width: 40px; height: 40px; color: white; }
+        .badge {
+            display: inline-block;
+            padding: 8px 18px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 100px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            color: #10b981;
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-weight: 800;
+            font-size: 32px;
+            color: #111827;
+            margin: 0 0 16px 0;
+            letter-spacing: -0.5px;
+        }
+        h1 span { color: #10b981; }
+        p {
+            color: #6b7280;
+            margin: 0 0 36px 0;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        .features {
+            text-align: left;
+            margin-bottom: 32px;
+        }
+        .feature {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            font-size: 14px;
+            color: #4b5563;
+        }
+        .feature svg { width: 18px; height: 18px; color: #10b981; flex-shrink: 0; }
+        .close-msg {
+            font-size: 13px;
+            color: #9ca3af;
+            padding-top: 24px;
+            border-top: 1px solid #f3f4f6;
+        }
+        .confetti {
+            position: fixed;
+            width: 15px;
+            height: 20px;
+            top: -30px;
+            animation: fall linear forwards;
+        }
+        @keyframes fall {
+            to { transform: translateY(110vh) rotate(720deg); }
+        }
     </style>
 </head>
 <body>
+    <div class="bg-pattern"></div>
     <div class="container">
-        <h1>✓ Authentication Successful</h1>
-        <p>You can close this window and return to Scribe.</p>
+        <div class="logo">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+            </svg>
+        </div>
+        <div class="badge">AUTHENTICATION COMPLETE</div>
+        <h1>Welcome to <span>Scribe</span></h1>
+        <p>Your account is now connected. You're all set to use voice dictation with AI-powered formatting.</p>
+        <div class="features">
+            <div class="feature">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                Cloud-synced settings
+            </div>
+            <div class="feature">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                App-specific profiles
+            </div>
+            <div class="feature">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                Priority support access
+            </div>
+        </div>
+        <p class="close-msg">You can close this window and return to Scribe.</p>
     </div>
+    <script>
+        const colors = ['#3b82f6', '#ef4444', '#eab308', '#10b981'];
+        for(let i = 0; i < 30; i++) {
+            const c = document.createElement('div');
+            c.className = 'confetti';
+            c.style.left = Math.random() * 100 + 'vw';
+            c.style.background = colors[Math.floor(Math.random() * colors.length)];
+            c.style.animationDuration = (Math.random() * 2 + 3) + 's';
+            c.style.animationDelay = Math.random() * 2 + 's';
+            document.body.appendChild(c);
+        }
+    </script>
 </body>
 </html>"#
                     ).with_header(
