@@ -172,6 +172,82 @@ fn send_paste(enigo: &mut Enigo) -> Result<(), String> {
     Ok(())
 }
 
+fn send_copy(enigo: &mut Enigo) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        enigo
+            .key(Key::Meta, Direction::Press)
+            .map_err(|e| format!("Key press failed: {}", e))?;
+        enigo
+            .key(Key::Unicode('c'), Direction::Click)
+            .map_err(|e| format!("Key click failed: {}", e))?;
+        enigo
+            .key(Key::Meta, Direction::Release)
+            .map_err(|e| format!("Key release failed: {}", e))?;
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        enigo
+            .key(Key::Control, Direction::Press)
+            .map_err(|e| format!("Key press failed: {}", e))?;
+        enigo
+            .key(Key::Unicode('c'), Direction::Click)
+            .map_err(|e| format!("Key click failed: {}", e))?;
+        enigo
+            .key(Key::Control, Direction::Release)
+            .map_err(|e| format!("Key release failed: {}", e))?;
+    }
+
+    Ok(())
+}
+
+pub fn copy_selected_text() -> Result<Option<String>, String> {
+    log::info!("Attempting to copy selected text...");
+    
+    let mut clipboard =
+        Clipboard::new().map_err(|e| format!("Failed to access clipboard: {}", e))?;
+    
+    // Clear clipboard first to detect if copy actually worked
+    clipboard
+        .clear()
+        .map_err(|e| format!("Failed to clear clipboard: {}", e))?;
+    
+    let mut enigo =
+        Enigo::new(&Settings::default()).map_err(|e| format!("Failed to create Enigo: {}", e))?;
+    
+    // Release any held modifier keys first (important because user might still be holding Ctrl+Shift from the shortcut)
+    let _ = enigo.key(Key::Control, Direction::Release);
+    let _ = enigo.key(Key::Shift, Direction::Release);
+    #[cfg(target_os = "macos")]
+    let _ = enigo.key(Key::Meta, Direction::Release);
+    
+    // Small delay to ensure modifiers are released
+    thread::sleep(Duration::from_millis(50));
+    
+    // Send Ctrl+C / Cmd+C to copy selected text
+    send_copy(&mut enigo)?;
+    
+    // Wait for clipboard to update (increased for reliability)
+    thread::sleep(Duration::from_millis(150));
+    
+    // Read clipboard content
+    match clipboard.get_text() {
+        Ok(text) if !text.trim().is_empty() => {
+            log::info!("Copied selected text: {} chars", text.len());
+            Ok(Some(text))
+        }
+        Ok(_) => {
+            log::info!("No text selected (clipboard empty)");
+            Ok(None)
+        }
+        Err(e) => {
+            log::warn!("Failed to read clipboard: {}", e);
+            Ok(None)
+        }
+    }
+}
+
 fn split_into_segments(text: &str) -> Vec<TextSegment> {
     let mut segments = Vec::new();
     let mut buffer = String::new();

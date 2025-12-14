@@ -67,3 +67,24 @@ export const finalizeDictation = async (text: string) => {
     console.error("Failed to send transcription:", error);
   }
 };
+
+export const transformSelectedText = async (
+  selectedText: string,
+  instruction: string,
+  llmApiKey: string,
+  llmModel: string
+): Promise<string> => {
+  console.log('[DictationController] Transforming selected text...');
+  console.log('[DictationController] Selected text:', selectedText.substring(0, 100) + (selectedText.length > 100 ? '...' : ''));
+  console.log('[DictationController] Instruction:', instruction);
+  
+  const transformedText = await GroqChatService.transformText(
+    selectedText,
+    instruction,
+    llmApiKey,
+    llmModel
+  );
+  
+  console.log('[DictationController] Transformed result:', transformedText.substring(0, 100) + (transformedText.length > 100 ? '...' : ''));
+  return transformedText;
+};

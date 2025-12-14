@@ -56,6 +56,12 @@ async fn transcription_complete(text: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn copy_selected_text() -> Result<Option<String>, String> {
+    log::info!("copy_selected_text command called");
+    automation::copy_selected_text()
+}
+
+#[tauri::command]
 async fn get_active_window_info() -> Result<Option<ActiveWindowInfo>, String> {
     log::info!("get_active_window_info command called");
     Ok(window::get_active_window_info())
@@ -275,6 +281,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             set_ignore_mouse_events,
             transcription_complete,
+            copy_selected_text,
             get_active_window_info,
             open_settings_window,
             get_store_value,

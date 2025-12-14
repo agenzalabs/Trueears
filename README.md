@@ -4,13 +4,14 @@ A minimalist, context-aware AI voice dictation application built with Tauri, Rea
 
 ## Features
 
-- 🎙️ **Global Hotkey Recording**: Press `Ctrl+Shift+K` (or `Cmd+Shift+K` on macOS) to toggle recording from anywhere
+- 🎙️ **Global Hotkey Recording**: Press `Ctrl+Shift+K` (or `Cmd+Shift+K` on macOS) to record from anywhere with three flexible modes: Auto, Toggle, or Push-to-Talk
+- ✨ **Select-to-Transform**: Select any text, press the hotkey, and speak a transformation instruction (e.g., "make it professional", "translate to Spanish") - the selected text will be transformed and replaced automatically
 - 🧠 **Context-Aware Formatting**: Automatically detects your active window (Slack, VS Code, Outlook, etc.) and applies app-specific formatting
 - 🤖 **LLM Post-Processing**: Optional GPT-powered text formatting that formats (not responds to) your transcription
 - 📋 **Auto-Paste**: Automatically pastes transcribed text into the currently active application
 - 🎯 **Cursor File Mentions**: Detects @filename mentions in dictation and inserts clickable file references in Cursor editor
 - 🪟 **Minimalist Overlay**: Non-intrusive floating UI with recording status
-- ⚙️ **Full Settings Panel**: Press `Ctrl+Shift+L` to toggle a resizable settings window
+- ⚙️ **Full Settings Panel**: Press `Ctrl+Shift+S` to toggle a resizable settings window
 - 🎯 **App Profiles**: Pre-configured profiles for VS Code, Slack, Discord, Outlook, Chrome, Notion, OneNote, and Word
 - 🔒 **Base System Prompt**: All profiles inherit a core "DO NOT respond" instruction to ensure formatting-only behavior
 - ⚡ **Fast & Lightweight**: Built on Tauri (Rust) for minimal resource usage (~15-20 MB bundle size)
@@ -49,7 +50,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ## Configuration
 
 1. **First Launch**:
-   - Press `Ctrl+Shift+L` to open the settings window
+   - Press `Ctrl+Shift+S` to open the settings window
    - Go to **Transcription** tab:
      - Enter your Groq API Key
      - Select Whisper model (default: `whisper-large-v3-turbo`)
@@ -91,12 +92,44 @@ The output executable will be generated in the `backend/target/release/bundle/` 
 2. **Focus** any text field (Slack, VS Code, Notepad, etc.)
 3. **Press `Ctrl+Shift+K`** to start recording
 4. **Speak** your text
-5. **Press `Ctrl+Shift+K` again** to stop recording
+5. **Stop recording** (method depends on your selected Recording Mode)
 6. The app will:
    - Detect your active window
    - Transcribe your audio via Groq Whisper
    - Apply LLM formatting (if enabled) based on the matched app profile
    - Automatically paste the result
+
+### Recording Modes
+
+Scribe offers three recording modes to match your workflow. Configure this in **Settings → Preferences**.
+
+| Mode | How it Works | Best For |
+|------|--------------|----------|
+| **Auto** (default) | Quick tap = Toggle mode, Hold = Push-to-Talk | Users who want flexibility |
+| **Toggle** | Press to start, press again to stop | Longer dictation sessions |
+| **Push-to-Talk** | Hold to record, release to stop | Quick voice commands |
+
+- **Auto Mode**: Intelligently detects your intent. A quick tap activates toggle behavior (press to start, press to stop). Holding the hotkey activates push-to-talk (release to stop).
+- **Toggle Mode**: Traditional toggle behavior. Press once to start recording, press again to stop.
+- **Push-to-Talk Mode**: Hold the hotkey while speaking, release when done. Great for quick inputs.
+
+### Select-to-Transform
+
+Transform any selected text using voice commands:
+
+1. **Select text** in any application
+2. **Press `Ctrl+Shift+K`** to start recording
+3. **Speak your transformation instruction**, for example:
+   - "Make it professional"
+   - "Make it casual and friendly"
+   - "Translate to Spanish"
+   - "Convert to bullet points"
+   - "Summarize this"
+   - "Fix the grammar"
+4. **Press `Ctrl+Shift+K` again** to apply the transformation
+5. The selected text will be **replaced** with the transformed version
+
+If no text is selected, Scribe works in normal dictation mode.
 
 ### File Mentions in Cursor
 
@@ -106,8 +139,8 @@ When using Cursor editor, you can mention files in your dictation by saying "@fi
 
 | Action | Windows/Linux | macOS |
 |--------|--------------|-------|
-| Toggle Recording | `Ctrl+Shift+K` | `Cmd+Shift+K` |
-| Toggle Settings | `Ctrl+Shift+L` | `Cmd+Shift+L` |
+| Recording Hotkey | `Ctrl+Shift+K` | `Cmd+Shift+K` |
+| Open Settings | `Ctrl+Shift+S` | `Cmd+Shift+S` |
 
 ## How LLM Post-Processing Works
 
@@ -221,7 +254,7 @@ You can edit, disable, or add new profiles in **Settings → App Profiles**.
 ### LLM is responding instead of formatting
 
 If the LLM generates responses like "I'm doing great!" instead of just formatting your text:
-1. Open Settings (`Ctrl+Shift+L`)
+1. Open Settings (`Ctrl+Shift+S`)
 2. Go to **App Profiles** tab
 3. Click **"Reset to Defaults"** button
 4. This will reload the base system prompt with proper "DO NOT respond" instructions

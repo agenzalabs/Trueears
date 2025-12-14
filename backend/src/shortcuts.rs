@@ -1,8 +1,16 @@
+use crate::automation::copy_selected_text;
 use crate::window::get_active_window_info;
 use crate::ONBOARDING_TRIGGER_ACTIVE;
+use serde::Serialize;
 use std::sync::atomic::Ordering;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+
+#[derive(Clone, Serialize)]
+pub struct ShortcutPressedPayload {
+    pub window_info: Option<crate::window::ActiveWindowInfo>,
+    pub selected_text: Option<String>,
+}
 
 pub fn register_shortcuts(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     // Unregister all existing shortcuts first to prevent "already registered" errors
@@ -48,7 +56,24 @@ fn register_recording_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error
                     return;
                 }
 
-                // Get active window info first
+                // IMPORTANT: Copy selected text IMMEDIATELY before any window operations
+                // This must happen before focus shifts to the Scribe window
+                let selected_text = match copy_selected_text() {
+                    Ok(text) => {
+                        if let Some(ref t) = text {
+                            log::info!("Copied selected text: {} chars", t.len());
+                        } else {
+                            log::info!("No text selected");
+                        }
+                        text
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to copy selected text: {}", e);
+                        None
+                    }
+                };
+
+                // Get active window info
                 let window_info = get_active_window_info();
 
                 // Close settings window only if user is NOT in the Settings window
@@ -78,7 +103,7 @@ fn register_recording_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error
                         return;
                     }
 
-                    log::info!("Emitting shortcut-pressed event with window info");
+                    log::info!("Emitting shortcut-pressed event with window info and selected text");
 
                     // Debug: log window state before show
                     if let Ok(visible) = window.is_visible() {
@@ -93,8 +118,12 @@ fn register_recording_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error
                     let _ = window.show();
                     let _ = window.set_always_on_top(true);
 
-                    // Emit shortcut-pressed event (frontend handles mode logic)
-                    let _ = window.emit("shortcut-pressed", window_info);
+                    // Emit shortcut-pressed event with both window info and selected text
+                    let payload = ShortcutPressedPayload {
+                        window_info,
+                        selected_text,
+                    };
+                    let _ = window.emit("shortcut-pressed", payload);
 
                     // Debug: log window state after show
                     if let Ok(visible) = window.is_visible() {

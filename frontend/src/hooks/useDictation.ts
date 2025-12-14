@@ -1,22 +1,37 @@
 import { useState, useCallback, useRef } from 'react';
 import { useAudioRecorder } from './useAudioRecorder';
-import { processTranscription, postProcessTranscription, finalizeDictation } from '../controllers/dictationController';
+import { processTranscription, postProcessTranscription, finalizeDictation, transformSelectedText } from '../controllers/dictationController';
 import { ActiveWindowInfo } from '../types/appProfile';
 
 export type DictationStatus = 'idle' | 'recording' | 'processing' | 'success' | 'error';
+export type DictationMode = 'dictation' | 'transform';
 
 export const useDictation = () => {
   const [status, setStatus] = useState<DictationStatus>('idle');
+  const [mode, setMode] = useState<DictationMode>('dictation');
+  const [selectedText, setSelectedText] = useState<string | null>(null);
   const { isRecording, mediaStream, startRecording, stopRecording } = useAudioRecorder();
   const isProcessingRef = useRef(false);
   const [activeWindowInfo, setActiveWindowInfo] = useState<ActiveWindowInfo | null>(null);
 
-  const startDictation = async (windowInfo?: ActiveWindowInfo | null) => {
-    console.log('[useDictation] startDictation called with window info:', windowInfo);
+  const startDictation = async (windowInfo?: ActiveWindowInfo | null, preSelectedText?: string | null) => {
+    console.log('[useDictation] startDictation called with window info:', windowInfo, 'selected text:', preSelectedText ? `${preSelectedText.length} chars` : 'none');
     try {
       if (windowInfo) {
         setActiveWindowInfo(windowInfo);
       }
+      
+      // Use the pre-copied selected text passed from backend (copied before focus changed)
+      if (preSelectedText && preSelectedText.trim().length > 0) {
+        setMode('transform');
+        setSelectedText(preSelectedText);
+        console.log('[useDictation] Transform mode - selected text:', preSelectedText.substring(0, 50) + (preSelectedText.length > 50 ? '...' : ''));
+      } else {
+        setMode('dictation');
+        setSelectedText(null);
+        console.log('[useDictation] Dictation mode - no text selected');
+      }
+      
       await startRecording();
       setStatus('recording');
       console.log('[useDictation] Status set to recording');
@@ -37,7 +52,7 @@ export const useDictation = () => {
     defaultPrompt?: string,
     language?: string
   ) => {
-    console.log('[useDictation] stopDictation called with llmEnabled:', llmEnabled);
+    console.log('[useDictation] stopDictation called with llmEnabled:', llmEnabled, 'mode:', mode);
     
     if (!isRecording) {
       console.warn('[useDictation] Not recording, ignoring stop request');
@@ -54,6 +69,14 @@ export const useDictation = () => {
     setStatus('processing');
     console.log('[useDictation] Status set to processing');
 
+    const resetState = () => {
+      setStatus('idle');
+      isProcessingRef.current = false;
+      setActiveWindowInfo(null);
+      setMode('dictation');
+      setSelectedText(null);
+    };
+
     try {
       const audioBlob = await stopRecording();
       console.log('[useDictation] Audio blob size:', audioBlob.size);
@@ -68,8 +91,41 @@ export const useDictation = () => {
 
       let finalText = rawText;
 
-      // Apply LLM post-processing if enabled
-      if (llmEnabled && llmApiKey && rawText) {
+      // Transform mode: use transcription as instruction to transform selected text
+      if (mode === 'transform' && selectedText && rawText) {
+        console.log('[useDictation] Transform mode: applying transformation...');
+        try {
+          const effectiveLlmKey = llmApiKey || apiKey;
+          const effectiveLlmModel = llmModel || 'llama-3.3-70b-versatile';
+          
+          const transformed = await transformSelectedText(
+            selectedText,
+            rawText, // The spoken instruction
+            effectiveLlmKey,
+            effectiveLlmModel
+          );
+          
+          if (transformed && transformed.trim().length > 0) {
+            finalText = transformed;
+            console.log('[useDictation] Transformed text:', finalText);
+          } else {
+            throw new Error('Empty transformation result');
+          }
+        } catch (error) {
+          console.error('[useDictation] Transform failed:', error);
+          if (onError) {
+            onError('Transform failed - please try again');
+          }
+          setStatus('error');
+          console.log('[useDictation] Transform error, will reset to idle in 2s');
+          setTimeout(() => {
+            resetState();
+            console.log('[useDictation] Status reset to idle after transform error');
+          }, 2000);
+          return; // Exit early, don't paste anything
+        }
+      } else if (llmEnabled && llmApiKey && rawText) {
+        // Regular dictation mode with LLM post-processing
         console.log('[useDictation] Applying LLM post-processing...');
         try {
           const processed = await postProcessTranscription(
@@ -96,16 +152,12 @@ export const useDictation = () => {
         setStatus('success');
         console.log('[useDictation] Status set to success, will reset to idle in 1.5s');
         setTimeout(() => {
-          setStatus('idle');
-          isProcessingRef.current = false;
-          setActiveWindowInfo(null);
+          resetState();
           console.log('[useDictation] Status reset to idle, isProcessingRef reset');
         }, 1500);
       } else {
         console.log('[useDictation] No text received, resetting to idle');
-        setStatus('idle');
-        isProcessingRef.current = false;
-        setActiveWindowInfo(null);
+        resetState();
       }
     } catch (error) {
       console.error("[useDictation] Dictation failed", error);
@@ -116,16 +168,15 @@ export const useDictation = () => {
       setStatus('error');
       console.log('[useDictation] Status set to error, will reset to idle in 2s');
       setTimeout(() => {
-        setStatus('idle');
-        isProcessingRef.current = false;
-        setActiveWindowInfo(null);
+        resetState();
         console.log('[useDictation] Status reset to idle after error, isProcessingRef reset');
       }, 2000);
     }
-  }, [isRecording, stopRecording, activeWindowInfo]);
+  }, [isRecording, stopRecording, activeWindowInfo, mode, selectedText]);
 
   return {
     status,
+    mode,
     mediaStream,
     startDictation,
     stopDictation,

@@ -7,7 +7,7 @@ import { useToast } from '../hooks/useToast';
 import { SetupView } from './SetupView';
 import { StatusIndicator } from './StatusIndicator';
 import { WarningView } from './WarningView';
-import { tauriAPI } from '../utils/tauriApi';
+import { tauriAPI, ShortcutPressedPayload } from '../utils/tauriApi';
 import { ActiveWindowInfo } from '../types/appProfile';
 
 // Module-level flag to prevent duplicate listeners (survives React Strict Mode)
@@ -146,8 +146,8 @@ export const RecorderOverlay: React.FC = () => {
   };
 
   // -- Action: Start Recording --
-  const handleStartRecording = async (manualKey?: string, windowInfo?: ActiveWindowInfo | null) => {
-    console.log('[RecorderOverlay] handleStartRecording called with window info:', windowInfo);
+  const handleStartRecording = async (manualKey?: string, windowInfo?: ActiveWindowInfo | null, selectedText?: string | null) => {
+    console.log('[RecorderOverlay] handleStartRecording called with window info:', windowInfo, 'selected text:', selectedText ? `${selectedText.length} chars` : 'none');
     const effectiveKey = manualKey || apiKey;
     console.log('[RecorderOverlay] Effective key exists:', !!effectiveKey);
 
@@ -162,7 +162,7 @@ export const RecorderOverlay: React.FC = () => {
     }
 
     console.log('[RecorderOverlay] Starting dictation...');
-    await startDictation(windowInfo);
+    await startDictation(windowInfo, selectedText);
     setIsVisible(true);
     console.log('[RecorderOverlay] Dictation started, window visible');
   };
@@ -185,6 +185,7 @@ export const RecorderOverlay: React.FC = () => {
 
   const lastToggleTimeRef = useRef(0);
   const pendingWindowInfoRef = useRef<ActiveWindowInfo | null>(null);
+  const pendingSelectedTextRef = useRef<string | null>(null);
   
   // Refs for hybrid recording mode
   const pressStartTimeRef = useRef(0);
@@ -208,13 +209,17 @@ export const RecorderOverlay: React.FC = () => {
   }, [recordingStatus, handleStopRecording]);
 
   // -- Trigger: Handle Shortcut Pressed --
-  const handleShortcutPressed = useCallback(async (windowInfo?: ActiveWindowInfo | null) => {
+  const handleShortcutPressed = useCallback(async (payload: ShortcutPressedPayload) => {
     if (onboardingTriggerActive) {
       console.log('[RecorderOverlay] Ignoring press - onboarding trigger step active');
       return;
     }
 
-    let effectiveWindowInfo = windowInfo;
+    // Extract window info and selected text from payload
+    let effectiveWindowInfo = payload.window_info;
+    const selectedText = payload.selected_text;
+    
+    console.log('[RecorderOverlay] Payload received - window_info:', effectiveWindowInfo, 'selected_text:', selectedText ? `${selectedText.length} chars` : 'none');
     
     // Check for Tutorial Override
     try {
@@ -239,6 +244,7 @@ export const RecorderOverlay: React.FC = () => {
     if (effectiveWindowInfo) {
       pendingWindowInfoRef.current = effectiveWindowInfo;
     }
+    pendingSelectedTextRef.current = selectedText || null;
     
     const currentMode = recordingModeRef.current;
     console.log('[RecorderOverlay] handleShortcutPressed called, mode:', currentMode);
@@ -291,8 +297,9 @@ export const RecorderOverlay: React.FC = () => {
       // Not recording - start recording
       console.log('[RecorderOverlay] Starting recording');
       pttStopPendingRef.current = false; // Clear any pending stop
-      handleStartRecording(undefined, pendingWindowInfoRef.current);
+      handleStartRecording(undefined, pendingWindowInfoRef.current, pendingSelectedTextRef.current);
       pendingWindowInfoRef.current = null;
+      pendingSelectedTextRef.current = null;
     }
   }, [recordingStatus, uiMode, handleStopRecording, isKeyLoaded, showToast, onboardingTriggerActive, handleStartRecording]);
 
@@ -361,8 +368,8 @@ export const RecorderOverlay: React.FC = () => {
   }, [recordingStatus, handleStopRecording, onboardingTriggerActive]);
 
   // Legacy handleToggle for backward compatibility (used by some internal calls)
-  const handleToggle = useCallback(async (windowInfo?: ActiveWindowInfo | null) => {
-    handleShortcutPressed(windowInfo);
+  const handleToggle = useCallback(async (payload: ShortcutPressedPayload) => {
+    handleShortcutPressed(payload);
   }, [handleShortcutPressed]);
 
   // Refs to hold latest callbacks for Tauri event listeners
