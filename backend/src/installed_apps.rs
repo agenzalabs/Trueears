@@ -196,20 +196,26 @@ fn save_to_file_cache(apps: &[InstalledApp]) {
 }
 
 /// Initialize cache on app startup - call this from lib.rs setup
+/// This is fully async and does NOT block app startup
 pub fn init_cache() {
-    // First, try to load from file cache into memory
-    if let Some(apps) = load_from_file_cache() {
-        if let Ok(mut cache) = INSTALLED_APPS_CACHE.write() {
-            *cache = Some(apps);
-            log::info!("Initialized memory cache from file");
-        }
-    }
+    // Spawn everything in background thread - no blocking
+    std::thread::spawn(|| {
+        log::info!("Initializing installed apps cache in background");
 
-    // Then start background refresh
-    start_background_refresh();
+        // First, try to load from file cache into memory
+        if let Some(apps) = load_from_file_cache() {
+            if let Ok(mut cache) = INSTALLED_APPS_CACHE.write() {
+                *cache = Some(apps);
+                log::info!("Initialized memory cache from file");
+            }
+        }
+
+        // Then do a fresh scan to ensure cache is up-to-date
+        do_background_refresh();
+    });
 }
 
-/// Start background refresh of installed apps
+/// Start background refresh of installed apps (can be called separately)
 pub fn start_background_refresh() {
     // Check if already refreshing
     if let Ok(in_progress) = REFRESH_IN_PROGRESS.read() {
@@ -219,38 +225,51 @@ pub fn start_background_refresh() {
         }
     }
 
+    // Spawn background thread
+    std::thread::spawn(|| {
+        do_background_refresh();
+    });
+}
+
+/// Internal: Actually perform the refresh (called from background thread)
+fn do_background_refresh() {
+    // Check if already refreshing
+    {
+        let in_progress = REFRESH_IN_PROGRESS.read().ok();
+        if in_progress.map(|p| *p).unwrap_or(false) {
+            return;
+        }
+    }
+
     // Mark as in progress
     if let Ok(mut in_progress) = REFRESH_IN_PROGRESS.write() {
         *in_progress = true;
     }
 
-    // Spawn background thread
-    std::thread::spawn(|| {
-        log::info!("Starting background refresh of installed apps");
-        let start = std::time::Instant::now();
+    log::info!("Starting background refresh of installed apps");
+    let start = std::time::Instant::now();
 
-        // Do the expensive scan
-        let apps = scan_installed_popular_apps();
+    // Do the expensive scan
+    let apps = scan_installed_popular_apps();
 
-        // Update memory cache
-        if let Ok(mut cache) = INSTALLED_APPS_CACHE.write() {
-            *cache = Some(apps.clone());
-        }
+    // Update memory cache
+    if let Ok(mut cache) = INSTALLED_APPS_CACHE.write() {
+        *cache = Some(apps.clone());
+    }
 
-        // Save to file cache
-        save_to_file_cache(&apps);
+    // Save to file cache
+    save_to_file_cache(&apps);
 
-        // Mark as complete
-        if let Ok(mut in_progress) = REFRESH_IN_PROGRESS.write() {
-            *in_progress = false;
-        }
+    // Mark as complete
+    if let Ok(mut in_progress) = REFRESH_IN_PROGRESS.write() {
+        *in_progress = false;
+    }
 
-        log::info!(
-            "Background refresh complete: {} apps in {:?}",
-            apps.len(),
-            start.elapsed()
-        );
-    });
+    log::info!(
+        "Background refresh complete: {} apps in {:?}",
+        apps.len(),
+        start.elapsed()
+    );
 }
 
 // ============================================================================
