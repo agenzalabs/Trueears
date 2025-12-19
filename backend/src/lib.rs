@@ -196,6 +196,9 @@ pub fn run() {
             // Migrate any legacy auth storage to the consolidated path
             auth::migrate_legacy_auth_file();
 
+            // Initialize installed apps cache in background
+            installed_apps::init_cache();
+
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()

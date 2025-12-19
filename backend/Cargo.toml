@@ -33,6 +33,16 @@ walkdir = "2.5"
 tauri-plugin-shell = "2.3.3"
 image = "0.25"
 base64 = "0.22"
+lnk = "0.5"
+
+# OAuth and authentication
+keyring = "3"                           # OS keychain for secure token storage
+reqwest = { version = "0.12", features = ["json"] }  # HTTP client for API calls
+tiny_http = "0.12"                      # Local server for OAuth callback
+url = "2.5"                             # URL parsing
+uuid = { version = "1.6", features = ["v4"] }  # Unique IDs
+urlencoding = "2.1"                     # URL encoding for OAuth
+dotenvy = "0.15"                        # Load .env file
 
 # OAuth and authentication
 keyring = "3"                           # OS keychain for secure token storage
@@ -46,6 +56,7 @@ dotenvy = "0.15"                        # Load .env file
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.52", features = [
     "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Controls",
     "Win32_Foundation",
     "Win32_System_Threading",
     "Win32_System_Com",

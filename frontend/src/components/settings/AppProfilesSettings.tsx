@@ -789,9 +789,34 @@ export const AppProfilesSettings: React.FC<AppProfilesSettingsProps> = ({ theme 
       </div>
 
       {isLoading ? (
-        <div className={`text-center py-12 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-          <div className="w-6 h-6 border-2 border-gray-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm">Detecting installed apps...</p>
+        <div className="space-y-8">
+          {/* Skeleton loading UI */}
+          {['Code Editors', 'Communication', 'Browsers'].map((category, catIndex) => (
+            <div key={category}>
+              <div className={`h-4 w-24 rounded mb-3 animate-pulse ${isDark ? 'bg-[#333]' : 'bg-gray-200'}`} />
+              <div className="space-y-2">
+                {[1, 2, 3].slice(0, catIndex === 0 ? 3 : 2).map((_, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex items-center justify-between p-4 rounded-lg border ${isDark ? 'bg-[#1a1a1a] border-[#333]' : 'bg-white border-gray-300'}`}
+                  >
+                    <div className="flex items-center gap-4 flex-1">
+                      {/* Icon skeleton */}
+                      <div className={`w-10 h-10 rounded-lg animate-pulse ${isDark ? 'bg-[#333]' : 'bg-gray-200'}`} />
+                      <div className="flex-1 space-y-2">
+                        {/* Name skeleton */}
+                        <div className={`h-4 rounded animate-pulse ${isDark ? 'bg-[#333]' : 'bg-gray-200'}`} style={{ width: `${80 + idx * 20}px` }} />
+                        {/* Executable skeleton */}
+                        <div className={`h-3 w-20 rounded animate-pulse ${isDark ? 'bg-[#252525]' : 'bg-gray-100'}`} />
+                      </div>
+                    </div>
+                    {/* Toggle skeleton */}
+                    <div className={`w-10 h-6 rounded-full animate-pulse ${isDark ? 'bg-[#333]' : 'bg-gray-200'}`} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         <div className="space-y-8">
