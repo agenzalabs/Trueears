@@ -202,8 +202,6 @@ export const SettingsWindow: React.FC = () => {
         {activeTab === 'profiles' && <AppProfilesSettings theme={settings.theme} />}
         {activeTab === 'preferences' && <PreferencesSettings theme={settings.theme} saveTheme={settings.saveTheme} recordingMode={settings.recordingMode} saveRecordingMode={settings.saveRecordingMode} />}
         {activeTab === 'account' && (
-          <div className="p-6">
-            <h2 className={`text-lg font-bold mb-4 ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>Account</h2>
             <AccountSection
               theme={settings.theme}
               isAuthenticated={auth.isAuthenticated}
@@ -213,7 +211,6 @@ export const SettingsWindow: React.FC = () => {
               logout={auth.logout}
               refreshAuthState={auth.refreshAuthState}
             />
-          </div>
         )}
         {activeTab === 'about' && <AboutSettings theme={settings.theme} />}
       </div>
