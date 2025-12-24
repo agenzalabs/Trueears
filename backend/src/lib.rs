@@ -2,6 +2,7 @@ mod auth;
 mod automation;
 mod shortcuts;
 mod window;
+mod installed_apps;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Emitter;
@@ -74,6 +75,18 @@ async fn set_onboarding_trigger_active(app: tauri::AppHandle, active: bool) -> R
     // Broadcast state so frontends can ignore toggle-recording while onboarding step is active
     let _ = app.emit("onboarding-trigger-state", active);
     Ok(())
+}
+
+#[tauri::command]
+async fn search_installed_apps(query: String) -> Result<Vec<installed_apps::InstalledApp>, String> {
+    log::info!("search_installed_apps: query={}", query);
+    Ok(installed_apps::search_installed_apps(&query))
+}
+
+#[tauri::command]
+async fn get_installed_popular_apps() -> Result<Vec<installed_apps::InstalledApp>, String> {
+    log::info!("get_installed_popular_apps command called");
+    Ok(installed_apps::get_installed_popular_apps())
 }
 
 #[tauri::command]
@@ -183,6 +196,9 @@ pub fn run() {
             // Migrate any legacy auth storage to the consolidated path
             auth::migrate_legacy_auth_file();
 
+            // Initialize installed apps cache in background
+            installed_apps::init_cache();
+
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
@@ -287,6 +303,8 @@ pub fn run() {
             get_store_value,
             set_store_value,
             set_onboarding_trigger_active,
+            search_installed_apps,
+            get_installed_popular_apps,
             // Auth commands
             start_google_login,
             get_auth_state,

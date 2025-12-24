@@ -31,6 +31,9 @@ tokio = { version = "1", features = ["time"] }
 once_cell = "1.20"
 walkdir = "2.5"
 tauri-plugin-shell = "2.3.3"
+image = "0.25"
+base64 = "0.22"
+lnk = "0.5"
 
 # OAuth and authentication
 keyring = "3"                           # OS keychain for secure token storage
@@ -44,6 +47,16 @@ dotenvy = "0.15"                        # Load .env file
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.52", features = [
     "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Controls",
     "Win32_Foundation",
-    "Win32_System_Threading"
+    "Win32_System_Threading",
+    "Win32_System_Com",
+    "Win32_System_Ole",
+    "Win32_System_Variant",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_Common",
+    "Win32_UI_Accessibility",
+    "Win32_Storage_FileSystem",
+    "Win32_Graphics_Gdi"
 ] }
+winreg = "0.52"
