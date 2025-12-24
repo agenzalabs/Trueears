@@ -34,7 +34,26 @@ export const postProcessTranscription = async (
 
   try {
     console.log('[DictationController] Window info:', windowInfo);
-    const systemPrompt = AppProfileService.getSystemPrompt(windowInfo, defaultPrompt);
+    // Ensure profiles are loaded from the durable Tauri store before matching.
+    await AppProfileService.ensureLoaded();
+    const matched = AppProfileService.matchProfile(windowInfo);
+    console.log('[DictationController] Matched profile:', matched ? {
+      id: matched.id,
+      displayName: matched.displayName,
+      appName: matched.appName,
+      websiteUrl: matched.websiteUrl,
+      windowTitlePattern: matched.windowTitlePattern,
+      hasSystemPrompt: !!matched.systemPrompt
+    } : null);
+    if (windowInfo?.url) {
+      console.log('[DictationController] Active URL:', windowInfo.url);
+    } else if (windowInfo && /chrome\.exe|msedge\.exe|firefox\.exe|brave\.exe|opera\.exe/i.test(windowInfo.app_name)) {
+      console.warn('[DictationController] Browser URL not available (website matching will fall back to title/regex).');
+    }
+
+    const systemPrompt = AppProfileService.getSystemPrompt(windowInfo, defaultPrompt, matched);
+    // Log the tail so we can verify the profile prompt is actually appended.
+    console.log('[DictationController] System prompt tail:', systemPrompt.slice(Math.max(0, systemPrompt.length - 220)));
     console.log('[DictationController] Using system prompt:', systemPrompt.substring(0, 100) + '...');
     console.log('[DictationController] Raw text to format:', rawText);
     
