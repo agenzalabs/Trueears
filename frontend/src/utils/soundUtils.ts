@@ -25,3 +25,31 @@ export const playSuccessSound = () => {
     // Ignore audio errors
   }
 };
+
+export const playCancelSound = () => {
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+
+    const ctx = new AudioContext();
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    // Triangle wave at 440Hz (A4) for softer, less celebratory tone
+    oscillator.type = 'triangle';
+    oscillator.frequency.setValueAtTime(440, ctx.currentTime);
+
+    // Short duration (0.3s) for quick acknowledgment
+    gainNode.gain.setValueAtTime(0, ctx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.12, ctx.currentTime + 0.02); // Attack
+    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3); // Quick decay
+
+    oscillator.start();
+    oscillator.stop(ctx.currentTime + 0.3);
+  } catch (error) {
+    // Ignore audio errors
+  }
+};

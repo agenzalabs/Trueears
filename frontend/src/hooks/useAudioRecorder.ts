@@ -36,7 +36,7 @@ export const useAudioRecorder = () => {
 
   const stopRecording = useCallback(async (): Promise<Blob> => {
     console.log('[useAudioRecorder] stopRecording called, isRecording:', isRecording, 'mediaRecorderRef:', !!mediaRecorderRef.current);
-    
+
     if (!mediaRecorderRef.current) {
       console.warn('[useAudioRecorder] No media recorder found');
       return new Blob([]);
@@ -55,7 +55,7 @@ export const useAudioRecorder = () => {
       recorder.onstop = () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         console.log('[useAudioRecorder] MediaRecorder stopped, blob size:', audioBlob.size, 'chunks:', audioChunksRef.current.length);
-        
+
         // Cleanup
         if (stream) {
           stream.getTracks().forEach(t => t.stop());
@@ -64,17 +64,44 @@ export const useAudioRecorder = () => {
         setMediaStream(null);
         setIsRecording(false);
         console.log('[useAudioRecorder] States reset, isRecording set to false');
-        
+
         resolve(audioBlob);
       };
       recorder.stop();
     });
   }, [isRecording, mediaStream]);
 
+  const cancelRecording = useCallback(() => {
+    console.log('[useAudioRecorder] cancelRecording called, isRecording:', isRecording);
+
+    // Stop MediaRecorder if active
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+      console.log('[useAudioRecorder] MediaRecorder stopped');
+    }
+    mediaRecorderRef.current = null;
+
+    // Stop all MediaStream tracks
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(t => t.stop());
+      console.log('[useAudioRecorder] MediaStream tracks stopped');
+    }
+    setMediaStream(null);
+
+    // Clear audio chunks - discard all captured audio
+    audioChunksRef.current = [];
+    console.log('[useAudioRecorder] Audio chunks cleared');
+
+    // Reset recording state
+    setIsRecording(false);
+    console.log('[useAudioRecorder] Recording cancelled, state reset');
+  }, [mediaStream]);
+
   return {
     isRecording,
     mediaStream,
     startRecording,
-    stopRecording
+    stopRecording,
+    cancelRecording
   };
 };

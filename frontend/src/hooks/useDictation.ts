@@ -2,16 +2,18 @@ import { useState, useCallback, useRef } from 'react';
 import { useAudioRecorder } from './useAudioRecorder';
 import { processTranscription, postProcessTranscription, finalizeDictation, transformSelectedText } from '../controllers/dictationController';
 import { ActiveWindowInfo } from '../types/appProfile';
+import { playCancelSound } from '../utils/soundUtils';
 
-export type DictationStatus = 'idle' | 'recording' | 'processing' | 'success' | 'error';
+export type DictationStatus = 'idle' | 'recording' | 'processing' | 'success' | 'error' | 'cancelled';
 export type DictationMode = 'dictation' | 'transform';
 
 export const useDictation = () => {
   const [status, setStatus] = useState<DictationStatus>('idle');
   const [mode, setMode] = useState<DictationMode>('dictation');
   const [selectedText, setSelectedText] = useState<string | null>(null);
-  const { isRecording, mediaStream, startRecording, stopRecording } = useAudioRecorder();
+  const { isRecording, mediaStream, startRecording, stopRecording, cancelRecording } = useAudioRecorder();
   const isProcessingRef = useRef(false);
+  const isCancellingRef = useRef(false);
   const [activeWindowInfo, setActiveWindowInfo] = useState<ActiveWindowInfo | null>(null);
 
   const startDictation = async (windowInfo?: ActiveWindowInfo | null, preSelectedText?: string | null) => {
@@ -174,12 +176,51 @@ export const useDictation = () => {
     }
   }, [isRecording, stopRecording, activeWindowInfo, mode, selectedText]);
 
+  const cancelDictation = useCallback(() => {
+    console.log('[useDictation] cancelDictation called, isRecording:', isRecording, 'status:', status);
+
+    // Prevent multiple cancellations
+    if (isCancellingRef.current) {
+      console.warn('[useDictation] Already cancelling, ignoring cancel request');
+      return;
+    }
+
+    // Only cancel if currently recording
+    if (!isRecording && status !== 'recording') {
+      console.warn('[useDictation] Not recording, ignoring cancel request');
+      return;
+    }
+
+    isCancellingRef.current = true;
+
+    // Cancel the audio recording (discards audio, no Blob created)
+    cancelRecording();
+
+    // Set status to cancelled
+    setStatus('cancelled');
+    console.log('[useDictation] Status set to cancelled');
+
+    // Play cancel sound for audio feedback
+    playCancelSound();
+
+    // Reset state after display duration (matches success/error timing)
+    setTimeout(() => {
+      setStatus('idle');
+      setActiveWindowInfo(null);
+      setMode('dictation');
+      setSelectedText(null);
+      isCancellingRef.current = false;
+      console.log('[useDictation] Status reset to idle after cancellation');
+    }, 1500);
+  }, [isRecording, status, cancelRecording]);
+
   return {
     status,
     mode,
     mediaStream,
     startDictation,
     stopDictation,
+    cancelDictation,
     activeWindowInfo,
   };
 };
