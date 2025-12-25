@@ -2,9 +2,10 @@
 
 Yes, I can see the commits in this repository!
 
-## Current Branch
+## Current Branch (at time of verification)
 - **Branch**: `copilot/check-commit-status`
 - **Status**: Up to date with origin
+- **Note**: Branch details reflect the state at creation time
 
 ## Recent Commits Visible
 
@@ -15,7 +16,7 @@ Yes, I can see the commits in this repository!
 - **Date**: Thu Dec 25 17:16:17 2025 +0000
 
 ### 2. Previous Commit (v0.2.0)
-- **SHA**: `e64aa35`
+- **SHA**: `e64aa35` (shortened from full hash for readability)
 - **Tag**: `v0.2.0`
 - **Message**: "fix: Fix version injection in Vite config and remove duplicate define"
 
