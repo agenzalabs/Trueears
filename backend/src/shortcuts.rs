@@ -23,6 +23,12 @@ pub fn register_shortcuts(app: &AppHandle) -> Result<(), Box<dyn std::error::Err
         return Err(e);
     }
 
+    // Register cancel shortcut (Escape)
+    if let Err(e) = register_cancel_shortcut(app) {
+        log::warn!("Failed to register cancel shortcut (non-fatal): {}", e);
+        // Don't return error - cancel can still work via other means
+    }
+
     // Register settings shortcut (Ctrl+Shift+; / Cmd+Shift+;)
     // Using semicolon instead of L to avoid conflicts with other apps
     if let Err(e) = register_settings_shortcut(app) {
@@ -146,6 +152,28 @@ fn register_recording_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error
     })?;
 
     log::info!("Recording shortcut (Ctrl+Shift+K) registered");
+    Ok(())
+}
+
+fn register_cancel_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    let cancel_shortcut = Shortcut::new(None, Code::Escape);
+
+    app.global_shortcut().on_shortcut(cancel_shortcut, {
+        let app_handle = app.clone();
+        move |_app, _shortcut, event| {
+            if event.state == ShortcutState::Pressed {
+                if let Some(window) = app_handle.get_webview_window("main") {
+                    // Only emit if window is visible (don't steal Escape from other apps globally)
+                    if let Ok(true) = window.is_visible() {
+                        log::info!("Escape pressed while window visible - emitting shortcut-cancelled");
+                        let _ = window.emit("shortcut-cancelled", ());
+                    }
+                }
+            }
+        }
+    })?;
+
+    log::info!("Cancel shortcut (Escape) registered");
     Ok(())
 }
 

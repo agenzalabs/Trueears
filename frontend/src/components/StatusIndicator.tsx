@@ -2,7 +2,7 @@ import React from 'react';
 import { Spinner } from '@/components/ui/ios-spinner';
 
 interface StatusIndicatorProps {
-  status: 'idle' | 'recording' | 'processing' | 'success' | 'error' | 'setup' | 'settings' | 'warning' | 'none';
+  status: 'idle' | 'recording' | 'processing' | 'success' | 'error' | 'cancelled' | 'setup' | 'settings' | 'warning' | 'none';
   onSettingsClick: () => void;
   isDark?: boolean;
 }
@@ -22,6 +22,10 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, onSett
         </svg>
       ) : status === 'error' ? (
         <svg className="w-4 h-4 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      ) : status === 'cancelled' ? (
+        <svg className="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
       ) : (

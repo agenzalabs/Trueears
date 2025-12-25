@@ -36,7 +36,7 @@ export const RecorderOverlay: React.FC = () => {
   } = useSettings();
   
   const isDark = theme === 'dark';
-  const { status: recordingStatus, mediaStream, startDictation, stopDictation, activeWindowInfo } = useDictation();
+  const { status: recordingStatus, mediaStream, startDictation, stopDictation, cancelDictation, activeWindowInfo } = useDictation();
   const { isVisible: isToastVisible, message: toastMessage, type: toastType, showToast, hideToast } = useToast();
 
   // Derived status for rendering
@@ -84,10 +84,10 @@ export const RecorderOverlay: React.FC = () => {
     }
   };
 
-  // -- Effect: Auto-hide after success/error --
+  // -- Effect: Auto-hide after success/error/cancelled --
   const prevRecordingStatus = useRef(recordingStatus);
   useEffect(() => {
-      if ((prevRecordingStatus.current === 'success' || prevRecordingStatus.current === 'error') && recordingStatus === 'idle') {
+      if ((prevRecordingStatus.current === 'success' || prevRecordingStatus.current === 'error' || prevRecordingStatus.current === 'cancelled') && recordingStatus === 'idle') {
           setIsVisible(false);
       }
       prevRecordingStatus.current = recordingStatus;
@@ -367,6 +367,19 @@ export const RecorderOverlay: React.FC = () => {
     }
   }, [recordingStatus, handleStopRecording, onboardingTriggerActive]);
 
+  // -- Trigger: Handle Shortcut Cancelled (Escape) --
+  const handleShortcutCancelled = useCallback(() => {
+    console.log('[RecorderOverlay] *** SHORTCUT CANCELLED EVENT RECEIVED ***');
+
+    if (recordingStatus === 'recording') {
+        console.log('[RecorderOverlay] Cancelling dictation via global shortcut');
+        cancelDictation();
+    } else if (isVisible) {
+        console.log('[RecorderOverlay] Hiding overlay via global shortcut');
+        setIsVisible(false);
+    }
+  }, [recordingStatus, cancelDictation, isVisible]);
+
   // Legacy handleToggle for backward compatibility (used by some internal calls)
   const handleToggle = useCallback(async (payload: ShortcutPressedPayload) => {
     handleShortcutPressed(payload);
@@ -376,19 +389,21 @@ export const RecorderOverlay: React.FC = () => {
   const handleToggleRef = useRef(handleToggle);
   const handleShortcutPressedRef = useRef(handleShortcutPressed);
   const handleShortcutReleasedRef = useRef(handleShortcutReleased);
-  
+  const handleShortcutCancelledRef = useRef(handleShortcutCancelled);
+
   // Keep refs up to date
   useEffect(() => {
     handleToggleRef.current = handleToggle;
     handleShortcutPressedRef.current = handleShortcutPressed;
     handleShortcutReleasedRef.current = handleShortcutReleased;
+    handleShortcutCancelledRef.current = handleShortcutCancelled;
   });
 
   // -- Keyboard Shortcuts (Escape key + F12 for DevTools) --
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isVisible) {
-        if (recordingStatus === 'recording') handleStopRecording();
+        if (recordingStatus === 'recording') cancelDictation();
         else setIsVisible(false);
       }
       
@@ -414,7 +429,7 @@ export const RecorderOverlay: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isVisible, handleStopRecording, recordingStatus]);
+  }, [isVisible, cancelDictation, recordingStatus]);
 
   // -- Tauri Event Listeners (setup ONCE using module-level flag) --
   useEffect(() => {
@@ -428,6 +443,7 @@ export const RecorderOverlay: React.FC = () => {
     
     let unlistenPressed: (() => void) | null = null;
     let unlistenReleased: (() => void) | null = null;
+    let unlistenCancelled: (() => void) | null = null;
     let unlistenWarning: (() => void) | null = null;
     let unlistenOnboardingState: (() => void) | null = null;
     
@@ -446,7 +462,12 @@ export const RecorderOverlay: React.FC = () => {
         console.log('[RecorderOverlay] Shortcut released callback fired');
         handleShortcutReleasedRef.current();
       });
-      
+
+      unlistenCancelled = await tauriAPI.onShortcutCancelled(() => {
+        console.log('[RecorderOverlay] Shortcut cancelled callback fired');
+        handleShortcutCancelledRef.current();
+      });
+
       unlistenWarning = await tauriAPI.onShowWarning((msg) => {
         console.log('[RecorderOverlay] Warning callback fired:', msg);
         setWarningMessage(msg);
@@ -507,7 +528,7 @@ export const RecorderOverlay: React.FC = () => {
           ${status === 'setup' ? 'w-80 h-12 rounded-xl' : ''}
           ${status === 'warning' ? 'w-64 h-10 rounded-xl' : ''}
           ${status === 'recording' ? 'w-40 h-9' : ''}
-          ${(status === 'idle' || status === 'processing' || status === 'success' || status === 'error') ? 'w-9 h-9' : ''}
+          ${(status === 'idle' || status === 'processing' || status === 'success' || status === 'error' || status === 'cancelled') ? 'w-9 h-9' : ''}
         `}
         style={{
           backgroundColor: isDark ? '#0a0a0a' : '#f8fafc',

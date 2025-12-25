@@ -55,6 +55,25 @@ export const tauriAPI = {
         }
     },
 
+    onShortcutCancelled: async (callback: () => void) => {
+        console.log('[tauriAPI] Setting up shortcut-cancelled listener, isTauri:', isTauri());
+        try {
+            if (!isTauri()) {
+                console.warn('[tauriAPI] Not in Tauri context, skipping listener setup');
+                return () => {};
+            }
+            const unlisten = await listen('shortcut-cancelled', () => {
+                console.log('[tauriAPI] shortcut-cancelled event received');
+                callback();
+            });
+            console.log('[tauriAPI] shortcut-cancelled listener registered successfully');
+            return unlisten;
+        } catch (error) {
+            console.error('[tauriAPI] Failed to register shortcut-cancelled listener:', error);
+            return () => {};
+        }
+    },
+
     // Legacy alias for backward compatibility
     onToggleRecording: async (callback: (payload: ShortcutPressedPayload) => void) => {
         console.log('[tauriAPI] Setting up toggle-recording listener (legacy), isTauri:', isTauri());
