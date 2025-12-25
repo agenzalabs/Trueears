@@ -135,22 +135,27 @@ pub fn get_active_window_info() -> Option<ActiveWindowInfo> {
 
     unsafe {
         let hwnd: HWND = GetForegroundWindow();
+        log::info!("GetForegroundWindow returned hwnd: {:?}", hwnd);
 
         // Get window title
         let mut title: [u16; 512] = [0; 512];
         let len = GetWindowTextW(hwnd, &mut title);
+        log::info!("GetWindowTextW returned len: {}", len);
 
         if len == 0 {
+            log::warn!("Window title length is 0, returning None");
             return None;
         }
 
         let window_title = String::from_utf16_lossy(&title[..len as usize]);
+        log::info!("Window title: '{}'", window_title);
 
         // Skip invalid windows
         if window_title.is_empty()
             || window_title == "Program Manager"
             || window_title == "Windows Default Lock Screen"
         {
+            log::warn!("Window title is invalid (empty or system window), returning None");
             return None;
         }
 
@@ -227,7 +232,7 @@ pub fn get_active_window_info() -> Option<ActiveWindowInfo> {
 #[cfg(target_os = "linux")]
 pub fn get_active_window_info() -> Option<ActiveWindowInfo> {
     use x11rb::connection::Connection;
-    use x11rb::protocol::xproto::{AtomEnum, ConnectionExt, get_property};
+    use x11rb::protocol::xproto::{AtomEnum, ConnectionExt};
     use std::fs;
     
     // Connect to X11 display

@@ -119,10 +119,9 @@ async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
     .decorations(true)
     .always_on_top(false)
     .skip_taskbar(false)
-    .transparent(false)
     .initialization_script("document.documentElement.style.background = '#f8fafc'; document.body.style.background = '#f8fafc';")
     .build()
-    .map_err(|e| e.to_string())?;
+    .map_err(|e: tauri::Error| e.to_string())?;
 
     // Ensure the window is interactive
     settings_window
