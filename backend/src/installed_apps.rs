@@ -41,7 +41,8 @@ struct CacheFile {
     apps: Vec<InstalledApp>,
 }
 
-const CACHE_VERSION: u32 = 1;
+// Bump when cache semantics change (prevents stale/ghost entries from older versions)
+const CACHE_VERSION: u32 = 2;
 const CACHE_FILENAME: &str = "installed_apps_cache.json";
 
 /// Known popular apps with their executables and categories
@@ -434,8 +435,7 @@ fn get_all_registered_apps() -> HashMap<String, String> {
         for exe_name in hklm.enum_keys().filter_map(|k| k.ok()) {
             if let Ok(app_key) = hklm.open_subkey(&exe_name) {
                 if let Ok(path) = app_key.get_value::<String, _>("") {
-                    let key = exe_name.to_lowercase();
-                    executables.entry(key).or_insert(path);
+                    store_executable(&mut executables, &exe_name, &path);
                 }
             }
         }
@@ -448,8 +448,7 @@ fn get_all_registered_apps() -> HashMap<String, String> {
         for exe_name in hklm32.enum_keys().filter_map(|k| k.ok()) {
             if let Ok(app_key) = hklm32.open_subkey(&exe_name) {
                 if let Ok(path) = app_key.get_value::<String, _>("") {
-                    let key = exe_name.to_lowercase();
-                    executables.entry(key).or_insert(path);
+                    store_executable(&mut executables, &exe_name, &path);
                 }
             }
         }
@@ -462,8 +461,7 @@ fn get_all_registered_apps() -> HashMap<String, String> {
         for exe_name in hkcu.enum_keys().filter_map(|k| k.ok()) {
             if let Ok(app_key) = hkcu.open_subkey(&exe_name) {
                 if let Ok(path) = app_key.get_value::<String, _>("") {
-                    let key = exe_name.to_lowercase();
-                    executables.entry(key).or_insert(path);
+                    store_executable(&mut executables, &exe_name, &path);
                 }
             }
         }
@@ -501,14 +499,15 @@ fn collect_start_menu_links() -> HashMap<String, String> {
             if path.extension().and_then(|e| e.to_str()).map(|ext| ext.eq_ignore_ascii_case("lnk")).unwrap_or(false) {
                 // Use lnk crate to parse the shortcut (much faster than COM)
                 if let Some(target_path) = resolve_lnk_target_fast(path) {
-                    if let Some(exe_name) = PathBuf::from(&target_path)
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                    {
-                        let exe_key = exe_name.to_lowercase();
-                        // Only add if it's an .exe file
-                        if exe_key.ends_with(".exe") {
-                            map.entry(exe_key).or_insert(target_path);
+                    let full_path = sanitize_exe_path(&expand_env_vars(&target_path));
+                    let pb = PathBuf::from(&full_path);
+                    if pb.exists() && !is_windows_system_path(&full_path) {
+                        if let Some(exe_name) = pb.file_name().and_then(|n| n.to_str()) {
+                            let exe_key = exe_name.to_lowercase();
+                            // Only add if it's an .exe file
+                            if exe_key.ends_with(".exe") {
+                                map.entry(exe_key).or_insert(full_path);
+                            }
                         }
                     }
                 }
@@ -534,10 +533,34 @@ fn resolve_lnk_target_inner(lnk_path: &std::path::Path) -> Option<String> {
 
     // Try to get the target path from link info
     if let Some(link_info) = shell_link.link_info() {
-        if let Some(local_base_path) = link_info.local_base_path() {
-            let path = local_base_path.to_string();
-            if !path.is_empty() {
-                return Some(expand_env_vars(&path));
+        // Prefer Unicode paths when present
+        let base = link_info
+            .local_base_path_unicode()
+            .as_ref()
+            .or_else(|| link_info.local_base_path().as_ref());
+
+        if let Some(base) = base {
+            let base_expanded = expand_env_vars(base);
+            let base_pb = PathBuf::from(&base_expanded);
+
+            // Some shortcuts store the full exe in LocalBasePath already
+            if base_expanded.to_lowercase().ends_with(".exe") && base_pb.exists() {
+                return Some(base_expanded);
+            }
+
+            // Spec: LocalBasePath + CommonPathSuffix = full target path
+            let suffix = link_info
+                .common_path_suffix_unicode()
+                .as_ref()
+                .map(|s| s.as_str())
+                .unwrap_or_else(|| link_info.common_path_suffix().as_str());
+
+            if !suffix.is_empty() {
+                let joined = base_pb.join(suffix);
+                let joined_str = expand_env_vars(&joined.to_string_lossy());
+                if PathBuf::from(&joined_str).exists() {
+                    return Some(joined_str);
+                }
             }
         }
     }
@@ -547,7 +570,7 @@ fn resolve_lnk_target_inner(lnk_path: &std::path::Path) -> Option<String> {
         if let Some(working_dir) = shell_link.working_dir() {
             let full_path = PathBuf::from(working_dir).join(relative_path);
             if full_path.exists() {
-                return full_path.to_str().map(|s| s.to_string());
+                return full_path.to_str().map(|s| expand_env_vars(s));
             }
         }
     }
@@ -576,6 +599,35 @@ fn expand_env_vars(path: &str) -> String {
     }
 
     result
+}
+
+fn sanitize_exe_path(raw: &str) -> String {
+    let trimmed = raw.trim().trim_matches('"').trim();
+    let lower = trimmed.to_lowercase();
+    if let Some(idx) = lower.find(".exe") {
+        return trimmed[..(idx + 4)].to_string();
+    }
+    trimmed.to_string()
+}
+
+fn is_windows_system_path(path: &str) -> bool {
+    let lower = path.to_lowercase();
+    lower.starts_with("c:\\windows\\")
+        || lower.contains("\\windows\\system32\\")
+        || lower.contains("\\windows\\syswow64\\")
+        || lower.contains("\\windows\\winsxs\\")
+}
+
+fn store_executable(map: &mut HashMap<String, String>, exe_name: &str, raw_path: &str) {
+    let exe_key = exe_name.to_lowercase();
+    let path = sanitize_exe_path(&expand_env_vars(raw_path));
+    if path.is_empty() || is_windows_system_path(&path) {
+        return;
+    }
+    if !PathBuf::from(&path).exists() {
+        return;
+    }
+    map.entry(exe_key).or_insert(path);
 }
 
 /// Extract high-quality icon from file path and return as base64 PNG

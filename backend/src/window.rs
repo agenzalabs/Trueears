@@ -204,7 +204,13 @@ pub fn get_active_window_info() -> Option<ActiveWindowInfo> {
             None
         };
 
-        log::info!("Active window - Title: {}, App: {}, Path: {}", window_title, app_name, exe_path_str);
+        log::info!(
+            "Active window - Title: {}, App: {}, Path: {}, Url: {:?}",
+            window_title,
+            app_name,
+            exe_path_str,
+            url
+        );
 
         // Clean up process handle
         let _ = CloseHandle(process_handle);

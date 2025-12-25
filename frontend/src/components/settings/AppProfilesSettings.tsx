@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AppProfile } from '../../types/appProfile';
 import { AppProfileService } from '../../services/appProfileService';
+import { tauriAPI } from '../../utils/tauriApi';
 import { POPULAR_APPS, PopularApp, BrowserVariant } from '../../data/popularApps';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -641,8 +642,29 @@ export const AppProfilesSettings: React.FC<AppProfilesSettingsProps> = ({ theme 
   const [expandedBrowsers, setExpandedBrowsers] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    loadProfiles();
+    // Ensure profiles are loaded from the durable store before rendering
+    void (async () => {
+      await AppProfileService.ensureLoaded();
+      loadProfiles();
+    })();
     loadInstalledPopularApps();
+  }, []);
+
+  // Keep UI in sync when profiles change (including changes from another window)
+  useEffect(() => {
+    const unsubscribe = AppProfileService.subscribe(() => {
+      loadProfiles();
+    });
+    // Also listen for backend store updates (cross-window)
+    let unlisten: (() => void) | undefined;
+    tauriAPI.onSettingsChanged(() => {
+      void AppProfileService.ensureLoaded().then(() => loadProfiles());
+    }).then(u => { unlisten = u; }).catch(() => {});
+
+    return () => {
+      unsubscribe();
+      unlisten?.();
+    };
   }, []);
 
   const loadInstalledPopularApps = async () => {

@@ -3,6 +3,19 @@ import { tauriAPI } from '../utils/tauriApi';
 
 const STORAGE_KEY = 'SCRIBE_APP_PROFILES';
 
+type ProfilesListener = (profiles: AppProfile[]) => void;
+
+// In-memory cache (fast sync reads for prompt matching)
+let cachedProfiles: AppProfile[] = [];
+let cacheInitialized = false;
+let loadPromise: Promise<void> | null = null;
+let storeListenerRegistered = false;
+const listeners = new Set<ProfilesListener>();
+
+function isTauriRuntime(): boolean {
+  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+}
+
 // Old default profile IDs that should be removed
 const OLD_DEFAULT_IDS = new Set([
   'vscode', 'cursor', 'slack', 'discord', 'outlook', 'chrome', 
@@ -22,34 +35,104 @@ function isValidProfile(p: AppProfile): boolean {
   );
 }
 
-export class AppProfileService {
-  static getProfiles(): AppProfile[] {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const profiles = JSON.parse(stored) as AppProfile[];
-        // Filter to only valid user-created profiles
-        const valid = profiles.filter(isValidProfile);
-        
-        // If we filtered some out, save the cleaned list
-        if (valid.length !== profiles.length) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(valid));
-        }
-        
-        return valid;
-      }
-    } catch (error) {
-      console.error('Failed to load app profiles:', error);
-    }
+function parseProfiles(raw: string | null): AppProfile[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as AppProfile[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isValidProfile);
+  } catch {
     return [];
+  }
+}
+
+function readProfilesFromLocalStorage(): AppProfile[] {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  const valid = parseProfiles(stored);
+  // Keep localStorage clean (remove invalid/legacy profiles)
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored) as AppProfile[];
+      if (Array.isArray(parsed) && parsed.length !== valid.length) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(valid));
+      }
+    } catch {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }
+  return valid;
+}
+
+function writeProfilesToLocalStorage(profiles: AppProfile[]): void {
+  cachedProfiles = profiles;
+  cacheInitialized = true;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));
+}
+
+function notifyListeners(): void {
+  for (const cb of listeners) {
+    try {
+      cb(cachedProfiles);
+    } catch (e) {
+      console.warn('[AppProfileService] listener error', e);
+    }
+  }
+}
+
+export class AppProfileService {
+  static subscribe(cb: ProfilesListener): () => void {
+    listeners.add(cb);
+    return () => listeners.delete(cb);
+  }
+
+  static async ensureLoaded(): Promise<void> {
+    // In Tauri, profiles must be hydrated from the durable store (settings.json),
+    // even if we already have a local cache (e.g. legacy localStorage during migration).
+    if (!isTauriRuntime()) {
+      if (!cacheInitialized) {
+        cachedProfiles = readProfilesFromLocalStorage();
+        cacheInitialized = true;
+        notifyListeners();
+      }
+      return;
+    }
+    if (!loadPromise) {
+      loadPromise = this.bootstrapStoreSync();
+    }
+    await loadPromise;
+  }
+
+  static getProfiles(): AppProfile[] {
+    if (!cacheInitialized) {
+      // Synchronous fallback: allow immediate UI render.
+      // In Tauri we will migrate this to store ASAP and then clear localStorage.
+      cachedProfiles = readProfilesFromLocalStorage();
+      cacheInitialized = true;
+      notifyListeners();
+
+      // Start async store sync/migration (authoritative in Tauri)
+      void this.ensureLoaded();
+    }
+    return cachedProfiles;
   }
 
   static saveProfiles(profiles: AppProfile[]): void {
     try {
       // Only save valid profiles
       const toSave = profiles.filter(isValidProfile);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-      tauriAPI.emitSettingsChanged();
+      cachedProfiles = toSave;
+      cacheInitialized = true;
+      notifyListeners();
+
+      if (isTauriRuntime()) {
+        // Persist to Tauri store (durable + cross-window)
+        void tauriAPI.setStoreValue(STORAGE_KEY, JSON.stringify(toSave));
+        // Do not persist profiles in localStorage in production (can be per-window / confusing)
+        try { localStorage.removeItem(STORAGE_KEY); } catch {}
+      } else {
+        // Browser/dev fallback
+        writeProfilesToLocalStorage(toSave);
+      }
     } catch (error) {
       console.error('Failed to save app profiles:', error);
     }
@@ -115,17 +198,36 @@ export class AppProfileService {
       }
     }
 
-    // Among candidates, find those with windowTitlePattern that matches
+    // Among candidates, match by:
+    // - explicit title pattern (regex), OR
+    // - best-effort title keywords derived from websiteUrl (when URL is not available)
     const titleMatches = candidates.filter(profile => {
-      if (!profile.windowTitlePattern) return false;
-      try {
-        const regex = new RegExp(profile.windowTitlePattern, 'i');
-        const matches = regex.test(windowInfo.window_title);
-        console.log(`[AppProfileService] Title pattern "${profile.windowTitlePattern}" vs "${windowInfo.window_title}": ${matches}`);
-        return matches;
-      } catch {
-        return false;
+      const title = windowInfo.window_title || '';
+      let matched = false;
+
+      if (profile.windowTitlePattern) {
+        try {
+          const regex = new RegExp(profile.windowTitlePattern, 'i');
+          matched = regex.test(title);
+          console.log(`[AppProfileService] Title pattern "${profile.windowTitlePattern}" vs "${title}": ${matched}`);
+        } catch {
+          // ignore invalid regex
+        }
       }
+
+      // If URL isn't available (common for browsers), try keywords derived from websiteUrl.
+      if (!matched && !activeUrlCanon && profile.websiteUrl) {
+        const canon = normalizeWebsiteUrl(profile.websiteUrl);
+        const keywords = canon ? deriveTitleKeywordsFromWebsiteUrl(canon) : [];
+        const lowerTitle = title.toLowerCase();
+        const kwMatch = keywords.find(k => lowerTitle.includes(k));
+        if (kwMatch) {
+          matched = true;
+          console.log(`[AppProfileService] Title keyword "${kwMatch}" (from websiteUrl "${canon}") vs "${title}": true`);
+        }
+      }
+
+      return matched;
     });
 
     if (titleMatches.length > 0) {
@@ -144,8 +246,12 @@ export class AppProfileService {
     return null;
   }
 
-  static getSystemPrompt(windowInfo: ActiveWindowInfo | null, defaultPrompt?: string): string {
-    const profile = this.matchProfile(windowInfo);
+  static getSystemPrompt(
+    windowInfo: ActiveWindowInfo | null,
+    defaultPrompt?: string,
+    matchedProfile?: AppProfile | null
+  ): string {
+    const profile = matchedProfile ?? this.matchProfile(windowInfo);
     let fullPrompt = BASE_SYSTEM_PROMPT;
     
     if (profile && profile.systemPrompt) {
@@ -195,20 +301,96 @@ export class AppProfileService {
   }
 
   static resetToDefaults(): void {
+    cachedProfiles = [];
+    cacheInitialized = true;
     localStorage.removeItem(STORAGE_KEY);
+    // Best-effort: clear store value as well
+    void tauriAPI.setStoreValue(STORAGE_KEY, '');
+    notifyListeners();
   }
   
   // Clean up any invalid profiles from storage
   static cleanup(): void {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
+    // Clean localStorage once (legacy), then migrate to store in Tauri
+    const valid = readProfilesFromLocalStorage();
+    cachedProfiles = valid;
+    cacheInitialized = true;
+    notifyListeners();
+
+    // Kick off store sync/migration in background
+    void this.ensureLoaded();
+  }
+
+  /**
+   * Ensure profiles are stored durably (Tauri store) and shared across windows.
+   * - If store has data, it wins and overwrites localStorage cache.
+   * - If store is empty but localStorage has data, migrate localStorage -> store.
+   * Also listens for 'settings-changed' and refreshes cache.
+   */
+  private static async bootstrapStoreSync(): Promise<void> {
+    if (!isTauriRuntime()) {
+      // Non-Tauri: localStorage is the source of truth
+      cachedProfiles = readProfilesFromLocalStorage();
+      cacheInitialized = true;
+      notifyListeners();
+      return;
+    }
+
+    if (!storeListenerRegistered) {
+      storeListenerRegistered = true;
       try {
-        const profiles = JSON.parse(stored) as AppProfile[];
-        const valid = profiles.filter(isValidProfile);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(valid));
-      } catch {
-        localStorage.removeItem(STORAGE_KEY);
+        // Listen for cross-window changes (set_store_value emits this)
+        await tauriAPI.onSettingsChanged(() => {
+          void this.refreshFromStore(false);
+        });
+      } catch (e) {
+        console.warn('[AppProfileService] Failed to register settings-changed listener:', e);
       }
+    }
+
+    // Initial sync/migration
+    await this.refreshFromStore(true);
+  }
+
+  private static async refreshFromStore(allowMigrationFromLocalStorage: boolean): Promise<void> {
+    try {
+      const storeRaw = await tauriAPI.getStoreValue(STORAGE_KEY);
+      if (storeRaw && storeRaw.trim() !== '') {
+        // Store wins (even if empty list). If store value is corrupt, ignore it.
+        try {
+          const parsed = JSON.parse(storeRaw) as AppProfile[];
+          if (Array.isArray(parsed)) {
+            const valid = parsed.filter(isValidProfile);
+            cachedProfiles = valid;
+            cacheInitialized = true;
+            notifyListeners();
+            // Remove any legacy localStorage copy so users see a single source of truth.
+            try { localStorage.removeItem(STORAGE_KEY); } catch {}
+            return;
+          }
+        } catch {
+          // fall through to migration
+        }
+      }
+
+      if (allowMigrationFromLocalStorage) {
+        // Store is empty or missing: migrate localStorage once (legacy installs)
+        const local = readProfilesFromLocalStorage();
+        cachedProfiles = local;
+        cacheInitialized = true;
+        notifyListeners();
+
+        if (local.length > 0) {
+          await tauriAPI.setStoreValue(STORAGE_KEY, JSON.stringify(local));
+        } else {
+          // Persist empty list to establish the key
+          await tauriAPI.setStoreValue(STORAGE_KEY, '[]');
+        }
+
+        try { localStorage.removeItem(STORAGE_KEY); } catch {}
+      }
+    } catch (e) {
+      console.warn('[AppProfileService] Failed to refresh profiles from store:', e);
     }
   }
 }
@@ -271,6 +453,52 @@ function urlMatchesCanonical(activeCanon: string, profileCanon: string): boolean
     return next === '' || next === '/';
   }
   return false;
+}
+
+function deriveTitleKeywordsFromWebsiteUrl(canon: string): string[] {
+  // canon examples: "web.whatsapp.com", "mail.google.com", "github.com/org/repo"
+  const host = canon.split('/')[0].toLowerCase();
+  const tokens = new Set<string>();
+
+  // Known special cases where the title doesn't include the domain parts
+  const special: Array<[RegExp, string[]]> = [
+    [/^mail\.google\.com$/, ['gmail']],
+    [/^calendar\.google\.com$/, ['calendar']],
+    [/^docs\.google\.com$/, ['docs', 'google docs']],
+    [/^drive\.google\.com$/, ['drive']],
+    [/^meet\.google\.com$/, ['meet']],
+    [/^web\.whatsapp\.com$/, ['whatsapp']],
+    [/^whatsapp\.com$/, ['whatsapp']],
+    [/^discord\.com$/, ['discord']],
+    [/^slack\.com$/, ['slack']],
+    [/^outlook\.office\.com$/, ['outlook']],
+    [/^teams\.microsoft\.com$/, ['teams']],
+  ];
+  for (const [re, kws] of special) {
+    if (re.test(host)) {
+      kws.forEach(k => tokens.add(k.toLowerCase()));
+    }
+  }
+
+  const hostParts = host.split('.').filter(Boolean);
+  // Drop common TLDs and generic prefixes
+  const GENERIC = new Set(['www', 'web', 'app', 'm', 'mobile', 'home', 'start', 'login', 'accounts', 'mail']);
+  const TLD = new Set(['com', 'net', 'org', 'io', 'app', 'dev', 'ai', 'co', 'uk', 'us', 'in', 'de', 'fr', 'jp', 'cn']);
+
+  for (const p of hostParts) {
+    const part = p.toLowerCase();
+    if (GENERIC.has(part) || TLD.has(part)) continue;
+    if (part.length >= 3) tokens.add(part);
+  }
+
+  // Also consider the registrable-ish domain label (second-to-last) when present
+  if (hostParts.length >= 2) {
+    const d = hostParts[hostParts.length - 2].toLowerCase();
+    if (!GENERIC.has(d) && !TLD.has(d) && d.length >= 3) tokens.add(d);
+  }
+
+  // Sort longest-first so we match the most specific keyword first
+  return Array.from(tokens).sort((a, b) => b.length - a.length);
 }
 
 function isDuplicateProfile(existing: AppProfile, incoming: AppProfile): boolean {
