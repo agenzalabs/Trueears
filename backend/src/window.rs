@@ -224,16 +224,213 @@ pub fn get_active_window_info() -> Option<ActiveWindowInfo> {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "linux")]
 pub fn get_active_window_info() -> Option<ActiveWindowInfo> {
-    // TODO: Implement for macOS using NSWorkspace.activeApplication
-    // TODO: Implement for Linux using xdotool or wmctrl
+    use x11rb::connection::Connection;
+    use x11rb::protocol::xproto::{AtomEnum, ConnectionExt, get_property};
+    use std::fs;
+    
+    // Connect to X11 display
+    let (conn, screen_num) = match x11rb::connect(None) {
+        Ok(c) => c,
+        Err(e) => {
+            log::warn!("Failed to connect to X11 display: {}. Possibly running on Wayland without XWayland.", e);
+            return Some(ActiveWindowInfo {
+                app_name: "Unknown".to_string(),
+                window_title: "Unknown".to_string(),
+                executable_path: "".to_string(),
+                url: None,
+            });
+        }
+    };
+    
+    let setup = conn.setup();
+    let screen = &setup.roots[screen_num];
+    let root = screen.root;
+    
+    // Get _NET_ACTIVE_WINDOW atom
+    let net_active_window = match conn.intern_atom(false, b"_NET_ACTIVE_WINDOW") {
+        Ok(cookie) => match cookie.reply() {
+            Ok(reply) => reply.atom,
+            Err(_) => return None,
+        },
+        Err(_) => return None,
+    };
+    
+    // Get the active window
+    let active_window_reply = match conn.get_property(false, root, net_active_window, AtomEnum::WINDOW, 0, 1) {
+        Ok(cookie) => match cookie.reply() {
+            Ok(reply) => reply,
+            Err(_) => return None,
+        },
+        Err(_) => return None,
+    };
+    
+    if active_window_reply.value.len() < 4 {
+        return None;
+    }
+    
+    let active_window = u32::from_ne_bytes([
+        active_window_reply.value[0],
+        active_window_reply.value[1],
+        active_window_reply.value[2],
+        active_window_reply.value[3],
+    ]);
+    
+    if active_window == 0 {
+        return None;
+    }
+    
+    // Get window title from _NET_WM_NAME (UTF-8) or WM_NAME (fallback)
+    let net_wm_name = conn.intern_atom(false, b"_NET_WM_NAME")
+        .ok()
+        .and_then(|c| c.reply().ok())
+        .map(|r| r.atom);
+    
+    let utf8_string = conn.intern_atom(false, b"UTF8_STRING")
+        .ok()
+        .and_then(|c| c.reply().ok())
+        .map(|r| r.atom);
+    
+    let window_title = if let (Some(name_atom), Some(utf8_atom)) = (net_wm_name, utf8_string) {
+        conn.get_property(false, active_window, name_atom, utf8_atom, 0, 1024)
+            .ok()
+            .and_then(|c| c.reply().ok())
+            .and_then(|r| String::from_utf8(r.value).ok())
+    } else {
+        None
+    }.unwrap_or_else(|| {
+        // Fallback to WM_NAME
+        conn.get_property(false, active_window, AtomEnum::WM_NAME, AtomEnum::STRING, 0, 1024)
+            .ok()
+            .and_then(|c| c.reply().ok())
+            .and_then(|r| String::from_utf8(r.value).ok())
+            .unwrap_or_else(|| "Unknown".to_string())
+    });
+    
+    // Get process ID from _NET_WM_PID
+    let net_wm_pid = conn.intern_atom(false, b"_NET_WM_PID")
+        .ok()
+        .and_then(|c| c.reply().ok())
+        .map(|r| r.atom);
+    
+    let (app_name, executable_path) = if let Some(pid_atom) = net_wm_pid {
+        let pid = conn.get_property(false, active_window, pid_atom, AtomEnum::CARDINAL, 0, 1)
+            .ok()
+            .and_then(|c| c.reply().ok())
+            .and_then(|r| {
+                if r.value.len() >= 4 {
+                    Some(u32::from_ne_bytes([r.value[0], r.value[1], r.value[2], r.value[3]]))
+                } else {
+                    None
+                }
+            });
+        
+        if let Some(pid) = pid {
+            // Read executable path from /proc/{pid}/exe
+            let exe_path = fs::read_link(format!("/proc/{}/exe", pid))
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_default();
+            
+            let app = exe_path.split('/').last()
+                .unwrap_or("Unknown")
+                .to_string();
+            
+            (app, exe_path)
+        } else {
+            ("Unknown".to_string(), "".to_string())
+        }
+    } else {
+        ("Unknown".to_string(), "".to_string())
+    };
+    
+    log::info!(
+        "Active window - Title: {}, App: {}, Path: {}",
+        window_title,
+        app_name,
+        executable_path
+    );
+    
     Some(ActiveWindowInfo {
-        app_name: "Unknown".to_string(),
-        window_title: "Unknown".to_string(),
-        executable_path: "".to_string(),
-        url: None,
+        app_name,
+        window_title,
+        executable_path,
+        url: None, // URL detection not implemented for Linux
     })
+}
+
+#[cfg(target_os = "macos")]
+pub fn get_active_window_info() -> Option<ActiveWindowInfo> {
+    use cocoa::base::{id, nil};
+    use cocoa::foundation::{NSAutoreleasePool, NSString};
+    use objc::{class, msg_send, sel, sel_impl};
+    use std::ffi::CStr;
+    
+    unsafe {
+        let pool: id = NSAutoreleasePool::new(nil);
+        
+        // Get the shared NSWorkspace
+        let workspace: id = msg_send![class!(NSWorkspace), sharedWorkspace];
+        
+        // Get the frontmost application
+        let frontmost_app: id = msg_send![workspace, frontmostApplication];
+        
+        if frontmost_app == nil {
+            let _: () = msg_send![pool, drain];
+            return None;
+        }
+        
+        // Get localized name
+        let localized_name: id = msg_send![frontmost_app, localizedName];
+        let app_name = if localized_name != nil {
+            let c_str: *const i8 = msg_send![localized_name, UTF8String];
+            if !c_str.is_null() {
+                CStr::from_ptr(c_str).to_string_lossy().to_string()
+            } else {
+                "Unknown".to_string()
+            }
+        } else {
+            "Unknown".to_string()
+        };
+        
+        // Get bundle URL for executable path
+        let bundle_url: id = msg_send![frontmost_app, bundleURL];
+        let executable_path = if bundle_url != nil {
+            let path: id = msg_send![bundle_url, path];
+            if path != nil {
+                let c_str: *const i8 = msg_send![path, UTF8String];
+                if !c_str.is_null() {
+                    CStr::from_ptr(c_str).to_string_lossy().to_string()
+                } else {
+                    "".to_string()
+                }
+            } else {
+                "".to_string()
+            }
+        } else {
+            "".to_string()
+        };
+        
+        // For window title, we need to use Accessibility API or CGWindowList
+        // For now, use the app name as a reasonable fallback
+        let window_title = app_name.clone();
+        
+        let _: () = msg_send![pool, drain];
+        
+        log::info!(
+            "Active window - Title: {}, App: {}, Path: {}",
+            window_title,
+            app_name,
+            executable_path
+        );
+        
+        Some(ActiveWindowInfo {
+            app_name,
+            window_title,
+            executable_path,
+            url: None, // URL detection not implemented for macOS yet
+        })
+    }
 }
 
 #[cfg(target_os = "windows")]
