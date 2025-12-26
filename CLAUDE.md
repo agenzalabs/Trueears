@@ -212,6 +212,8 @@ See `.specify/memory/constitution.md` for code quality, testing, performance, se
 ## Active Technologies
 - TypeScript 5.8+ (frontend), Rust (backend - not needed for this feature) + React 19, TailwindCSS 4, Web Audio API (001-cancel-recording)
 - N/A (no persistence changes) (001-cancel-recording)
+- Rust 1.70+ (Tauri backend), Node.js/npm (Frontend build) + Tauri CLI, Microsoft Visual C++ Build Tools (dev only) (001-win-deploy-fix)
+- N/A (Configuration only) (001-win-deploy-fix)
 
 ## Recent Changes
 - 001-cancel-recording: Added TypeScript 5.8+ (frontend), Rust (backend - not needed for this feature) + React 19, TailwindCSS 4, Web Audio API
