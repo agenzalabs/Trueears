@@ -43,6 +43,9 @@
       "nsis": {
         "installerIcon": "../build/icon.ico",
         "installMode": "currentUser"
+      },
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
       }
     }
   },
