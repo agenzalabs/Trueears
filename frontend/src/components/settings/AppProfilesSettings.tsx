@@ -492,7 +492,7 @@ const ProfileModal = ({
                             onClick={() => { if (!disabled) handleSelectApp(app); }}
                             className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors ${disabled ? (isDark ? 'opacity-60 cursor-not-allowed' : 'opacity-60 cursor-not-allowed') : 'cursor-pointer'} ${isDark ? (!disabled ? 'hover:bg-[#252525]' : '') : (!disabled ? 'hover:bg-gray-50' : '')} ${idx > 0 ? (isDark ? 'border-t border-[#333]' : 'border-t border-gray-100') : ''}`}
                           >
-                        <div className={`w-8 h-8 rounded flex items-center justify-center shrink-0 overflow-hidden ${isDark ? 'bg-[#333]' : 'bg-gray-100'}`}>
+                        <div className="w-8 h-8 rounded flex items-center justify-center shrink-0 overflow-hidden">
                           {app.icon_base64 ? (
                             <img src={`data:image/png;base64,${app.icon_base64}`} alt={app.name} className="w-full h-full object-contain" />
                           ) : (
@@ -863,7 +863,7 @@ export const AppProfilesSettings: React.FC<AppProfilesSettingsProps> = ({ theme 
                       <div key={app.executable}>
                         <div className={`flex items-center justify-between p-4 rounded-lg border transition-all ${isDark ? 'bg-[#1a1a1a] border-[#333] hover:bg-[#202020]' : 'bg-white border-gray-300 hover:bg-gray-50'}`}>
                           <div className="flex items-center gap-4 flex-1">
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl overflow-hidden ${isDark ? 'bg-[#252525]' : 'bg-gray-100'}`}>
+                            <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl overflow-hidden">
                               {app.icon_base64 ? (
                                 <img src={`data:image/png;base64,${app.icon_base64}`} alt={app.name} className="w-full h-full object-contain" />
                               ) : (
@@ -986,7 +986,7 @@ export const AppProfilesSettings: React.FC<AppProfilesSettingsProps> = ({ theme 
                     className={`flex items-center justify-between p-4 rounded-lg border transition-all ${isDark ? 'bg-[#1a1a1a] border-[#333] hover:bg-[#202020]' : 'bg-white border-gray-300 hover:bg-gray-50'}`}
                   >
                     <div className="flex items-center gap-4 flex-1">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl overflow-hidden ${isDark ? 'bg-[#252525]' : 'bg-gray-100'}`}>
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl overflow-hidden">
                         {profile.iconBase64 ? (
                           <img src={`data:image/png;base64,${profile.iconBase64}`} alt={profile.displayName} className="w-full h-full object-contain" />
                         ) : (

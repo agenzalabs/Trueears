@@ -93,7 +93,7 @@ export const StepSuccess: React.FC<StepProps> = ({ onNext }) => {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              Press <kbd className="px-2 py-0.5 bg-gray-100 rounded text-xs font-mono mx-1">Ctrl+Shift+L</kbd> to start dictating
+              Press <kbd className="px-2 py-0.5 bg-gray-100 rounded text-xs font-mono mx-1">Ctrl+Shift+K</kbd> to start dictating
             </li>
             <li className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
