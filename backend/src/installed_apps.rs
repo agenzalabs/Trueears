@@ -133,6 +133,9 @@ const KNOWN_APPS: &[(&str, &str, &str)] = &[
     ("Grammarly Desktop", "Grammarly.exe", "utility"),
     ("Loom", "Loom.exe", "utility"),
     ("Krisp", "krisp.exe", "utility"),
+
+    // System Apps
+    ("Notepad", "notepad.exe", "utility"),
 ];
 
 /// Alias map for search queries
@@ -402,15 +405,37 @@ pub fn force_refresh_cache() {
 // SCANNING (Internal)
 // ============================================================================
 
+/// Known system apps with their full paths (these are always available on Windows)
+const SYSTEM_APPS: &[(&str, &str, &str, &str)] = &[
+    // (name, exe, category, path)
+    ("Notepad", "notepad.exe", "utility", r"C:\Windows\System32\notepad.exe"),
+];
+
 /// Actually scan for installed popular apps (expensive operation)
 fn scan_installed_popular_apps() -> Vec<InstalledApp> {
     let registered_apps = get_all_registered_apps();
     let mut installed = Vec::new();
+    let mut found_exes: std::collections::HashSet<String> = std::collections::HashSet::new();
 
     for (name, exe, category) in KNOWN_APPS {
         let exe_lower = exe.to_lowercase();
         if let Some(full_path) = registered_apps.get(&exe_lower).cloned() {
             let icon_base64 = extract_icon_from_path(&full_path);
+            found_exes.insert(exe_lower.clone());
+            installed.push(InstalledApp {
+                name: name.to_string(),
+                executable: exe.to_string(),
+                category: category.to_string(),
+                icon_base64,
+            });
+        }
+    }
+
+    // Add system apps that are always available
+    for (name, exe, category, path) in SYSTEM_APPS {
+        let exe_lower = exe.to_lowercase();
+        if !found_exes.contains(&exe_lower) && PathBuf::from(path).exists() {
+            let icon_base64 = extract_icon_from_path(path);
             installed.push(InstalledApp {
                 name: name.to_string(),
                 executable: exe.to_string(),
