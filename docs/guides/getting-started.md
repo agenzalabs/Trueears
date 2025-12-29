@@ -102,6 +102,54 @@ Scribe auto-detects your active application and applies context-specific formatt
 
 Customize profiles in **Settings > App Profiles**.
 
+## Log Mode
+
+Quickly save voice notes to markdown files based on your active application:
+
+### How It Works
+
+1. **Say a trigger phrase** followed by your note:
+   - "Log I need to fix the authentication bug"
+   - "Remember to call John tomorrow"
+   - "Note to self review the PR before merging"
+
+2. **Scribe automatically**:
+   - Detects the trigger phrase
+   - Saves to an app-specific log file (e.g., `chrome-log.md`)
+   - Adds timestamp: `- [2025-12-29 16:30] your note here`
+
+3. **First-time setup per app**:
+   - On first use in a new app, you'll be prompted to set a log file path
+   - Default path: `Documents/Scribe/<app-name>-log.md`
+   - Click **Save** to confirm or **Skip** to copy to clipboard instead
+
+### Default Trigger Phrases
+
+| Phrase | Example |
+|--------|---------|
+| Log | "Log fix the login button" |
+| Remember | "Remember to update the docs" |
+| Note to self | "Note to self check the API limits" |
+
+### Configuration
+
+Configure Log Mode in **Settings > Log Mode**:
+
+- **Enable/Disable**: Master toggle for the feature
+- **Default Log Directory**: Base folder for new log files (default: `Documents/Scribe`)
+- **Trigger Phrases**: Add, edit, or disable trigger phrases
+- **App Mappings**: View and edit app-to-file mappings
+
+### Log File Format
+
+Entries are appended as markdown list items with timestamps:
+
+```markdown
+- [2025-12-29 14:30] Fix the authentication bug
+- [2025-12-29 15:45] Review PR #42 before merging
+- [2025-12-29 16:00] Call John about the project timeline
+```
+
 ## Next Steps
 
 - [Development Guide](./development.md) - Set up for contributing
