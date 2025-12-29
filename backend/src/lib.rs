@@ -3,10 +3,18 @@ mod automation;
 mod shortcuts;
 mod window;
 mod installed_apps;
+mod log_mode;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Emitter;
 use window::ActiveWindowInfo;
+use log_mode::PathValidation;
+
+#[derive(serde::Serialize)]
+struct CursorPosition {
+    x: i32,
+    y: i32,
+}
 
 // Global state to track if onboarding trigger step is active
 pub static ONBOARDING_TRIGGER_ACTIVE: AtomicBool = AtomicBool::new(false);
@@ -66,6 +74,13 @@ fn copy_selected_text() -> Result<Option<String>, String> {
 async fn get_active_window_info() -> Result<Option<ActiveWindowInfo>, String> {
     log::info!("get_active_window_info command called");
     Ok(window::get_active_window_info())
+}
+
+#[tauri::command]
+async fn get_cursor_position() -> Result<CursorPosition, String> {
+    window::get_cursor_position()
+        .map(|(x, y)| CursorPosition { x, y })
+        .ok_or_else(|| "Failed to get cursor position".to_string())
 }
 
 #[tauri::command]
@@ -299,6 +314,7 @@ pub fn run() {
             transcription_complete,
             copy_selected_text,
             get_active_window_info,
+            get_cursor_position,
             open_settings_window,
             get_store_value,
             set_store_value,
@@ -309,7 +325,12 @@ pub fn run() {
             start_google_login,
             get_auth_state,
             logout,
-            get_user_info
+            get_user_info,
+            // Log Mode commands
+            log_mode::append_to_file,
+            log_mode::validate_log_path,
+            log_mode::get_default_log_directory,
+            log_mode::open_log_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

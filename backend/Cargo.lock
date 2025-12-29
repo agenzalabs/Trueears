@@ -4031,6 +4031,7 @@ dependencies = [
  "lnk",
  "log",
  "once_cell",
+ "open",
  "reqwest",
  "serde",
  "serde_json",

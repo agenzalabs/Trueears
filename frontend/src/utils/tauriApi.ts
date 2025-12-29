@@ -3,10 +3,16 @@ import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Store } from '@tauri-apps/plugin-store';
 import { ActiveWindowInfo } from '../types/appProfile';
+import { PathValidation } from '../types/logMode';
 
 export interface ShortcutPressedPayload {
     window_info: ActiveWindowInfo | null;
     selected_text: string | null;
+}
+
+export interface CursorPosition {
+    x: number;
+    y: number;
 }
 
 console.log('[tauriAPI] Module loaded');
@@ -224,6 +230,17 @@ export const tauriAPI = {
         }
     },
 
+    getCursorPosition: async (): Promise<CursorPosition | null> => {
+        try {
+            if (!isTauri()) return null;
+            const position = await invoke<CursorPosition>('get_cursor_position');
+            return position;
+        } catch (error) {
+            console.error('[tauriAPI] Failed to get cursor position:', error);
+            return null;
+        }
+    },
+
     openSettingsWindow: async (): Promise<void> => {
         console.log('[tauriAPI] Opening settings window, isTauri:', isTauri());
         try {
@@ -312,6 +329,100 @@ export const tauriAPI = {
         } catch (error) {
             console.error('[tauriAPI] Failed to copy selected text:', error);
             return null;
+        }
+    },
+
+    // ============ Log Mode Commands ============
+
+    /**
+     * Append content to a log file, creating it if it doesn't exist.
+     * @param path Absolute path to the log file
+     * @param content The log entry content (already formatted)
+     */
+    appendToFile: async (path: string, content: string): Promise<void> => {
+        console.log('[tauriAPI] Appending to file:', path, 'content length:', content.length);
+        try {
+            if (!isTauri()) {
+                console.warn('[tauriAPI] Not in Tauri context, cannot append to file');
+                throw new Error('Not in Tauri context');
+            }
+            await invoke('append_to_file', { path, content });
+            console.log('[tauriAPI] Successfully appended to file');
+        } catch (error) {
+            console.error('[tauriAPI] Failed to append to file:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Validate a file path for use as a log destination.
+     * @param path Absolute path to validate
+     * @returns PathValidation result
+     */
+    validateLogPath: async (path: string): Promise<PathValidation> => {
+        console.log('[tauriAPI] Validating log path:', path);
+        try {
+            if (!isTauri()) {
+                console.warn('[tauriAPI] Not in Tauri context, returning invalid');
+                return {
+                    valid: false,
+                    exists: false,
+                    parentExists: false,
+                    writable: false,
+                    errorMessage: 'Not in Tauri context',
+                };
+            }
+            const result = await invoke<PathValidation>('validate_log_path', { path });
+            console.log('[tauriAPI] Path validation result:', result);
+            return result;
+        } catch (error) {
+            console.error('[tauriAPI] Failed to validate log path:', error);
+            return {
+                valid: false,
+                exists: false,
+                parentExists: false,
+                writable: false,
+                errorMessage: String(error),
+            };
+        }
+    },
+
+    /**
+     * Get the default log directory path (Documents/Scribe).
+     * @returns Default log directory path
+     */
+    getDefaultLogDirectory: async (): Promise<string> => {
+        console.log('[tauriAPI] Getting default log directory');
+        try {
+            if (!isTauri()) {
+                console.warn('[tauriAPI] Not in Tauri context, returning fallback');
+                return 'C:\\Documents\\Scribe';
+            }
+            const result = await invoke<string>('get_default_log_directory');
+            console.log('[tauriAPI] Default log directory:', result);
+            return result;
+        } catch (error) {
+            console.error('[tauriAPI] Failed to get default log directory:', error);
+            return 'C:\\Documents\\Scribe';
+        }
+    },
+
+    /**
+     * Open a log file in the system's default viewer or file explorer.
+     * @param path Absolute path to the log file
+     */
+    openLogFile: async (path: string): Promise<void> => {
+        console.log('[tauriAPI] Opening log file:', path);
+        try {
+            if (!isTauri()) {
+                console.warn('[tauriAPI] Not in Tauri context, cannot open file');
+                return;
+            }
+            await invoke('open_log_file', { path });
+            console.log('[tauriAPI] Open file command sent');
+        } catch (error) {
+            console.error('[tauriAPI] Failed to open log file:', error);
+            throw error;
         }
     }
 };
