@@ -3,6 +3,7 @@ import { TranscriptionSettings } from './settings/TranscriptionSettings';
 import { LLMSettings } from './settings/LLMSettings';
 import { AppProfilesSettings } from './settings/AppProfilesSettings';
 import { PreferencesSettings } from './settings/PreferencesSettings';
+import { LogModeSettings } from './settings/LogModeSettings';
 import { AboutSettings } from './settings/AboutSettings';
 import { AccountSection } from './auth/AccountSection';
 import { OnboardingWizard } from './onboarding/OnboardingWizard';
@@ -10,7 +11,7 @@ import { useSettings } from '../hooks/useSettings';
 import { useAuth } from '../hooks/useAuth';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
-type SettingsTab = 'transcription' | 'llm' | 'profiles' | 'preferences' | 'account' | 'about';
+type SettingsTab = 'transcription' | 'llm' | 'profiles' | 'logmode' | 'preferences' | 'account' | 'about';
 
 export const SettingsWindow: React.FC = () => {
   const [activeTab, setActiveTab] = useState<SettingsTab>('transcription');
@@ -140,6 +141,19 @@ export const SettingsWindow: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setActiveTab('logmode')}
+            className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-3 cursor-pointer ${activeTab === 'logmode'
+              ? isDark ? 'bg-[#252525] text-gray-100 font-medium' : 'bg-gray-100 text-gray-800 font-medium'
+              : isDark ? 'text-gray-400 hover:bg-[#252525] hover:text-gray-100' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'
+              }`}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Log Mode
+          </button>
+
+          <button
             onClick={() => setActiveTab('preferences')}
             className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-3 cursor-pointer ${activeTab === 'preferences'
               ? isDark ? 'bg-[#252525] text-gray-100 font-medium' : 'bg-gray-100 text-gray-800 font-medium'
@@ -200,6 +214,7 @@ export const SettingsWindow: React.FC = () => {
         )}
         {activeTab === 'llm' && <LLMSettings {...settings} theme={settings.theme} />}
         {activeTab === 'profiles' && <AppProfilesSettings theme={settings.theme} />}
+        {activeTab === 'logmode' && <LogModeSettings isDark={isDark} />}
         {activeTab === 'preferences' && <PreferencesSettings theme={settings.theme} saveTheme={settings.saveTheme} recordingMode={settings.recordingMode} saveRecordingMode={settings.saveRecordingMode} />}
         {activeTab === 'account' && (
             <AccountSection
