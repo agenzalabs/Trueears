@@ -232,6 +232,23 @@ export const RecorderOverlay: React.FC = () => {
     }
   }, [isVisible, recordingStatus, uiMode, isStartingRecording]);
 
+  // -- Effect: Dynamically register/unregister Escape shortcut based on visibility --
+  // This prevents the global Escape shortcut from interfering with other apps when Scribe is not visible
+  useEffect(() => {
+    if (isVisible) {
+      // Register Escape shortcut when overlay becomes visible
+      tauriAPI.registerEscapeShortcut();
+    } else {
+      // Unregister Escape shortcut when overlay is hidden
+      tauriAPI.unregisterEscapeShortcut();
+    }
+
+    // Cleanup: unregister on unmount
+    return () => {
+      tauriAPI.unregisterEscapeShortcut();
+    };
+  }, [isVisible]);
+
   // Removed handleSaveSettings - settings now in separate window
 
   const handleSaveSetup = (key: string) => {

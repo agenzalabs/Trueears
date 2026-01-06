@@ -6,6 +6,11 @@ use std::sync::atomic::Ordering;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
+// Store the escape shortcut for dynamic registration/unregistration
+fn get_escape_shortcut() -> Shortcut {
+    Shortcut::new(None, Code::Escape)
+}
+
 #[derive(Clone, Serialize)]
 pub struct ShortcutPressedPayload {
     pub window_info: Option<crate::window::ActiveWindowInfo>,
@@ -23,18 +28,16 @@ pub fn register_shortcuts(app: &AppHandle) -> Result<(), Box<dyn std::error::Err
         return Err(e);
     }
 
-    // Register cancel shortcut (Escape)
-    if let Err(e) = register_cancel_shortcut(app) {
-        log::warn!("Failed to register cancel shortcut (non-fatal): {}", e);
-        // Don't return error - cancel can still work via other means
-    }
-
     // Register settings shortcut (Ctrl+Shift+; / Cmd+Shift+;)
     // Using semicolon instead of L to avoid conflicts with other apps
     if let Err(e) = register_settings_shortcut(app) {
         log::warn!("Failed to register settings shortcut (non-fatal): {}", e);
         // Don't return error - settings can still be opened from the app
     }
+
+    // NOTE: Escape shortcut is NOT registered at startup to avoid interfering with other apps.
+    // It is registered dynamically when the Scribe overlay becomes visible and
+    // unregistered when the overlay is hidden. See register_escape_shortcut() and unregister_escape_shortcut().
 
     log::info!("Global shortcuts registered successfully");
     Ok(())
@@ -155,28 +158,6 @@ fn register_recording_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error
     Ok(())
 }
 
-fn register_cancel_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    let cancel_shortcut = Shortcut::new(None, Code::Escape);
-
-    app.global_shortcut().on_shortcut(cancel_shortcut, {
-        let app_handle = app.clone();
-        move |_app, _shortcut, event| {
-            if event.state == ShortcutState::Pressed {
-                if let Some(window) = app_handle.get_webview_window("main") {
-                    // Only emit if window is visible (don't steal Escape from other apps globally)
-                    if let Ok(true) = window.is_visible() {
-                        log::info!("Escape pressed while window visible - emitting shortcut-cancelled");
-                        let _ = window.emit("shortcut-cancelled", ());
-                    }
-                }
-            }
-        }
-    })?;
-
-    log::info!("Cancel shortcut (Escape) registered");
-    Ok(())
-}
-
 fn register_settings_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     // Using S key for Settings shortcut
     let settings_shortcut = if cfg!(target_os = "macos") {
@@ -203,5 +184,51 @@ fn register_settings_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error:
     })?;
 
     log::info!("Settings shortcut (Ctrl+Shift+S) registered");
+    Ok(())
+}
+
+/// Dynamically register the Escape shortcut.
+/// Called when the Scribe overlay becomes visible to allow global Escape to cancel recording.
+pub fn register_escape_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    let escape_shortcut = get_escape_shortcut();
+
+    // Check if already registered to avoid duplicate registration
+    if app.global_shortcut().is_registered(escape_shortcut) {
+        log::debug!("Escape shortcut already registered, skipping");
+        return Ok(());
+    }
+
+    app.global_shortcut().on_shortcut(escape_shortcut, {
+        let app_handle = app.clone();
+        move |_app, _shortcut, event| {
+            if event.state == ShortcutState::Pressed {
+                if let Some(window) = app_handle.get_webview_window("main") {
+                    // Only emit if window is visible
+                    if let Ok(true) = window.is_visible() {
+                        log::info!("Escape pressed while window visible - emitting shortcut-cancelled");
+                        let _ = window.emit("shortcut-cancelled", ());
+                    }
+                }
+            }
+        }
+    })?;
+
+    log::info!("Escape shortcut dynamically registered");
+    Ok(())
+}
+
+/// Dynamically unregister the Escape shortcut.
+/// Called when the Scribe overlay is hidden to allow other apps to use Escape normally.
+pub fn unregister_escape_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    let escape_shortcut = get_escape_shortcut();
+
+    // Only unregister if it's currently registered
+    if !app.global_shortcut().is_registered(escape_shortcut) {
+        log::debug!("Escape shortcut not registered, skipping unregister");
+        return Ok(());
+    }
+
+    app.global_shortcut().unregister(escape_shortcut)?;
+    log::info!("Escape shortcut dynamically unregistered");
     Ok(())
 }
