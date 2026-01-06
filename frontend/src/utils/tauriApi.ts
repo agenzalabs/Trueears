@@ -424,5 +424,41 @@ export const tauriAPI = {
             console.error('[tauriAPI] Failed to open log file:', error);
             throw error;
         }
+    },
+
+    // ============ Escape Shortcut Commands ============
+
+    /**
+     * Dynamically register the global Escape shortcut.
+     * Call this when the Scribe overlay becomes visible to enable global Escape to cancel.
+     */
+    registerEscapeShortcut: async (): Promise<void> => {
+        try {
+            if (!isTauri()) {
+                console.warn('[tauriAPI] Not in Tauri context, cannot register escape shortcut');
+                return;
+            }
+            await invoke('register_escape_shortcut');
+            console.log('[tauriAPI] Escape shortcut registered');
+        } catch (error) {
+            console.error('[tauriAPI] Failed to register escape shortcut:', error);
+        }
+    },
+
+    /**
+     * Dynamically unregister the global Escape shortcut.
+     * Call this when the Scribe overlay is hidden to allow other apps to use Escape normally.
+     */
+    unregisterEscapeShortcut: async (): Promise<void> => {
+        try {
+            if (!isTauri()) {
+                console.warn('[tauriAPI] Not in Tauri context, cannot unregister escape shortcut');
+                return;
+            }
+            await invoke('unregister_escape_shortcut');
+            console.log('[tauriAPI] Escape shortcut unregistered');
+        } catch (error) {
+            console.error('[tauriAPI] Failed to unregister escape shortcut:', error);
+        }
     }
 };
