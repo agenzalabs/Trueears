@@ -109,6 +109,18 @@ async fn set_onboarding_trigger_active(app: tauri::AppHandle, active: bool) -> R
 }
 
 #[tauri::command]
+fn register_escape_shortcut(app: tauri::AppHandle) -> Result<(), String> {
+    shortcuts::register_escape_shortcut(&app)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn unregister_escape_shortcut(app: tauri::AppHandle) -> Result<(), String> {
+    shortcuts::unregister_escape_shortcut(&app)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 async fn search_installed_apps(query: String) -> Result<Vec<installed_apps::InstalledApp>, String> {
     log::info!("search_installed_apps: query={}", query);
     Ok(installed_apps::search_installed_apps(&query))
@@ -242,10 +254,10 @@ pub fn run() {
             log::info!("=== Scribe Application Started ===");
 
             // Open DevTools (temporarily enabled for debugging)
-            if let Some(window) = app.get_webview_window("main") {
-                window.open_devtools();
-                log::info!("DevTools opened for main window");
-            }
+            // if let Some(window) = app.get_webview_window("main") {
+            //     window.open_devtools();
+            //     log::info!("DevTools opened for main window");
+            // }
 
             // Resize main window to span all monitors
             // Add padding to account for Windows display scaling issues
@@ -338,6 +350,8 @@ pub fn run() {
             get_store_value,
             set_store_value,
             set_onboarding_trigger_active,
+            register_escape_shortcut,
+            unregister_escape_shortcut,
             search_installed_apps,
             get_installed_popular_apps,
             // Auth commands
