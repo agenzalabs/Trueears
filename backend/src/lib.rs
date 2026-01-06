@@ -242,10 +242,10 @@ pub fn run() {
             log::info!("=== Scribe Application Started ===");
 
             // Open DevTools (temporarily enabled for debugging)
-            if let Some(window) = app.get_webview_window("main") {
-                window.open_devtools();
-                log::info!("DevTools opened for main window");
-            }
+            // if let Some(window) = app.get_webview_window("main") {
+            //     window.open_devtools();
+            //     log::info!("DevTools opened for main window");
+            // }
 
             // Resize main window to span all monitors
             // Add padding to account for Windows display scaling issues
