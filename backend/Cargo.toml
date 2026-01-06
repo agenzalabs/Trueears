@@ -43,6 +43,7 @@ url = "2.5"                             # URL parsing
 uuid = { version = "1.6", features = ["v4"] }  # Unique IDs
 urlencoding = "2.1"                     # URL encoding for OAuth
 dotenvy = "0.15"                        # Load .env file
+open = "5.3.3"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.52", features = [

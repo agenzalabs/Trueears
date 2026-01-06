@@ -11,8 +11,12 @@ import { useSettings } from '../../hooks/useSettings';
 
 type Step = 'signin' | 'connect' | 'language' | 'permissions' | 'mic-check' | 'trigger' | 'tutorial' | 'success';
 
-export const OnboardingWizard: React.FC = () => {
-  const [currentStep, setCurrentStep] = useState<Step>('signin');
+export interface OnboardingWizardProps {
+  initialStep?: Step;
+}
+
+export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ initialStep = 'signin' }) => {
+  const [currentStep, setCurrentStep] = useState<Step>(initialStep);
   const { markOnboardingComplete } = useSettings();
 
   const steps: Step[] = ['signin', 'connect', 'language', 'permissions', 'mic-check', 'trigger', 'tutorial', 'success'];

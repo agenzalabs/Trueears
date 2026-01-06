@@ -7,9 +7,10 @@ interface ToastProps {
   type: ToastType;
   isVisible: boolean;
   onClose: () => void;
+  bottomOffset?: number;
 }
 
-export const Toast: React.FC<ToastProps> = ({ message, type, isVisible, onClose }) => {
+export const Toast: React.FC<ToastProps> = ({ message, type, isVisible, onClose, bottomOffset }) => {
   useEffect(() => {
     if (isVisible) {
       const timer = setTimeout(() => {
@@ -28,7 +29,10 @@ export const Toast: React.FC<ToastProps> = ({ message, type, isVisible, onClose 
   };
 
   return (
-    <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[10000] animate-fadeIn`}>
+    <div
+      className="fixed left-1/2 -translate-x-1/2 z-[10000] animate-fadeIn"
+      style={{ bottom: bottomOffset ?? 48 }}
+    >
       <div className={`${bgColors[type]} text-white px-4 py-2 rounded-lg shadow-lg backdrop-blur-sm flex items-center gap-2 text-xs font-medium`}>
         {type === 'error' && (
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
