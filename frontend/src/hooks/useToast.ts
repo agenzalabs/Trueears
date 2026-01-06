@@ -6,10 +6,14 @@ export const useToast = () => {
   const [message, setMessage] = useState('');
   const [type, setType] = useState<ToastType>('info');
 
-  const showToast = useCallback((msg: string, toastType: ToastType = 'info') => {
+  const showToast = useCallback((msg: string, toastType: ToastType = 'info', delayMs: number = 0) => {
     setMessage(msg);
     setType(toastType);
-    setIsVisible(true);
+    if (delayMs > 0) {
+      setTimeout(() => setIsVisible(true), delayMs);
+    } else {
+      setIsVisible(true);
+    }
   }, []);
 
   const hideToast = useCallback(() => {

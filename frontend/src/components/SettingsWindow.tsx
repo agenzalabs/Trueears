@@ -3,6 +3,7 @@ import { TranscriptionSettings } from './settings/TranscriptionSettings';
 import { LLMSettings } from './settings/LLMSettings';
 import { AppProfilesSettings } from './settings/AppProfilesSettings';
 import { PreferencesSettings } from './settings/PreferencesSettings';
+import { LogModeSettings } from './settings/LogModeSettings';
 import { AboutSettings } from './settings/AboutSettings';
 import { AccountSection } from './auth/AccountSection';
 import { OnboardingWizard } from './onboarding/OnboardingWizard';
@@ -10,15 +11,48 @@ import { useSettings } from '../hooks/useSettings';
 import { useAuth } from '../hooks/useAuth';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
-type SettingsTab = 'transcription' | 'llm' | 'profiles' | 'preferences' | 'account' | 'about';
+type SettingsTab = 'transcription' | 'llm' | 'profiles' | 'logmode' | 'preferences' | 'account' | 'about';
 
 export const SettingsWindow: React.FC = () => {
   const [activeTab, setActiveTab] = useState<SettingsTab>('transcription');
+  const [micPermissionGranted, setMicPermissionGranted] = useState<boolean | null>(null);
   const settings = useSettings();
   const auth = useAuth(); // Lift auth state to SettingsWindow level
   const { onboardingComplete, isKeyLoaded } = settings;
 
   console.log('[SettingsWindow] Render state:', { onboardingComplete, isKeyLoaded });
+
+  // If the WebView permission state was reset (e.g., clearing EBWebView cache),
+  // the store can still say onboarding is complete but mic permission is not.
+  // Detect this and re-show onboarding so the user can grant mic access.
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkMicPermission = async () => {
+      try {
+        if (!navigator.mediaDevices?.enumerateDevices) {
+          setMicPermissionGranted(true);
+          return;
+        }
+
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const hasLabel = devices.some(d => d.kind === 'audioinput' && (d.label || '').trim().length > 0);
+        if (!cancelled) {
+          setMicPermissionGranted(hasLabel);
+        }
+      } catch (err) {
+        console.warn('[SettingsWindow] Failed to check mic permission:', err);
+        if (!cancelled) {
+          setMicPermissionGranted(true);
+        }
+      }
+    };
+
+    checkMicPermission();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleClose = async () => {
     try {
@@ -79,10 +113,18 @@ export const SettingsWindow: React.FC = () => {
     return <div className={`w-screen h-screen ${settings.theme === 'dark' ? 'bg-[#0a0a0a]' : 'bg-white'}`} />;
   }
 
+  if (micPermissionGranted === null) {
+    return <div className={`w-screen h-screen ${settings.theme === 'dark' ? 'bg-[#0a0a0a]' : 'bg-white'}`} />;
+  }
+
   // Show Onboarding Wizard if not complete
-  if (!onboardingComplete) {
-    console.log('[SettingsWindow] Onboarding incomplete, showing wizard');
-    return <OnboardingWizard />;
+  if (!onboardingComplete || micPermissionGranted === false) {
+    console.log('[SettingsWindow] Onboarding/permissions incomplete, showing wizard', {
+      onboardingComplete,
+      micPermissionGranted,
+    });
+    const initialStep = onboardingComplete && micPermissionGranted === false ? 'permissions' : undefined;
+    return <OnboardingWizard initialStep={initialStep} />;
   }
 
   console.log('[SettingsWindow] Rendering main settings UI');
@@ -137,6 +179,19 @@ export const SettingsWindow: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             App Profiles
+          </button>
+
+          <button
+            onClick={() => setActiveTab('logmode')}
+            className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-3 cursor-pointer ${activeTab === 'logmode'
+              ? isDark ? 'bg-[#252525] text-gray-100 font-medium' : 'bg-gray-100 text-gray-800 font-medium'
+              : isDark ? 'text-gray-400 hover:bg-[#252525] hover:text-gray-100' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'
+              }`}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Log Mode
           </button>
 
           <button
@@ -200,6 +255,7 @@ export const SettingsWindow: React.FC = () => {
         )}
         {activeTab === 'llm' && <LLMSettings {...settings} theme={settings.theme} />}
         {activeTab === 'profiles' && <AppProfilesSettings theme={settings.theme} />}
+        {activeTab === 'logmode' && <LogModeSettings isDark={isDark} />}
         {activeTab === 'preferences' && <PreferencesSettings theme={settings.theme} saveTheme={settings.saveTheme} recordingMode={settings.recordingMode} saveRecordingMode={settings.saveRecordingMode} />}
         {activeTab === 'account' && (
             <AccountSection

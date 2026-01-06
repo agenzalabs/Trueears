@@ -10,11 +10,56 @@ export const useAudioRecorder = () => {
   const startRecording = async () => {
     console.log('[useAudioRecorder] startRecording called');
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('Microphone API not available in this environment');
+      }
+
+      // Quick permission signal: labels are only present after mic permission is granted.
+      // (Used by onboarding StepPermissions as well.)
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioInputs = devices.filter(d => d.kind === 'audioinput');
+        const labelsPresent = audioInputs.some(d => (d.label || '').trim().length > 0);
+        console.log('[useAudioRecorder] Audio inputs:', audioInputs.length, 'labelsPresent:', labelsPresent);
+      } catch (e) {
+        console.warn('[useAudioRecorder] Failed to enumerate devices:', e);
+      }
+
+      const MIC_REQUEST_TIMEOUT_MS = 10_000;
+      const streamPromise = navigator.mediaDevices.getUserMedia({ audio: true });
+
+      const result = await Promise.race([
+        streamPromise.then((stream) => ({ kind: 'stream' as const, stream })),
+        new Promise<{ kind: 'timeout' }>((resolve) =>
+          setTimeout(() => resolve({ kind: 'timeout' }), MIC_REQUEST_TIMEOUT_MS)
+        ),
+      ]);
+
+      if (result.kind === 'timeout') {
+        // Best-effort cleanup if the request resolves later.
+        streamPromise
+          .then((stream) => stream.getTracks().forEach((t) => t.stop()))
+          .catch(() => {
+            // ignore
+          });
+        throw new Error(
+          'Microphone permission request timed out. Open Settings and allow microphone access, then try again.'
+        );
+      }
+
+      const stream = result.stream;
       setMediaStream(stream);
       setIsRecording(true);
       audioChunksRef.current = [];
       console.log('[useAudioRecorder] MediaStream acquired, isRecording set to true');
+
+      if (typeof MediaRecorder === 'undefined') {
+        // Cleanup stream before throwing
+        stream.getTracks().forEach(t => t.stop());
+        setMediaStream(null);
+        setIsRecording(false);
+        throw new Error('MediaRecorder is not supported in this WebView');
+      }
 
       const recorder = new MediaRecorder(stream);
       mediaRecorderRef.current = recorder;
