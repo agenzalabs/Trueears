@@ -22,6 +22,7 @@ export const RecorderOverlay: React.FC = () => {
   const [onboardingTriggerActive, setOnboardingTriggerActive] = useState(false);
   const [isConfigTransitioning, setIsConfigTransitioning] = useState(false);
   const [isConfigAppearing, setIsConfigAppearing] = useState(false);
+  const [isStartingRecording, setIsStartingRecording] = useState(false);
 
   const capsuleRef = useRef<HTMLDivElement | null>(null);
   const logConfigIgnoreMouseRef = useRef<boolean | null>(null);
@@ -133,6 +134,13 @@ export const RecorderOverlay: React.FC = () => {
 
   // -- Effect: Manage mouse events based on UI mode and visibility --
   useEffect(() => {
+    // While we are requesting mic permission / initializing MediaRecorder,
+    // keep the window interactive so the WebView permission UI can be clicked.
+    if (isStartingRecording) {
+      tauriAPI.setIgnoreMouseEvents(false);
+      return;
+    }
+
     if (!isVisible) {
       // When completely hidden, ignore mouse events
       tauriAPI.setIgnoreMouseEvents(true);
@@ -143,7 +151,7 @@ export const RecorderOverlay: React.FC = () => {
       // In normal mode, ignore events unless hovering
       tauriAPI.setIgnoreMouseEvents(true);
     }
-  }, [isVisible, uiMode, recordingStatus]);
+  }, [isVisible, uiMode, recordingStatus, isStartingRecording]);
 
   // -- Effect: While Log Mode config is showing, allow click-through outside the capsule --
   // Prevents the overlay from blocking clicks on other windows, without relying on hover events
@@ -215,14 +223,14 @@ export const RecorderOverlay: React.FC = () => {
   // -- Effect: Auto-hide idle state after 5 seconds --
   useEffect(() => {
     // Only auto-hide if we're visible, in idle state, and uiMode is 'none'
-    if (isVisible && recordingStatus === 'idle' && uiMode === 'none') {
+    if (isVisible && recordingStatus === 'idle' && uiMode === 'none' && !isStartingRecording) {
       const timer = setTimeout(() => {
         setIsVisible(false);
       }, 5000); // 5 seconds
 
       return () => clearTimeout(timer);
     }
-  }, [isVisible, recordingStatus, uiMode]);
+  }, [isVisible, recordingStatus, uiMode, isStartingRecording]);
 
   // Removed handleSaveSettings - settings now in separate window
 
@@ -266,10 +274,33 @@ export const RecorderOverlay: React.FC = () => {
       return;
     }
 
-    console.log('[RecorderOverlay] Starting dictation...');
-    await startDictation(windowInfo, selectedText);
+    // Show the overlay immediately while we request microphone permission.
+    // In production/WebView2, the permission UI can otherwise be impossible to interact with
+    // when the window is click-through.
     setIsVisible(true);
-    console.log('[RecorderOverlay] Dictation started, window visible');
+    setIsStartingRecording(true);
+    tauriAPI.setIgnoreMouseEvents(false);
+
+    try {
+      console.log('[RecorderOverlay] Starting dictation...');
+      await startDictation(windowInfo, selectedText);
+      console.log('[RecorderOverlay] Dictation started');
+    } catch (err) {
+      console.error('[RecorderOverlay] Failed to start dictation:', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      showToast(msg || 'Failed to start recording', 'error');
+
+      // If mic permission is missing / stuck, open Settings so the user can re-run the permission step.
+      if (msg.toLowerCase().includes('microphone')) {
+        try {
+          await openSettings();
+        } catch {
+          // ignore
+        }
+      }
+    } finally {
+      setIsStartingRecording(false);
+    }
   };
 
   // -- Action: Stop Recording --
@@ -315,6 +346,18 @@ export const RecorderOverlay: React.FC = () => {
 
   // -- Trigger: Handle Shortcut Pressed --
   const handleShortcutPressed = useCallback(async (payload: ShortcutPressedPayload) => {
+    // IMPORTANT: Set timestamp immediately before any async operations
+    // This ensures handleShortcutReleased has the correct press time
+    const pressTime = Date.now();
+    pressStartTimeRef.current = pressTime;
+
+    // Start of a new press cycle: clear any prior pending-stop flag.
+    // Do this BEFORE any awaits so a fast release can set it again.
+    pttStopPendingRef.current = false;
+
+    // Track if we were idle when pressed (release handler may run while this function awaits)
+    wasIdleOnPressRef.current = recordingStatus !== 'recording';
+    
     if (onboardingTriggerActive) {
       console.log('[RecorderOverlay] Ignoring press - onboarding trigger step active');
       return;
@@ -355,13 +398,11 @@ export const RecorderOverlay: React.FC = () => {
     console.log('[RecorderOverlay] handleShortcutPressed called, mode:', currentMode);
     console.log('[RecorderOverlay] State:', { recordingStatus, uiMode, isKeyLoaded, isVisible });
     
-    const now = Date.now();
-    if (now - lastToggleTimeRef.current < 300) {
+    if (pressTime - lastToggleTimeRef.current < 300) {
       console.log('[RecorderOverlay] Debounced - ignoring rapid press');
       return;
     }
-    lastToggleTimeRef.current = now;
-    pressStartTimeRef.current = now;
+    lastToggleTimeRef.current = pressTime;
 
     if (!isKeyLoaded) {
       console.log('[RecorderOverlay] Keys not loaded yet - waiting');
@@ -374,9 +415,6 @@ export const RecorderOverlay: React.FC = () => {
       showToast('Please wait for the current transcription to complete', 'error');
       return;
     }
-
-    // Track if we were idle when pressed (for auto mode)
-    wasIdleOnPressRef.current = recordingStatus !== 'recording';
 
     if (recordingStatus === 'recording') {
       // Already recording - handle based on mode
@@ -401,7 +439,6 @@ export const RecorderOverlay: React.FC = () => {
     } else {
       // Not recording - start recording
       console.log('[RecorderOverlay] Starting recording');
-      pttStopPendingRef.current = false; // Clear any pending stop
       handleStartRecording(undefined, pendingWindowInfoRef.current, pendingSelectedTextRef.current);
       pendingWindowInfoRef.current = null;
       pendingSelectedTextRef.current = null;
