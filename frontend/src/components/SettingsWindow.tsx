@@ -15,11 +15,44 @@ type SettingsTab = 'transcription' | 'llm' | 'profiles' | 'logmode' | 'preferenc
 
 export const SettingsWindow: React.FC = () => {
   const [activeTab, setActiveTab] = useState<SettingsTab>('transcription');
+  const [micPermissionGranted, setMicPermissionGranted] = useState<boolean | null>(null);
   const settings = useSettings();
   const auth = useAuth(); // Lift auth state to SettingsWindow level
   const { onboardingComplete, isKeyLoaded } = settings;
 
   console.log('[SettingsWindow] Render state:', { onboardingComplete, isKeyLoaded });
+
+  // If the WebView permission state was reset (e.g., clearing EBWebView cache),
+  // the store can still say onboarding is complete but mic permission is not.
+  // Detect this and re-show onboarding so the user can grant mic access.
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkMicPermission = async () => {
+      try {
+        if (!navigator.mediaDevices?.enumerateDevices) {
+          setMicPermissionGranted(true);
+          return;
+        }
+
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const hasLabel = devices.some(d => d.kind === 'audioinput' && (d.label || '').trim().length > 0);
+        if (!cancelled) {
+          setMicPermissionGranted(hasLabel);
+        }
+      } catch (err) {
+        console.warn('[SettingsWindow] Failed to check mic permission:', err);
+        if (!cancelled) {
+          setMicPermissionGranted(true);
+        }
+      }
+    };
+
+    checkMicPermission();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleClose = async () => {
     try {
@@ -80,10 +113,18 @@ export const SettingsWindow: React.FC = () => {
     return <div className={`w-screen h-screen ${settings.theme === 'dark' ? 'bg-[#0a0a0a]' : 'bg-white'}`} />;
   }
 
+  if (micPermissionGranted === null) {
+    return <div className={`w-screen h-screen ${settings.theme === 'dark' ? 'bg-[#0a0a0a]' : 'bg-white'}`} />;
+  }
+
   // Show Onboarding Wizard if not complete
-  if (!onboardingComplete) {
-    console.log('[SettingsWindow] Onboarding incomplete, showing wizard');
-    return <OnboardingWizard />;
+  if (!onboardingComplete || micPermissionGranted === false) {
+    console.log('[SettingsWindow] Onboarding/permissions incomplete, showing wizard', {
+      onboardingComplete,
+      micPermissionGranted,
+    });
+    const initialStep = onboardingComplete && micPermissionGranted === false ? 'permissions' : undefined;
+    return <OnboardingWizard initialStep={initialStep} />;
   }
 
   console.log('[SettingsWindow] Rendering main settings UI');

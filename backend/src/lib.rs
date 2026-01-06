@@ -19,6 +19,11 @@ struct CursorPosition {
 // Global state to track if onboarding trigger step is active
 pub static ONBOARDING_TRIGGER_ACTIVE: AtomicBool = AtomicBool::new(false);
 
+fn is_sensitive_store_key(key: &str) -> bool {
+    let k = key.to_ascii_uppercase();
+    k.contains("KEY") || k.contains("TOKEN") || k.contains("SECRET") || k.contains("PASSWORD")
+}
+
 #[tauri::command]
 async fn set_ignore_mouse_events(window: tauri::Window, ignore: bool) -> Result<(), String> {
     window
@@ -33,7 +38,13 @@ async fn get_store_value(app: tauri::AppHandle, key: String) -> Result<Option<St
     let value = store
         .get(&key)
         .and_then(|v| v.as_str().map(|s| s.to_string()));
-    log::info!("get_store_value: key={}, value={:?}", key, value);
+
+    if is_sensitive_store_key(&key) {
+        let len = value.as_ref().map(|v| v.len()).unwrap_or(0);
+        log::info!("get_store_value: key={}, value=<redacted len={}>", key, len);
+    } else {
+        log::info!("get_store_value: key={}, value={:?}", key, value);
+    }
     Ok(value)
 }
 
@@ -43,7 +54,12 @@ async fn set_store_value(app: tauri::AppHandle, key: String, value: String) -> R
     let store = app.store("settings.json").map_err(|e| e.to_string())?;
     store.set(key.clone(), value.clone());
     store.save().map_err(|e| e.to_string())?;
-    log::info!("set_store_value: key={}, value={}", key, value);
+
+    if is_sensitive_store_key(&key) {
+        log::info!("set_store_value: key={}, value=<redacted len={}>", key, value.len());
+    } else {
+        log::info!("set_store_value: key={}, value={}", key, value);
+    }
 
     // Emit event to all windows
     app.emit("settings-changed", ())
@@ -214,18 +230,21 @@ pub fn run() {
             // Initialize installed apps cache in background
             installed_apps::init_cache();
 
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
+            // Always enable logging (logs to file in AppData/com.scribe/logs)
+            app.handle().plugin(
+                tauri_plugin_log::Builder::default()
+                    .level(log::LevelFilter::Info)
+                    .target(tauri_plugin_log::Target::new(
+                        tauri_plugin_log::TargetKind::LogDir { file_name: Some("scribe.log".into()) }
+                    ))
+                    .build(),
+            )?;
+            log::info!("=== Scribe Application Started ===");
 
-                // Open DevTools automatically in dev mode
-                if let Some(window) = app.get_webview_window("main") {
-                    window.open_devtools();
-                    log::info!("DevTools opened for main window");
-                }
+            // Open DevTools (temporarily enabled for debugging)
+            if let Some(window) = app.get_webview_window("main") {
+                window.open_devtools();
+                log::info!("DevTools opened for main window");
             }
 
             // Resize main window to span all monitors
