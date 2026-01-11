@@ -97,10 +97,9 @@ Tauri provides a 10x smaller bundle with better performance.
 
 ### What LLM models can I use?
 
-Currently supports Groq-hosted models:
-- `llama-3.1-70b-versatile` (recommended)
-- `llama-3.1-8b-instant`
-- `mixtral-8x7b-32768`
+Currently supports OpenRouter-hosted models:
+- `openai/gpt-oss-120b` (recommended)
+- `openai/gpt-oss-20b`
 
 Custom endpoint support is planned.
 

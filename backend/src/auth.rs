@@ -586,6 +586,7 @@ async fn exchange_code_for_tokens(api_url: &str, code: &str) -> Result<AuthRespo
 }
 
 /// Refresh access token using refresh token
+#[allow(dead_code)]
 pub async fn refresh_tokens(api_url: &str) -> Result<AuthResponse, String> {
     let refresh_token = get_refresh_token().ok_or_else(|| "No refresh token stored".to_string())?;
 

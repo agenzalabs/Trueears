@@ -255,7 +255,7 @@ Gets the current authentication state.
 ```typescript
 interface AuthState {
   is_authenticated: boolean;
-  user_email: string | null;
+  user: UserInfo | null;
 }
 
 const state = await invoke<AuthState>('get_auth_state');
