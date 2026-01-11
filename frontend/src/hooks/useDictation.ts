@@ -96,7 +96,7 @@ export const useDictation = () => {
       }
 
       console.log('[useDictation] Starting transcription...');
-      let rawText = await processTranscription(audioBlob, apiKey, model, language);
+      const rawText = await processTranscription(audioBlob, apiKey, model, language);
       console.log('[useDictation] Transcription result:', rawText);
 
       // ========== Log Mode Check ==========

@@ -19,7 +19,7 @@ export const StepSignIn: React.FC<StepProps> & { Visual: React.FC } = ({ onNext 
                 if (state.is_authenticated && state.user) {
                     setUser(state.user);
                 }
-            } catch (err) {
+            } catch (_err) {
                 // Not signed in, that's fine
             }
         };

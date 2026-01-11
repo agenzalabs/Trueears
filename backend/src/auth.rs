@@ -123,15 +123,13 @@ pub fn migrate_legacy_auth_file() {
                             log::warn!("Failed to migrate legacy auth file: {}", e);
                         }
                     }
+                } else if let Err(e) = fs::remove_file(&legacy_path) {
+                    log::warn!("Failed to remove legacy auth file after migration: {}", e);
                 } else {
-                    if let Err(e) = fs::remove_file(&legacy_path) {
-                        log::warn!("Failed to remove legacy auth file after migration: {}", e);
-                    } else {
-                        log::info!(
-                            "Removed legacy auth file at {:?} (new file already present)",
-                            legacy_path
-                        );
-                    }
+                    log::info!(
+                        "Removed legacy auth file at {:?} (new file already present)",
+                        legacy_path
+                    );
                 }
             }
         }
@@ -556,7 +554,7 @@ async fn exchange_code_for_tokens(api_url: &str, code: &str) -> Result<AuthRespo
     }
 
     let response = client
-        .post(&format!("{}/auth/google", api_url))
+        .post(format!("{}/auth/google", api_url))
         .json(&CodeRequest {
             code: code.to_string(),
         })
@@ -599,7 +597,7 @@ pub async fn refresh_tokens(api_url: &str) -> Result<AuthResponse, String> {
     }
 
     let response = client
-        .post(&format!("{}/auth/refresh", api_url))
+        .post(format!("{}/auth/refresh", api_url))
         .json(&RefreshRequest { refresh_token })
         .send()
         .await
@@ -637,7 +635,7 @@ pub async fn logout(api_url: &str) -> Result<(), String> {
         }
 
         let _ = client
-            .post(&format!("{}/auth/logout", api_url))
+            .post(format!("{}/auth/logout", api_url))
             .json(&LogoutRequest { refresh_token })
             .send()
             .await;

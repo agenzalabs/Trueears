@@ -194,4 +194,4 @@ docs(readme): update installation instructions
 
 - [Architecture Overview](../architecture/overview.md)
 - [Deployment Guide](./deployment.md)
-- [Constitution](./../.specify/memory/constitution.md) - Project principles
+- [Constitution](../../.specify/memory/constitution.md) - Project principles

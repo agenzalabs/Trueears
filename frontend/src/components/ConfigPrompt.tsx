@@ -32,7 +32,7 @@ export interface ConfigPromptProps {
 }
 
 export const ConfigPrompt: React.FC<ConfigPromptProps> = ({
-  appIdentifier,
+  appIdentifier: _appIdentifier,
   appDisplayName,
   pendingContent,
   onConfirm,
@@ -98,7 +98,7 @@ export const ConfigPrompt: React.FC<ConfigPromptProps> = ({
 
       // Path is valid - confirm
       onConfirm(trimmedPath);
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to validate path');
       setIsValidating(false);
     }
