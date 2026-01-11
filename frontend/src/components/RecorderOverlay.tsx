@@ -49,7 +49,7 @@ export const RecorderOverlay: React.FC = () => {
     startDictation,
     stopDictation,
     cancelDictation,
-    activeWindowInfo,
+    activeWindowInfo: _activeWindowInfo,
     // Log Mode state
     pendingLogContent,
     pendingLogApp,
@@ -203,7 +203,7 @@ export const RecorderOverlay: React.FC = () => {
           logConfigIgnoreMouseRef.current = shouldIgnore;
           tauriAPI.setIgnoreMouseEvents(shouldIgnore);
         }
-      } catch (e) {
+      } catch (_e) {
         // Ignore
       } finally {
         inFlight = false;

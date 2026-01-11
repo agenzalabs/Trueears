@@ -47,8 +47,8 @@ export const useSettings = () => {
     let savedLlmApiKey = await tauriAPI.getStoreValue('SCRIBE_LLM_API_KEY');
     let savedLlmModel = await tauriAPI.getStoreValue('SCRIBE_LLM_MODEL');
     let savedSystemPrompt = await tauriAPI.getStoreValue('SCRIBE_DEFAULT_SYSTEM_PROMPT');
-    let savedOnboardingComplete = await tauriAPI.getStoreValue('SCRIBE_ONBOARDING_COMPLETE');
-    let savedTheme = await tauriAPI.getStoreValue('SCRIBE_THEME');
+    const savedOnboardingComplete = await tauriAPI.getStoreValue('SCRIBE_ONBOARDING_COMPLETE');
+    const savedTheme = await tauriAPI.getStoreValue('SCRIBE_THEME');
 
     console.log('[useSettings] loadKeys - store values:', {
       groqKey, groqModel,

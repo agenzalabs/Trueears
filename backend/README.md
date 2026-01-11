@@ -148,5 +148,6 @@ cargo test
 ## Related Documentation
 
 - [Architecture Overview](../docs/architecture/overview.md)
+- [Tauri Commands Reference](../docs/reference/tauri-commands.md)
 - [Development Guide](../docs/guides/development.md)
 - [Deployment Guide](../docs/guides/deployment.md)
