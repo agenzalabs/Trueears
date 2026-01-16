@@ -8,7 +8,6 @@ mod log_mode;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Emitter;
 use window::ActiveWindowInfo;
-use log_mode::PathValidation;
 
 #[derive(serde::Serialize)]
 struct CursorPosition {
@@ -313,7 +312,7 @@ pub fn run() {
 
             // First-run onboarding: auto-open settings if no API key is configured
             let store = app.store("settings.json").map_err(|e| e.to_string())?;
-            let has_groq_key = store
+            let _has_groq_key = store
                 .get("GROQ_API_KEY")
                 .and_then(|v| v.as_str().map(|s| s.to_string()))
                 .map(|s| !s.is_empty())

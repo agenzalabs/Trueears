@@ -23,9 +23,69 @@ pub fn get_cursor_position() -> Option<(i32, i32)> {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "linux")]
 pub fn get_cursor_position() -> Option<(i32, i32)> {
-    None
+    use x11rb::connection::Connection;
+    use x11rb::protocol::xproto::ConnectionExt;
+    
+    let (conn, screen_num) = match x11rb::connect(None) {
+        Ok(c) => c,
+        Err(e) => {
+            log::warn!("Failed to connect to X11 for cursor position: {}", e);
+            return None;
+        }
+    };
+    
+    let setup = conn.setup();
+    let screen = &setup.roots[screen_num];
+    let root = screen.root;
+    
+    match conn.query_pointer(root) {
+        Ok(cookie) => match cookie.reply() {
+            Ok(reply) => Some((reply.root_x as i32, reply.root_y as i32)),
+            Err(e) => {
+                log::warn!("Failed to query pointer position: {}", e);
+                None
+            }
+        },
+        Err(e) => {
+            log::warn!("Failed to query pointer: {}", e);
+            None
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+pub fn get_cursor_position() -> Option<(i32, i32)> {
+    use cocoa::base::nil;
+    use cocoa::foundation::NSPoint;
+    use objc::{class, msg_send, sel, sel_impl};
+    
+    unsafe {
+        // Get the current mouse location using NSEvent
+        let mouse_location: NSPoint = msg_send![class!(NSEvent), mouseLocation];
+        
+        // Get the main screen height for coordinate conversion
+        // NSScreen coordinates have origin at bottom-left, we need to convert to top-left
+        let screens: *mut objc::runtime::Object = msg_send![class!(NSScreen), screens];
+        if screens.is_null() {
+            return None;
+        }
+        
+        let main_screen: *mut objc::runtime::Object = msg_send![screens, objectAtIndex: 0usize];
+        if main_screen.is_null() {
+            return None;
+        }
+        
+        let frame: cocoa::foundation::NSRect = msg_send![main_screen, frame];
+        let screen_height = frame.size.height;
+        
+        // Convert from bottom-left origin to top-left origin
+        let x = mouse_location.x as i32;
+        let y = (screen_height - mouse_location.y) as i32;
+        
+        Some((x, y))
+    }
 }
 
 #[cfg(target_os = "windows")]
@@ -260,12 +320,9 @@ pub fn get_active_window_info() -> Option<ActiveWindowInfo> {
         Ok(c) => c,
         Err(e) => {
             log::warn!("Failed to connect to X11 display: {}. Possibly running on Wayland without XWayland.", e);
-            return Some(ActiveWindowInfo {
-                app_name: "Unknown".to_string(),
-                window_title: "Unknown".to_string(),
-                executable_path: "".to_string(),
-                url: None,
-            });
+            // Return None to indicate we cannot determine the active window
+            // This allows proper validation to occur upstream
+            return None;
         }
     };
     
@@ -465,7 +522,6 @@ pub fn is_valid_active_window() -> bool {
 
 #[cfg(not(target_os = "windows"))]
 pub fn is_valid_active_window() -> bool {
-    // On non-Windows platforms, assume valid for now
-    // TODO: Implement for macOS and Linux
-    true
+    // Actually check if we can get valid window info
+    get_active_window_info().is_some()
 }
