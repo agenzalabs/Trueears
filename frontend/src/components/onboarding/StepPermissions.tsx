@@ -16,21 +16,15 @@ const PermissionsVisual: React.FC = () => {
             <path d="M19 10v2a7 7 0 01-14 0v-2"></path>
           </svg>
         </div>
-        <h3 className="text-gray-800 font-bold text-sm mb-1">"Scribe" requests access</h3>
-        <p className="text-gray-400 text-xs mb-6 leading-relaxed">Scribe needs microphone access to transcribe your speech to text.</p>
-        
+        <h3 className="text-gray-800 font-bold text-sm mb-1">"Scribe" wants to use your microphone</h3>
+        <p className="text-gray-400 text-xs mb-6 leading-relaxed">Click "Allow" when your browser asks.</p>
+
         <div className="flex justify-end gap-2">
-          <div className="text-xs text-gray-500 font-bold py-1.5 px-2">Block</div>
-          <div className="px-4 py-1.5 bg-white rounded text-black text-xs font-bold shadow-lg animate-pulse">Allow</div>
+          <div className="text-xs text-gray-400 font-medium py-2 px-3">Block</div>
+          <div className="px-5 py-2 bg-emerald-500 rounded-lg text-white text-xs font-bold shadow-lg shadow-emerald-500/30 animate-[pulse_1.5s_ease-in-out_infinite] ring-2 ring-emerald-400 ring-offset-2">Allow</div>
         </div>
       </div>
 
-      {/* Cursor */}
-      <div className="absolute -bottom-10 -right-10 w-8 h-8 text-gray-800 drop-shadow-md animate-[clickMotion_3s_infinite]">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M10 24h-6l-4-11.5 2.5-1.5 2.5 8h1l-2-13 2.5-1.5 2 12h1l1-11 2.5 1.5-1 9.5h1l3-9 2.5 1.5-4 14.5z"/>
-        </svg>
-      </div>
     </div>
   );
 };
@@ -49,52 +43,60 @@ export const StepPermissions: React.FC<StepProps> & { Visual: React.FC } = ({ on
     });
   }, []);
 
-  const handleGrant = () => {
+  const handleGrant = async () => {
     setVerifying(true);
-    // Simulate system dialog delay
-    setTimeout(() => {
-      setVerifying(false);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Stop tracks immediately - we just needed the permission
+      stream.getTracks().forEach(track => track.stop());
       setGranted(true);
-    }, 1500);
+    } catch (err) {
+      // User denied or error occurred - stay on this step
+      console.error('Microphone permission denied:', err);
+    } finally {
+      setVerifying(false);
+    }
   };
 
   return (
     <div className="h-full flex flex-col">
       <div>
         <h1 className="font-['Syne'] font-extrabold text-4xl leading-[0.95] tracking-tight mb-4 text-gray-900">
-          System<br/>Access
+          Allow<br/>Microphone
         </h1>
         <p className="text-gray-500 text-sm font-medium max-w-xs leading-relaxed mb-8">
-          Grant necessary permissions for audio capture and text injection.
+          Scribe listens only when you hold the shortcut. Audio stays on your device.
         </p>
 
         <div className="space-y-4">
-          {/* Verified Card */}
-          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4">
-            <div className="flex justify-between items-center mb-1">
-                                    <span className="text-sm font-bold text-gray-800">Typing Automation</span>              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-mono">ACTIVE</span>
-            </div>
-            <p className="text-[11px] text-gray-500">Native clipboard access verified.</p>
-          </div>
-
-          {/* Action Card */}
+          {/* Microphone Card */}
           <div className={`border rounded-xl p-4 transition-all duration-300 ${granted ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-white border-gray-200'}`}>
             <div className="flex justify-between items-center mb-1">
-              <span className="text-sm font-bold text-gray-800">Microphone</span>
+              <span className="text-sm font-bold text-gray-800">Microphone Access</span>
               <span className={`text-[10px] px-2 py-0.5 rounded font-mono ${granted ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-100 text-gray-500'}`}>
-                {granted ? 'GRANTED' : 'REQUIRED'}
+                {granted ? 'ALLOWED' : 'NEEDED'}
               </span>
             </div>
-            <p className="text-[11px] text-gray-500 mb-3">Required for local audio buffering.</p>
-            
+            <p className="text-[11px] text-gray-500 mb-3">Hear your voice when you dictate.</p>
+
             {!granted && (
-              <button 
+              <button
                 onClick={handleGrant}
-                className="text-[11px] font-bold bg-white text-gray-900 border border-gray-200 px-3 py-1.5 rounded hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-colors cursor-pointer"
+                disabled={verifying}
+                className="text-[11px] font-bold bg-white text-gray-900 border border-gray-200 px-3 py-1.5 rounded hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {verifying ? 'Verifying...' : 'Grant Access'}
+                {verifying ? 'Requesting...' : 'Allow Microphone'}
               </button>
             )}
+          </div>
+
+          {/* Paste Results Card */}
+          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-sm font-bold text-gray-800">Paste Results</span>
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-mono">READY</span>
+            </div>
+            <p className="text-[11px] text-gray-500">Text appears where your cursor is.</p>
           </div>
         </div>
       </div>

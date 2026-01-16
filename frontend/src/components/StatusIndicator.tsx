@@ -2,26 +2,30 @@ import React from 'react';
 import { Spinner } from '@/components/ui/ios-spinner';
 
 interface StatusIndicatorProps {
-  status: 'idle' | 'recording' | 'processing' | 'success' | 'error' | 'setup' | 'settings' | 'warning' | 'none';
+  status: 'idle' | 'recording' | 'processing' | 'success' | 'error' | 'cancelled' | 'setup' | 'settings' | 'warning' | 'log-config-needed' | 'log-saved' | 'none';
   onSettingsClick: () => void;
   isDark?: boolean;
 }
 
 export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, onSettingsClick, isDark = false }) => {
   // Determine if the indicator should be visible
-  // We hide it for recording, setup, settings, and warning modes
-  const isVisible = status !== 'recording' && status !== 'setup' && status !== 'settings' && status !== 'warning';
+  // We hide it for recording, setup, settings, warning, and log-config-needed modes
+  const isVisible = status !== 'recording' && status !== 'setup' && status !== 'settings' && status !== 'warning' && status !== 'log-config-needed';
 
   return (
     <div
       className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-50 pointer-events-none'}`}
     >
-      {status === 'success' ? (
+      {status === 'success' || status === 'log-saved' ? (
         <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
         </svg>
       ) : status === 'error' ? (
         <svg className="w-4 h-4 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      ) : status === 'cancelled' ? (
+        <svg className="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
       ) : (
@@ -30,7 +34,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status, onSett
         <div className="relative group flex items-center justify-center w-full h-full">
           <div className="relative flex items-center justify-center w-full h-full">
             {status === 'processing' ? (
-              <Spinner size="sm" style={{ color: isDark ? '#ffffff' : '#1f2937' }} />
+              <Spinner size="sm" className={isDark ? 'text-white' : 'text-gray-800'} />
             ) : (
               <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : '#9ca3af' }} />
             )}

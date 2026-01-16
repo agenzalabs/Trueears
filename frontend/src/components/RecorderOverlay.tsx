@@ -7,6 +7,7 @@ import { useToast } from '../hooks/useToast';
 import { SetupView } from './SetupView';
 import { StatusIndicator } from './StatusIndicator';
 import { WarningView } from './WarningView';
+import { ConfigPrompt } from './ConfigPrompt';
 import { tauriAPI, ShortcutPressedPayload } from '../utils/tauriApi';
 import { ActiveWindowInfo } from '../types/appProfile';
 
@@ -19,6 +20,12 @@ export const RecorderOverlay: React.FC = () => {
   const [warningMessage, setWarningMessage] = useState('');
   const [windowPadding, setWindowPadding] = useState(250); // Default padding, will be calculated
   const [onboardingTriggerActive, setOnboardingTriggerActive] = useState(false);
+  const [isConfigTransitioning, setIsConfigTransitioning] = useState(false);
+  const [isConfigAppearing, setIsConfigAppearing] = useState(false);
+  const [isStartingRecording, setIsStartingRecording] = useState(false);
+
+  const capsuleRef = useRef<HTMLDivElement | null>(null);
+  const logConfigIgnoreMouseRef = useRef<boolean | null>(null);
   
   const { 
     apiKey, 
@@ -36,11 +43,35 @@ export const RecorderOverlay: React.FC = () => {
   } = useSettings();
   
   const isDark = theme === 'dark';
-  const { status: recordingStatus, mediaStream, startDictation, stopDictation, activeWindowInfo } = useDictation();
+  const {
+    status: recordingStatus,
+    mediaStream,
+    startDictation,
+    stopDictation,
+    cancelDictation,
+    activeWindowInfo,
+    // Log Mode state
+    pendingLogContent,
+    pendingLogApp,
+    confirmLogConfig,
+    cancelLogConfig,
+  } = useDictation();
   const { isVisible: isToastVisible, message: toastMessage, type: toastType, showToast, hideToast } = useToast();
 
   // Derived status for rendering
   const status = uiMode !== 'none' ? uiMode : recordingStatus;
+
+  // Add CSS keyframes for smooth morphing animations
+  const morphStyles = `
+    @keyframes fadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+  `;
 
   // -- Effect: Calculate window padding from window position --
   useEffect(() => {
@@ -49,12 +80,10 @@ export const RecorderOverlay: React.FC = () => {
         const { getCurrentWindow } = await import('@tauri-apps/api/window');
         const window = getCurrentWindow();
         const position = await window.outerPosition();
-        // Padding is the absolute value of the negative position
-        const padding = Math.abs(Math.min(position.x, position.y));
-        console.log('[RecorderOverlay] Window position:', position, 'Calculated padding:', padding);
-        if (padding > 0) {
-          setWindowPadding(padding);
-        }
+        // Vertical padding is the absolute value of the negative Y position
+        const paddingY = Math.abs(Math.min(position.y, 0));
+        console.log('[RecorderOverlay] Window position:', position, 'Calculated vertical padding:', paddingY);
+        setWindowPadding(paddingY);
       } catch (e) {
         console.error('[RecorderOverlay] Failed to get window position:', e);
       }
@@ -72,52 +101,153 @@ export const RecorderOverlay: React.FC = () => {
 
   const handleMouseEnter = () => {
     // Only manage mouse events when in non-interactive mode
-    if (uiMode === 'none') {
+    if (uiMode === 'none' && recordingStatus !== 'log-config-needed') {
       tauriAPI.setIgnoreMouseEvents(false);
     }
   };
 
   const handleMouseLeave = () => {
     // Only manage mouse events when in non-interactive mode
-    if (uiMode === 'none') {
+    if (uiMode === 'none' && recordingStatus !== 'log-config-needed') {
       tauriAPI.setIgnoreMouseEvents(true);
     }
   };
 
-  // -- Effect: Auto-hide after success/error --
+  // -- Effect: Auto-hide after success/error/cancelled/log-saved --
   const prevRecordingStatus = useRef(recordingStatus);
   useEffect(() => {
-      if ((prevRecordingStatus.current === 'success' || prevRecordingStatus.current === 'error') && recordingStatus === 'idle') {
+      // Check if we just transitioned FROM a finished state TO idle
+      // OR if we are currently IN a finished state that should auto-hide
+      if ((prevRecordingStatus.current === 'success' || prevRecordingStatus.current === 'error' || prevRecordingStatus.current === 'cancelled' || prevRecordingStatus.current === 'log-saved') && recordingStatus === 'idle') {
           setIsVisible(false);
       }
+
+      // Handle toast for clipboard fallback (triggered via status change in hook)
+      // We detect if we just entered 'log-saved' state and pendingLogContent is still set (meaning it was cancelled/skipped)
+      // Actually, relying on status transition is tricky.
+      // Let's just listen for the 'log-saved' status combined with a specific check?
+      // Since we don't have the 'result' object here, we can't know for sure if it was file or clipboard.
+      // BUT, we know that 'cancelLogConfig' sets status to 'log-saved'.
+
       prevRecordingStatus.current = recordingStatus;
   }, [recordingStatus]);
 
   // -- Effect: Manage mouse events based on UI mode and visibility --
   useEffect(() => {
+    // While we are requesting mic permission / initializing MediaRecorder,
+    // keep the window interactive so the WebView permission UI can be clicked.
+    if (isStartingRecording) {
+      tauriAPI.setIgnoreMouseEvents(false);
+      return;
+    }
+
     if (!isVisible) {
       // When completely hidden, ignore mouse events
       tauriAPI.setIgnoreMouseEvents(true);
-    } else if (uiMode === 'setup' || uiMode === 'warning') {
-      // When showing interactive UI, enable mouse events
+    } else if (uiMode === 'setup' || uiMode === 'warning' || recordingStatus === 'log-config-needed') {
+      // When showing interactive UI (including Log Mode config), enable mouse events
       tauriAPI.setIgnoreMouseEvents(false);
     } else if (uiMode === 'none') {
       // In normal mode, ignore events unless hovering
       tauriAPI.setIgnoreMouseEvents(true);
     }
-  }, [isVisible, uiMode]);
+  }, [isVisible, uiMode, recordingStatus, isStartingRecording]);
+
+  // -- Effect: While Log Mode config is showing, allow click-through outside the capsule --
+  // Prevents the overlay from blocking clicks on other windows, without relying on hover events
+  // (which can stop firing once ignore-cursor-events is enabled).
+  useEffect(() => {
+    if (!isVisible || recordingStatus !== 'log-config-needed') return;
+
+    let isUnmounted = false;
+    let intervalId: NodeJS.Timeout | null = null;
+    let inFlight = false;
+
+    let cachedWindowPos: { x: number; y: number } | null = null;
+    let cachedScale: number | null = null;
+
+    const getWindowInfo = async () => {
+      if (cachedWindowPos && cachedScale) {
+        return { pos: cachedWindowPos, scale: cachedScale };
+      }
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      const window = getCurrentWindow();
+      const [pos, scale] = await Promise.all([window.outerPosition(), window.scaleFactor()]);
+      cachedWindowPos = pos;
+      cachedScale = scale;
+      return { pos, scale };
+    };
+
+    const tick = async () => {
+      if (isUnmounted || inFlight) return;
+      inFlight = true;
+
+      try {
+        const cursor = await tauriAPI.getCursorPosition();
+        const rect = capsuleRef.current?.getBoundingClientRect();
+        if (!cursor || !rect) return;
+
+        const { pos, scale } = await getWindowInfo();
+        const cursorX = (cursor.x - pos.x) / scale;
+        const cursorY = (cursor.y - pos.y) / scale;
+
+        const hitMargin = 12;
+        const isOverCapsule =
+          cursorX >= rect.left - hitMargin &&
+          cursorX <= rect.right + hitMargin &&
+          cursorY >= rect.top - hitMargin &&
+          cursorY <= rect.bottom + hitMargin;
+
+        const shouldIgnore = !isOverCapsule;
+        if (logConfigIgnoreMouseRef.current !== shouldIgnore) {
+          logConfigIgnoreMouseRef.current = shouldIgnore;
+          tauriAPI.setIgnoreMouseEvents(shouldIgnore);
+        }
+      } catch (e) {
+        // Ignore
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    tick();
+    intervalId = setInterval(tick, 50);
+
+    return () => {
+      isUnmounted = true;
+      if (intervalId) clearInterval(intervalId);
+      logConfigIgnoreMouseRef.current = null;
+    };
+  }, [isVisible, recordingStatus]);
 
   // -- Effect: Auto-hide idle state after 5 seconds --
   useEffect(() => {
     // Only auto-hide if we're visible, in idle state, and uiMode is 'none'
-    if (isVisible && recordingStatus === 'idle' && uiMode === 'none') {
+    if (isVisible && recordingStatus === 'idle' && uiMode === 'none' && !isStartingRecording) {
       const timer = setTimeout(() => {
         setIsVisible(false);
       }, 5000); // 5 seconds
 
       return () => clearTimeout(timer);
     }
-  }, [isVisible, recordingStatus, uiMode]);
+  }, [isVisible, recordingStatus, uiMode, isStartingRecording]);
+
+  // -- Effect: Dynamically register/unregister Escape shortcut based on visibility --
+  // This prevents the global Escape shortcut from interfering with other apps when Scribe is not visible
+  useEffect(() => {
+    if (isVisible) {
+      // Register Escape shortcut when overlay becomes visible
+      tauriAPI.registerEscapeShortcut();
+    } else {
+      // Unregister Escape shortcut when overlay is hidden
+      tauriAPI.unregisterEscapeShortcut();
+    }
+
+    // Cleanup: unregister on unmount
+    return () => {
+      tauriAPI.unregisterEscapeShortcut();
+    };
+  }, [isVisible]);
 
   // Removed handleSaveSettings - settings now in separate window
 
@@ -161,10 +291,33 @@ export const RecorderOverlay: React.FC = () => {
       return;
     }
 
-    console.log('[RecorderOverlay] Starting dictation...');
-    await startDictation(windowInfo, selectedText);
+    // Show the overlay immediately while we request microphone permission.
+    // In production/WebView2, the permission UI can otherwise be impossible to interact with
+    // when the window is click-through.
     setIsVisible(true);
-    console.log('[RecorderOverlay] Dictation started, window visible');
+    setIsStartingRecording(true);
+    tauriAPI.setIgnoreMouseEvents(false);
+
+    try {
+      console.log('[RecorderOverlay] Starting dictation...');
+      await startDictation(windowInfo, selectedText);
+      console.log('[RecorderOverlay] Dictation started');
+    } catch (err) {
+      console.error('[RecorderOverlay] Failed to start dictation:', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      showToast(msg || 'Failed to start recording', 'error');
+
+      // If mic permission is missing / stuck, open Settings so the user can re-run the permission step.
+      if (msg.toLowerCase().includes('microphone')) {
+        try {
+          await openSettings();
+        } catch {
+          // ignore
+        }
+      }
+    } finally {
+      setIsStartingRecording(false);
+    }
   };
 
   // -- Action: Stop Recording --
@@ -210,6 +363,18 @@ export const RecorderOverlay: React.FC = () => {
 
   // -- Trigger: Handle Shortcut Pressed --
   const handleShortcutPressed = useCallback(async (payload: ShortcutPressedPayload) => {
+    // IMPORTANT: Set timestamp immediately before any async operations
+    // This ensures handleShortcutReleased has the correct press time
+    const pressTime = Date.now();
+    pressStartTimeRef.current = pressTime;
+
+    // Start of a new press cycle: clear any prior pending-stop flag.
+    // Do this BEFORE any awaits so a fast release can set it again.
+    pttStopPendingRef.current = false;
+
+    // Track if we were idle when pressed (release handler may run while this function awaits)
+    wasIdleOnPressRef.current = recordingStatus !== 'recording';
+    
     if (onboardingTriggerActive) {
       console.log('[RecorderOverlay] Ignoring press - onboarding trigger step active');
       return;
@@ -250,13 +415,11 @@ export const RecorderOverlay: React.FC = () => {
     console.log('[RecorderOverlay] handleShortcutPressed called, mode:', currentMode);
     console.log('[RecorderOverlay] State:', { recordingStatus, uiMode, isKeyLoaded, isVisible });
     
-    const now = Date.now();
-    if (now - lastToggleTimeRef.current < 300) {
+    if (pressTime - lastToggleTimeRef.current < 300) {
       console.log('[RecorderOverlay] Debounced - ignoring rapid press');
       return;
     }
-    lastToggleTimeRef.current = now;
-    pressStartTimeRef.current = now;
+    lastToggleTimeRef.current = pressTime;
 
     if (!isKeyLoaded) {
       console.log('[RecorderOverlay] Keys not loaded yet - waiting');
@@ -269,9 +432,6 @@ export const RecorderOverlay: React.FC = () => {
       showToast('Please wait for the current transcription to complete', 'error');
       return;
     }
-
-    // Track if we were idle when pressed (for auto mode)
-    wasIdleOnPressRef.current = recordingStatus !== 'recording';
 
     if (recordingStatus === 'recording') {
       // Already recording - handle based on mode
@@ -296,7 +456,6 @@ export const RecorderOverlay: React.FC = () => {
     } else {
       // Not recording - start recording
       console.log('[RecorderOverlay] Starting recording');
-      pttStopPendingRef.current = false; // Clear any pending stop
       handleStartRecording(undefined, pendingWindowInfoRef.current, pendingSelectedTextRef.current);
       pendingWindowInfoRef.current = null;
       pendingSelectedTextRef.current = null;
@@ -367,6 +526,19 @@ export const RecorderOverlay: React.FC = () => {
     }
   }, [recordingStatus, handleStopRecording, onboardingTriggerActive]);
 
+  // -- Trigger: Handle Shortcut Cancelled (Escape) --
+  const handleShortcutCancelled = useCallback(() => {
+    console.log('[RecorderOverlay] *** SHORTCUT CANCELLED EVENT RECEIVED ***');
+
+    if (recordingStatus === 'recording') {
+        console.log('[RecorderOverlay] Cancelling dictation via global shortcut');
+        cancelDictation();
+    } else if (isVisible) {
+        console.log('[RecorderOverlay] Hiding overlay via global shortcut');
+        setIsVisible(false);
+    }
+  }, [recordingStatus, cancelDictation, isVisible]);
+
   // Legacy handleToggle for backward compatibility (used by some internal calls)
   const handleToggle = useCallback(async (payload: ShortcutPressedPayload) => {
     handleShortcutPressed(payload);
@@ -376,19 +548,21 @@ export const RecorderOverlay: React.FC = () => {
   const handleToggleRef = useRef(handleToggle);
   const handleShortcutPressedRef = useRef(handleShortcutPressed);
   const handleShortcutReleasedRef = useRef(handleShortcutReleased);
-  
+  const handleShortcutCancelledRef = useRef(handleShortcutCancelled);
+
   // Keep refs up to date
   useEffect(() => {
     handleToggleRef.current = handleToggle;
     handleShortcutPressedRef.current = handleShortcutPressed;
     handleShortcutReleasedRef.current = handleShortcutReleased;
+    handleShortcutCancelledRef.current = handleShortcutCancelled;
   });
 
   // -- Keyboard Shortcuts (Escape key + F12 for DevTools) --
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isVisible) {
-        if (recordingStatus === 'recording') handleStopRecording();
+        if (recordingStatus === 'recording') cancelDictation();
         else setIsVisible(false);
       }
       
@@ -414,7 +588,7 @@ export const RecorderOverlay: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isVisible, handleStopRecording, recordingStatus]);
+  }, [isVisible, cancelDictation, recordingStatus]);
 
   // -- Tauri Event Listeners (setup ONCE using module-level flag) --
   useEffect(() => {
@@ -428,6 +602,7 @@ export const RecorderOverlay: React.FC = () => {
     
     let unlistenPressed: (() => void) | null = null;
     let unlistenReleased: (() => void) | null = null;
+    let unlistenCancelled: (() => void) | null = null;
     let unlistenWarning: (() => void) | null = null;
     let unlistenOnboardingState: (() => void) | null = null;
     
@@ -446,7 +621,12 @@ export const RecorderOverlay: React.FC = () => {
         console.log('[RecorderOverlay] Shortcut released callback fired');
         handleShortcutReleasedRef.current();
       });
-      
+
+      unlistenCancelled = await tauriAPI.onShortcutCancelled(() => {
+        console.log('[RecorderOverlay] Shortcut cancelled callback fired');
+        handleShortcutCancelledRef.current();
+      });
+
       unlistenWarning = await tauriAPI.onShowWarning((msg) => {
         console.log('[RecorderOverlay] Warning callback fired:', msg);
         setWarningMessage(msg);
@@ -478,17 +658,77 @@ export const RecorderOverlay: React.FC = () => {
     };
   }, []); // Empty deps - setup ONCE on mount
 
-  if (!isVisible) return null;
+  const handleCancelLogConfig = useCallback(async () => {
+    // Start transition animation
+    setIsConfigTransitioning(true);
+    
+    // @ts-ignore - awaiting the result of the callback we modified in useDictation
+    const copied = await cancelLogConfig();
+    
+    // Wait a bit before showing toast to let shape morph start
+    setTimeout(() => {
+      if (copied) {
+        showToast('Copied to clipboard', 'success');
+      }
+    }, 200);
+    
+    // After full transition completes, reset state
+    setTimeout(() => {
+      setIsConfigTransitioning(false);
+    }, 600);
+  }, [cancelLogConfig, showToast]);
+
+  const handleConfirmLogConfig = useCallback(async (...args: Parameters<typeof confirmLogConfig>) => {
+    // Start transition animation
+    setIsConfigTransitioning(true);
+    
+    // Confirm the config
+    await confirmLogConfig(...args);
+    
+    // After transition completes, reset state
+    setTimeout(() => {
+      setIsConfigTransitioning(false);
+    }, 600);
+  }, [confirmLogConfig]);
+
+  // -- Effect: Hide overlay after toast completes during config transition --
+  useEffect(() => {
+    if (!isToastVisible && !isConfigTransitioning && recordingStatus === 'log-saved') {
+      // Toast has finished showing, hide the overlay
+      setIsVisible(false);
+    }
+  }, [isToastVisible, isConfigTransitioning, recordingStatus]);
+
+  // -- Effect: Trigger config appearing animation --
+  const prevStatusForConfig = useRef(recordingStatus);
+  useEffect(() => {
+    if (prevStatusForConfig.current !== 'log-config-needed' && recordingStatus === 'log-config-needed') {
+      // Just transitioned to config prompt - start morphing animation
+      setIsConfigAppearing(true);
+      setTimeout(() => {
+        setIsConfigAppearing(false);
+      }, 600);
+    }
+    prevStatusForConfig.current = recordingStatus;
+  }, [recordingStatus]);
+
+  if (!isVisible && !isToastVisible) return null;
 
   return (
     <>
-      <Toast 
-        message={toastMessage} 
-        type={toastType} 
-        isVisible={isToastVisible} 
-        onClose={hideToast} 
-      />
-      <div 
+      <style>{morphStyles}</style>
+      {/* External Toast - only for non-morphing cases */}
+      {isToastVisible && !isConfigTransitioning && (
+        <Toast
+          message={toastMessage}
+          type={toastType}
+          isVisible={true}
+          onClose={hideToast}
+          bottomOffset={windowPadding + 48}
+        />
+      )}
+      {isVisible && (
+      <div
         className="fixed z-[9999] left-1/2 -translate-x-1/2 pointer-events-none flex flex-col items-center justify-end"
         style={{ bottom: windowPadding + 48 }}
       >
@@ -496,6 +736,7 @@ export const RecorderOverlay: React.FC = () => {
         Capsule Container
       */}
       <div
+        ref={capsuleRef}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         className={`
@@ -503,16 +744,27 @@ export const RecorderOverlay: React.FC = () => {
           flex items-center justify-center
           backdrop-blur-xl
           rounded-full
-          transition-all duration-300
           ${status === 'setup' ? 'w-80 h-12 rounded-xl' : ''}
           ${status === 'warning' ? 'w-64 h-10 rounded-xl' : ''}
-          ${status === 'recording' ? 'w-40 h-9' : ''}
-          ${(status === 'idle' || status === 'processing' || status === 'success' || status === 'error') ? 'w-9 h-9' : ''}
+          ${status === 'log-config-needed' && !isConfigTransitioning && !isConfigAppearing ? 'w-96 h-28 rounded-xl' : ''}
+          ${isConfigAppearing ? 'w-96 h-28 rounded-xl' : ''}
+          ${isConfigTransitioning && !isToastVisible ? 'w-64 h-20 rounded-xl' : ''}
+          ${isConfigTransitioning && isToastVisible ? 'w-52 h-10 rounded-lg' : ''}
+          ${status === 'recording' && !isConfigAppearing ? 'w-40 h-9' : ''}
+          ${status === 'processing' && !isConfigAppearing ? 'w-9 h-9' : ''}
+          ${((status === 'idle' || status === 'success' || status === 'error' || status === 'cancelled' || (status === 'log-saved' && !isConfigTransitioning && !isToastVisible)) && !isConfigAppearing) ? 'w-9 h-9' : ''}
         `}
         style={{
-          backgroundColor: isDark ? '#0a0a0a' : '#f8fafc',
+          backgroundColor: isConfigTransitioning 
+            ? isToastVisible
+              ? toastType === 'success' ? 'rgba(16, 185, 129, 0.9)' 
+              : toastType === 'error' ? 'rgba(244, 63, 94, 0.9)' 
+              : 'rgba(59, 130, 246, 0.9)'
+              : isDark ? 'rgba(10, 10, 10, 0.95)' : 'rgba(248, 250, 252, 0.95)'
+            : isDark ? '#0a0a0a' : '#f8fafc',
           border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid #d1d5db',
           boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.5)' : '0 8px 32px rgba(0,0,0,0.15)',
+          transition: 'all 600ms cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
         <div className="relative w-full h-full flex items-center justify-center">
@@ -522,10 +774,102 @@ export const RecorderOverlay: React.FC = () => {
 
           {/* SETUP MODE: Input Field */}
           {status === 'setup' && (
-            <SetupView 
+            <SetupView
                 onSave={handleSaveSetup}
                 isDark={isDark}
             />
+          )}
+
+          {/* LOG MODE CONFIG: First-time app configuration */}
+          {status === 'log-config-needed' && !isConfigTransitioning && !isConfigAppearing && pendingLogApp && pendingLogContent && (
+            <ConfigPrompt
+              appIdentifier={pendingLogApp.identifier}
+              appDisplayName={pendingLogApp.displayName}
+              pendingContent={pendingLogContent}
+              onConfirm={handleConfirmLogConfig}
+              onCancel={handleCancelLogConfig}
+              isDark={isDark}
+            />
+          )}
+
+          {/* MORPHING ANIMATION: Recorder to Config */}
+          {isConfigAppearing && (
+            <>
+              {/* Previous status indicator fading out */}
+              <div 
+                className="absolute inset-0 flex items-center justify-center"
+               style={{
+                 animation: "fadeOut 400ms ease-out forwards",
+                 pointerEvents: 'none',
+               }}
+              >
+                <StatusIndicator status={prevStatusForConfig.current} onSettingsClick={openSettings} isDark={isDark} />
+              </div>
+              
+              {/* ConfigPrompt fading in */}
+              {pendingLogApp && pendingLogContent && (
+                <div 
+                  className="absolute inset-0 flex items-center justify-center"
+                 style={{
+                   animation: "fadeIn 400ms ease-in 200ms both",
+                 }}
+                >
+                  <ConfigPrompt
+                    appIdentifier={pendingLogApp.identifier}
+                    appDisplayName={pendingLogApp.displayName}
+                    pendingContent={pendingLogContent}
+                    onConfirm={handleConfirmLogConfig}
+                    onCancel={handleCancelLogConfig}
+                    isDark={isDark}
+                  />
+                </div>
+              )}
+            </>
+          )}
+
+          {/* MORPHING ANIMATION: Config to Toast */}
+          {isConfigTransitioning && (
+            <>
+              {/* ConfigPrompt fading out */}
+              {pendingLogApp && pendingLogContent && (
+                <div 
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{
+                    animation: "fadeOut 400ms ease-out forwards",
+                  }}
+                >
+                  <ConfigPrompt
+                    appIdentifier={pendingLogApp.identifier}
+                    appDisplayName={pendingLogApp.displayName}
+                    pendingContent={pendingLogContent}
+                    onConfirm={handleConfirmLogConfig}
+                    onCancel={handleCancelLogConfig}
+                    isDark={isDark}
+                  />
+                </div>
+              )}
+              
+              {/* Toast content fading in */}
+              {isToastVisible && (
+                <div 
+                  className="absolute inset-0 flex items-center justify-center px-4"
+                  style={{
+                    animation: "fadeIn 400ms ease-in 200ms both",
+                  }}
+                >
+                  <div className={`flex items-center gap-2 text-xs font-medium text-white ${
+                    toastType === 'success' ? 'text-emerald-50' : toastType === 'error' ? 'text-rose-50' : 'text-blue-50'
+                  }`}>
+                    {toastType === 'success' && (
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                    <span>{toastMessage}</span>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {/* RECORDING MODE: Visualizer */}
@@ -536,11 +880,14 @@ export const RecorderOverlay: React.FC = () => {
             {status === 'recording' && mediaStream && <AudioVisualizer stream={mediaStream} isRecording={true} barColor={isDark ? '#ffffff' : '#1f2937'} />}
           </div>
 
-          {/* STATUS ICONS */}
-          <StatusIndicator status={status} onSettingsClick={openSettings} isDark={isDark} />
+          {/* STATUS ICONS - Hide during config transitions */}
+          {!isConfigTransitioning && !isConfigAppearing && (
+            <StatusIndicator status={status} onSettingsClick={openSettings} isDark={isDark} />
+          )}
         </div>
       </div>
       </div>
+      )}
     </>
   );
 };

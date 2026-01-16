@@ -110,10 +110,10 @@ export const StepMicCheck: React.FC<StepProps> & { Visual: React.FC } = ({ onNex
     <div className="h-full flex flex-col">
       <div>
         <h1 className="font-['Syne'] font-extrabold text-4xl leading-[0.95] tracking-tight mb-4 text-gray-900">
-          Signal<br/>Check
+          Test Your<br/>Mic
         </h1>
         <p className="text-gray-500 text-sm font-medium max-w-xs leading-relaxed mb-8">
-          Speak naturally to verify the audio input level is adequate for transcription.
+          Say something and watch the bars move.
         </p>
       </div>
 

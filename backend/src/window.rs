@@ -9,6 +9,26 @@ pub struct ActiveWindowInfo {
 }
 
 #[cfg(target_os = "windows")]
+pub fn get_cursor_position() -> Option<(i32, i32)> {
+    use windows::Win32::Foundation::POINT;
+    use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
+
+    unsafe {
+        let mut point = POINT { x: 0, y: 0 };
+        if GetCursorPos(&mut point).is_ok() {
+            Some((point.x, point.y))
+        } else {
+            None
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn get_cursor_position() -> Option<(i32, i32)> {
+    None
+}
+
+#[cfg(target_os = "windows")]
 pub fn get_active_window_info() -> Option<ActiveWindowInfo> {
     use windows::core::PWSTR;
     use windows::Win32::Foundation::{CloseHandle, HWND};
