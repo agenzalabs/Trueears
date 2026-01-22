@@ -155,4 +155,4 @@ Entries are appended as markdown list items with timestamps:
 - [Development Guide](./development.md) - Set up for contributing
 - [Deployment Guide](./deployment.md) - Build for production
 - [Architecture Overview](../architecture/overview.md) - Understand the system design
-- [Troubleshooting](../troubleshooting.md) - Common issues and solutions
+- [Troubleshooting](../troubleshooting/README.md) - Common issues and solutions

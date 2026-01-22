@@ -38,7 +38,7 @@
 | III. Type Safety | TypeScript strict mode, explicit contracts | ⬜ |
 | IV. Clean Architecture | Layer separation respected (UI→Hooks→Services→Backend) | ⬜ |
 | V. Security | API keys in secure store, no clipboard overreach | ⬜ |
-| VI. Platform-Native | Uses Tauri backend for system APIs | ⬜ |
+| VI. Platform-Native | Uses Tauri backend for system APIs (Rust 1.77+) | ⬜ |
 | VII. Incremental Changes | PR touches <5 files, feature flagged if experimental | ⬜ |
 
 ## Project Structure
