@@ -25,7 +25,8 @@ pub fn register_shortcuts(app: &AppHandle) -> Result<(), Box<dyn std::error::Err
     // Register recording shortcut (Ctrl+Shift+K / Cmd+Shift+K)
     if let Err(e) = register_recording_shortcut(app) {
         log::error!("Failed to register recording shortcut: {}", e);
-        return Err(e);
+        log::warn!("Recording shortcut (Ctrl+Shift+K) may be in use by another application");
+        // Don't crash - the app can still work, user just needs to close conflicting app
     }
 
     // Register settings shortcut (Ctrl+Shift+; / Cmd+Shift+;)
