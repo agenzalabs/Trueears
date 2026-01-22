@@ -7,11 +7,12 @@ import { LogModeSettings } from './settings/LogModeSettings';
 import { AboutSettings } from './settings/AboutSettings';
 import { AccountSection } from './auth/AccountSection';
 import { OnboardingWizard } from './onboarding/OnboardingWizard';
+import { LegalPrivacySettings } from './settings/LegalPrivacySettings';
 import { useSettings } from '../hooks/useSettings';
 import { useAuth } from '../hooks/useAuth';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
-type SettingsTab = 'transcription' | 'llm' | 'profiles' | 'logmode' | 'preferences' | 'account' | 'about';
+type SettingsTab = 'transcription' | 'llm' | 'profiles' | 'logmode' | 'preferences' | 'account' | 'legal' | 'about';
 
 export const SettingsWindow: React.FC = () => {
   const [activeTab, setActiveTab] = useState<SettingsTab>('transcription');
@@ -221,6 +222,19 @@ export const SettingsWindow: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setActiveTab('legal')}
+            className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-3 cursor-pointer ${activeTab === 'legal'
+              ? isDark ? 'bg-[#252525] text-gray-100 font-medium' : 'bg-gray-100 text-gray-800 font-medium'
+              : isDark ? 'text-gray-400 hover:bg-[#252525] hover:text-gray-100' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'
+              }`}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            Legal & Privacy
+          </button>
+
+          <button
             onClick={() => setActiveTab('about')}
             className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-3 cursor-pointer ${activeTab === 'about'
               ? isDark ? 'bg-[#252525] text-gray-100 font-medium' : 'bg-gray-100 text-gray-800 font-medium'
@@ -268,6 +282,7 @@ export const SettingsWindow: React.FC = () => {
               refreshAuthState={auth.refreshAuthState}
             />
         )}
+        {activeTab === 'legal' && <LegalPrivacySettings theme={settings.theme} />}
         {activeTab === 'about' && <AboutSettings theme={settings.theme} />}
       </div>
     </div>
