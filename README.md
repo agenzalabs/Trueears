@@ -58,7 +58,9 @@ Customize in Settings > App Profiles.
 | [Development](docs/guides/development.md) | Local setup, code conventions, testing |
 | [Deployment](docs/guides/deployment.md) | Build for production distribution |
 | [Architecture](docs/architecture/overview.md) | System design with Mermaid diagrams |
-| [Troubleshooting](docs/troubleshooting.md) | Common issues and solutions |
+| [API Reference](docs/reference/tauri-commands.md) | Tauri backend command documentation |
+| [Troubleshooting](docs/troubleshooting/README.md) | Common issues and solutions |
+| [FAQ](docs/troubleshooting/faq.md) | Frequently asked questions |
 
 ## Tech Stack
 
@@ -83,7 +85,7 @@ See [Architecture Overview](docs/architecture/overview.md) for detailed componen
 
 ## Contributing
 
-Contributions welcome! See [Development Guide](docs/guides/development.md) for setup instructions.
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines and [Development Guide](docs/guides/development.md) for setup instructions.
 
 ## License
 

@@ -126,6 +126,13 @@ async fn search_installed_apps(query: String) -> Result<Vec<installed_apps::Inst
 }
 
 #[tauri::command]
+fn refresh_installed_apps_cache() -> Result<(), String> {
+    log::info!("refresh_installed_apps_cache called");
+    installed_apps::force_refresh_cache();
+    Ok(())
+}
+
+#[tauri::command]
 async fn get_installed_popular_apps() -> Result<Vec<installed_apps::InstalledApp>, String> {
     log::info!("get_installed_popular_apps command called");
     Ok(installed_apps::get_installed_popular_apps())
@@ -353,6 +360,7 @@ pub fn run() {
             register_escape_shortcut,
             unregister_escape_shortcut,
             search_installed_apps,
+            refresh_installed_apps_cache,
             get_installed_popular_apps,
             // Auth commands
             start_google_login,

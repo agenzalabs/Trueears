@@ -4,6 +4,7 @@ import { processTranscription, postProcessTranscription, finalizeDictation, tran
 import { ActiveWindowInfo } from '../types/appProfile';
 import { playCancelSound, playSuccessSound, playLogSavedSound } from '../utils/soundUtils';
 import { logModeService } from '../services/logModeService';
+import { debug } from '../utils/debug';
 
 export type DictationStatus = 'idle' | 'recording' | 'processing' | 'success' | 'error' | 'cancelled' | 'log-saved' | 'log-config-needed';
 export type DictationMode = 'dictation' | 'transform';
@@ -22,7 +23,7 @@ export const useDictation = () => {
   const [pendingLogApp, setPendingLogApp] = useState<{ identifier: string; displayName: string } | null>(null);
 
   const startDictation = async (windowInfo?: ActiveWindowInfo | null, preSelectedText?: string | null) => {
-    console.log('[useDictation] startDictation called with window info:', windowInfo, 'selected text:', preSelectedText ? `${preSelectedText.length} chars` : 'none');
+    debug.log('[useDictation] startDictation called with window info:', windowInfo, 'selected text:', preSelectedText ? `${preSelectedText.length} chars` : 'none');
     try {
       if (windowInfo) {
         setActiveWindowInfo(windowInfo);
@@ -32,16 +33,16 @@ export const useDictation = () => {
       if (preSelectedText && preSelectedText.trim().length > 0) {
         setMode('transform');
         setSelectedText(preSelectedText);
-        console.log('[useDictation] Transform mode - selected text:', preSelectedText.substring(0, 50) + (preSelectedText.length > 50 ? '...' : ''));
+        debug.log('[useDictation] Transform mode - selected text:', preSelectedText.substring(0, 50) + (preSelectedText.length > 50 ? '...' : ''));
       } else {
         setMode('dictation');
         setSelectedText(null);
-        console.log('[useDictation] Dictation mode - no text selected');
+        debug.log('[useDictation] Dictation mode - no text selected');
       }
       
       await startRecording();
       setStatus('recording');
-      console.log('[useDictation] Status set to recording');
+      debug.log('[useDictation] Status set to recording');
     } catch (error) {
       console.error('[useDictation] Failed to start recording:', error);
       setStatus('error');
@@ -59,7 +60,7 @@ export const useDictation = () => {
     defaultPrompt?: string,
     language?: string
   ) => {
-    console.log('[useDictation] stopDictation called with llmEnabled:', llmEnabled, 'mode:', mode);
+    debug.log('[useDictation] stopDictation called with llmEnabled:', llmEnabled, 'mode:', mode);
     
     if (!isRecording) {
       console.warn('[useDictation] Not recording, ignoring stop request');
@@ -74,7 +75,7 @@ export const useDictation = () => {
     
     isProcessingRef.current = true;
     setStatus('processing');
-    console.log('[useDictation] Status set to processing');
+    debug.log('[useDictation] Status set to processing');
 
     const resetState = () => {
       setStatus('idle');
@@ -89,15 +90,15 @@ export const useDictation = () => {
 
     try {
       const audioBlob = await stopRecording();
-      console.log('[useDictation] Audio blob size:', audioBlob.size);
+      debug.log('[useDictation] Audio blob size:', audioBlob.size);
       
       if (audioBlob.size === 0) {
         throw new Error("No audio captured");
       }
 
-      console.log('[useDictation] Starting transcription...');
-      let rawText = await processTranscription(audioBlob, apiKey, model, language);
-      console.log('[useDictation] Transcription result:', rawText);
+      debug.log('[useDictation] Starting transcription...');
+      const rawText = await processTranscription(audioBlob, apiKey, model, language);
+      debug.log('[useDictation] Transcription result:', rawText);
 
       // ========== Log Mode Check ==========
       // Check for trigger phrase BEFORE any LLM post-processing
@@ -107,7 +108,7 @@ export const useDictation = () => {
           const triggerResult = await logModeService.detectTrigger(rawText);
 
           if (triggerResult.detected && triggerResult.content !== undefined) {
-            console.log('[useDictation] Log Mode triggered:', triggerResult.trigger?.phrase);
+            debug.log('[useDictation] Log Mode triggered:', triggerResult.trigger?.phrase);
 
             // Get the app identifier from active window
             const appIdentifier = activeWindowInfo?.app_name || 'unknown';
@@ -121,7 +122,7 @@ export const useDictation = () => {
               const result = await logModeService.saveLogEntry(triggerResult.content, appIdentifier);
 
               if (result.success) {
-                console.log('[useDictation] Log saved to:', result.filePath);
+                debug.log('[useDictation] Log saved to:', result.filePath);
                 playLogSavedSound();
                 setStatus('log-saved');
                 setTimeout(() => {
@@ -129,7 +130,7 @@ export const useDictation = () => {
                 }, 2000);
                 return; // Exit - we handled Log Mode
               } else if (result.fallbackToClipboard) {
-                console.log('[useDictation] Log copied to clipboard as fallback');
+                debug.log('[useDictation] Log copied to clipboard as fallback');
                 playLogSavedSound();
                 // We'll handle the toast in the UI component by checking for a special status or callback
                 // But since we don't have a direct way to trigger toast from here without prop drilling,
@@ -157,7 +158,7 @@ export const useDictation = () => {
               }
             } else {
               // No mapping - need to prompt user for configuration
-              console.log('[useDictation] No mapping for app:', appIdentifier);
+              debug.log('[useDictation] No mapping for app:', appIdentifier);
               setPendingLogContent(triggerResult.content);
               setPendingLogApp({ identifier: appIdentifier, displayName: appDisplayName });
               setStatus('log-config-needed');
@@ -177,10 +178,10 @@ export const useDictation = () => {
 
       // Transform mode: use transcription as instruction to transform selected text
       if (mode === 'transform' && selectedText && rawText) {
-        console.log('[useDictation] Transform mode: applying transformation...');
+        debug.log('[useDictation] Transform mode: applying transformation...');
         try {
           const effectiveLlmKey = llmApiKey || apiKey;
-          const effectiveLlmModel = llmModel || 'llama-3.3-70b-versatile';
+          const effectiveLlmModel = llmModel || 'openai/gpt-oss-120b';
           
           const transformed = await transformSelectedText(
             selectedText,
@@ -191,7 +192,7 @@ export const useDictation = () => {
           
           if (transformed && transformed.trim().length > 0) {
             finalText = transformed;
-            console.log('[useDictation] Transformed text:', finalText);
+            debug.log('[useDictation] Transformed text:', finalText);
           } else {
             throw new Error('Empty transformation result');
           }
@@ -201,16 +202,16 @@ export const useDictation = () => {
             onError('Transform failed - please try again');
           }
           setStatus('error');
-          console.log('[useDictation] Transform error, will reset to idle in 2s');
+          debug.log('[useDictation] Transform error, will reset to idle in 2s');
           setTimeout(() => {
             resetState();
-            console.log('[useDictation] Status reset to idle after transform error');
+            debug.log('[useDictation] Status reset to idle after transform error');
           }, 2000);
           return; // Exit early, don't paste anything
         }
       } else if (llmEnabled && llmApiKey && rawText) {
         // Regular dictation mode with LLM post-processing
-        console.log('[useDictation] Applying LLM post-processing...');
+        debug.log('[useDictation] Applying LLM post-processing...');
         try {
           const processed = await postProcessTranscription(
             rawText,
@@ -221,7 +222,7 @@ export const useDictation = () => {
           );
           if (processed && processed.trim().length > 0) {
             finalText = processed;
-            console.log('[useDictation] Post-processed text:', finalText);
+            debug.log('[useDictation] Post-processed text:', finalText);
           } else {
             console.warn('[useDictation] Post-processed text was empty, falling back to raw transcription');
           }
@@ -234,13 +235,13 @@ export const useDictation = () => {
       if (finalText) {
         await finalizeDictation(finalText);
         setStatus('success');
-        console.log('[useDictation] Status set to success, will reset to idle in 1.5s');
+        debug.log('[useDictation] Status set to success, will reset to idle in 1.5s');
         setTimeout(() => {
           resetState();
-          console.log('[useDictation] Status reset to idle, isProcessingRef reset');
+          debug.log('[useDictation] Status reset to idle, isProcessingRef reset');
         }, 1500);
       } else {
-        console.log('[useDictation] No text received, resetting to idle');
+        debug.log('[useDictation] No text received, resetting to idle');
         resetState();
       }
     } catch (error) {
@@ -250,16 +251,16 @@ export const useDictation = () => {
         onError(errorMessage);
       }
       setStatus('error');
-      console.log('[useDictation] Status set to error, will reset to idle in 2s');
+      debug.log('[useDictation] Status set to error, will reset to idle in 2s');
       setTimeout(() => {
         resetState();
-        console.log('[useDictation] Status reset to idle after error, isProcessingRef reset');
+        debug.log('[useDictation] Status reset to idle after error, isProcessingRef reset');
       }, 2000);
     }
   }, [isRecording, stopRecording, activeWindowInfo, mode, selectedText]);
 
   const cancelDictation = useCallback(() => {
-    console.log('[useDictation] cancelDictation called, isRecording:', isRecording, 'status:', status);
+    debug.log('[useDictation] cancelDictation called, isRecording:', isRecording, 'status:', status);
 
     // Prevent multiple cancellations
     if (isCancellingRef.current) {
@@ -280,7 +281,7 @@ export const useDictation = () => {
 
     // Set status to cancelled
     setStatus('cancelled');
-    console.log('[useDictation] Status set to cancelled');
+    debug.log('[useDictation] Status set to cancelled');
 
     // Play cancel sound for audio feedback
     playCancelSound();
@@ -292,7 +293,7 @@ export const useDictation = () => {
       setMode('dictation');
       setSelectedText(null);
       isCancellingRef.current = false;
-      console.log('[useDictation] Status reset to idle after cancellation');
+      debug.log('[useDictation] Status reset to idle after cancellation');
     }, 1500);
   }, [isRecording, status, cancelRecording]);
 
@@ -311,7 +312,7 @@ export const useDictation = () => {
       return;
     }
 
-    console.log('[useDictation] Confirming log config:', pendingLogApp.identifier, '->', filePath);
+    debug.log('[useDictation] Confirming log config:', pendingLogApp.identifier, '->', filePath);
 
     try {
       // Save the new mapping
@@ -325,7 +326,7 @@ export const useDictation = () => {
       const result = await logModeService.saveLogEntry(pendingLogContent, pendingLogApp.identifier);
 
       if (result.success || result.fallbackToClipboard) {
-        console.log('[useDictation] Log saved after config:', result.filePath);
+        debug.log('[useDictation] Log saved after config:', result.filePath);
         playLogSavedSound();
         setStatus('log-saved');
         setTimeout(() => {
@@ -359,7 +360,7 @@ export const useDictation = () => {
    */
   const cancelLogConfig = useCallback(async () => {
     if (pendingLogContent) {
-      console.log('[useDictation] Cancelling log config, copying to clipboard');
+      debug.log('[useDictation] Cancelling log config, copying to clipboard');
       try {
         await navigator.clipboard.writeText(logModeService.formatLogEntry(pendingLogContent));
 

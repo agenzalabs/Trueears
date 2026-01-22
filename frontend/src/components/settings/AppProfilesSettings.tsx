@@ -806,7 +806,28 @@ export const AppProfilesSettings: React.FC<AppProfilesSettingsProps> = ({ theme 
   return (
     <div className="max-w-2xl mx-auto p-8">
       <div className="mb-6">
-        <h2 className={`text-2xl font-bold mb-2 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>App Profiles</h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className={`text-2xl font-bold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>App Profiles</h2>
+          <button
+            onClick={async () => {
+              try {
+                await invoke('refresh_installed_apps_cache');
+                hasLoadedApps.current = false;
+                setInstalledPopularApps([]);
+                await loadInstalledPopularApps();
+              } catch (error) {
+                console.error('Failed to refresh apps:', error);
+              }
+            }}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-2 ${isDark ? 'bg-[#252525] text-gray-300 hover:bg-[#333] border border-[#333]' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'}`}
+            title="Refresh installed apps list"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh Apps
+          </button>
+        </div>
         <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Configure app-specific prompts for context-aware transcription formatting.</p>
       </div>
 

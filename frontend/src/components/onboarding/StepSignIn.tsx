@@ -19,7 +19,7 @@ export const StepSignIn: React.FC<StepProps> & { Visual: React.FC } = ({ onNext 
                 if (state.is_authenticated && state.user) {
                     setUser(state.user);
                 }
-            } catch (err) {
+            } catch (_err) {
                 // Not signed in, that's fine
             }
         };
@@ -92,12 +92,12 @@ export const StepSignIn: React.FC<StepProps> & { Visual: React.FC } = ({ onNext 
                     {/* Features */}
                     <ul className="space-y-4 flex-1">
                         {[
-                            { icon: 'cloud', text: 'Cloud backup for all your settings' },
-                            { icon: 'sync', text: 'Sync app profiles across devices' },
-                            { icon: 'support', text: 'Priority support access' }
+                            { text: 'Cloud backup for all your settings' },
+                            { text: 'Sync app profiles across devices' },
+                            { text: 'Priority support access' }
                         ].map((feature, idx) => (
                             <li key={idx} className="flex items-center gap-4 text-sm text-gray-600">
-                                <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                                <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
                                     <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                     </svg>
