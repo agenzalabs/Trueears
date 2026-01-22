@@ -2,9 +2,20 @@
 
 Common issues and solutions for Scribe.
 
+## Quick Fixes
+
+| Issue | Solution |
+|-------|----------|
+| LLM responding instead of formatting | [Reset App Profiles](#llm-responding-instead-of-formatting) |
+| Settings not saving | [Clear store and restart](#settings-not-persisting) |
+| Microphone not working | [Check permissions](#microphone-not-detected) |
+| Hotkey not responding | [Check for conflicts](#hotkey-not-responding) |
+
+---
+
 ## LLM Issues
 
-### LLM is responding instead of formatting
+### LLM Responding Instead of Formatting
 
 If the LLM generates responses like "I'm doing great!" instead of formatting:
 
@@ -13,15 +24,17 @@ If the LLM generates responses like "I'm doing great!" instead of formatting:
 3. Click **"Reset to Defaults"** button
 4. This reloads the base system prompt with "DO NOT respond" instructions
 
-### Formatting is inconsistent
+### Formatting is Inconsistent
 
 - Check that LLM Post-Processing is enabled in Settings
 - Verify the app profile matches your active application
 - Custom profiles may need adjustment to the system prompt
 
+---
+
 ## Settings Issues
 
-### Settings not persisting
+### Settings Not Persisting
 
 Settings are stored via Tauri's Store plugin. If not saving:
 
@@ -34,52 +47,58 @@ Settings are stored via Tauri's Store plugin. If not saving:
    ```
 3. Ensure `@tauri-apps/plugin-store` is properly configured
 
-### API key not working
+### API Key Not Working
 
 1. Verify key at [console.groq.com](https://console.groq.com/keys)
 2. Check for trailing spaces when pasting
 3. Ensure key has required permissions
 
+---
+
 ## Recording Issues
 
-### Microphone not detected
+### Microphone Not Detected
 
 1. Check Windows/macOS microphone permissions for Scribe
 2. Verify microphone works in other applications
 3. Try selecting a different input device in Settings
 
-### Recording starts but no transcription
+### Recording Starts But No Transcription
 
 1. Check Groq API key is valid
 2. Verify network connectivity
 3. Check console for API errors
 
-### Hotkey not responding
+### Hotkey Not Responding
 
 1. Ensure no other application is using `Ctrl+Shift+K`
 2. Check if Scribe is running (system tray icon)
 3. Restart Scribe
 4. Some applications (games, elevated apps) may block global hotkeys
 
+---
+
 ## Window Detection Issues
 
-### "Default" profile always used
+### "Default" Profile Always Used
 
 Active window detection uses Windows Win32 APIs. Common causes:
 
 1. Application not in profile list
-2. Executable name mismatch (check in Settings → App Profiles)
+2. Executable name mismatch (check in Settings > App Profiles)
 3. Running as administrator may affect detection
 
 **Adding custom profile:**
-1. Settings → App Profiles
+1. Settings > App Profiles
 2. Click "Add Profile"
 3. Enter executable name (e.g., `notepad.exe`)
 4. Configure formatting instructions
 
-### macOS/Linux not detecting windows
+### macOS/Linux Not Detecting Windows
 
 Window detection is currently Windows-only. macOS and Linux implementations are planned.
+
+---
 
 ## Build Issues
 
@@ -90,7 +109,7 @@ The installer should handle this automatically. Manual fix:
 1. Download WebView2 from [Microsoft](https://developer.microsoft.com/microsoft-edge/webview2/)
 2. Install and restart
 
-### Build fails with Rust errors
+### Build Fails with Rust Errors
 
 ```bash
 # Update Rust toolchain
@@ -109,9 +128,11 @@ Install from [Visual Studio Downloads](https://visualstudio.microsoft.com/downlo
 - Select "Desktop development with C++"
 - Include Windows SDK
 
+---
+
 ## Performance Issues
 
-### High memory usage
+### High Memory Usage
 
 - Expected: < 50MB idle, < 150MB during recording
 - If higher:
@@ -119,17 +140,19 @@ Install from [Visual Studio Downloads](https://visualstudio.microsoft.com/downlo
   2. Restart application
   3. Ensure audio buffers are being released
 
-### Slow transcription
+### Slow Transcription
 
 1. Network latency to Groq API
 2. Large audio files (try shorter recordings)
 3. Check Groq API status
 
-### Overlay flickering
+### Overlay Flickering
 
 - May occur with certain display scaling settings
 - Try 100% display scaling
 - Update graphics drivers
+
+---
 
 ## Getting Help
 
@@ -137,7 +160,7 @@ Install from [Visual Studio Downloads](https://visualstudio.microsoft.com/downlo
 
 When reporting issues, include:
 
-1. Scribe version (`Settings → About`)
+1. Scribe version (`Settings > About`)
 2. Operating system and version
 3. Steps to reproduce
 4. Console errors (F12 in dev mode)
@@ -148,23 +171,10 @@ When reporting issues, include:
 - Include debug information above
 - Attach screenshots if relevant
 
-## FAQ
+---
 
-### Can Scribe work offline?
+## Related
 
-Transcription requires internet (Groq API). Future versions may support local models.
-
-### Does Scribe store my audio?
-
-No. Audio is sent to Groq for transcription and immediately discarded. Nothing is persisted.
-
-### Can I use my own LLM?
-
-Currently supports Groq-hosted models. Custom endpoint support is planned.
-
-### Why Tauri instead of Electron?
-
-- 10x smaller bundle size (15MB vs 150MB)
-- Lower memory usage
-- Native performance
-- Rust backend for security-critical operations
+- [FAQ](./faq.md) - Frequently asked questions
+- [Getting Started](../guides/getting-started.md) - Setup guide
+- [Development Guide](../guides/development.md) - For debugging

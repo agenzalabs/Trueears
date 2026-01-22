@@ -37,7 +37,7 @@ const ConnectVisual: React.FC = () => {
   );
 };
 
-export const StepConnect: React.FC<StepProps> & { Visual: React.FC } = ({ onNext, onPrev }) => {
+export const StepConnect: React.FC<StepProps> & { Visual: React.FC } = ({ onNext, onPrev: _onPrev }) => {
   const { apiKey, saveApiKey, saveLlmEnabled, saveLlmApiKey } = useSettings();
   const [inputKey, setInputKey] = useState(apiKey || '');
 

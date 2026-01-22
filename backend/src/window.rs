@@ -256,16 +256,3 @@ pub fn get_active_window_info() -> Option<ActiveWindowInfo> {
     })
 }
 
-#[cfg(target_os = "windows")]
-#[allow(dead_code)]
-pub fn is_valid_active_window() -> bool {
-    get_active_window_info().is_some()
-}
-
-#[cfg(not(target_os = "windows"))]
-#[allow(dead_code)]
-pub fn is_valid_active_window() -> bool {
-    // On non-Windows platforms, assume valid for now
-    // TODO: Implement for macOS and Linux
-    true
-}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { CustomSelect } from './CustomSelect';
 import { GROQ_MODELS } from '../hooks/useSettings';
 import { open } from '@tauri-apps/plugin-shell';
@@ -26,9 +26,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setModelInput(model || GROQ_MODELS[0]);
   }, [apiKey, model]);
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     onSave(keyInput, modelInput);
-  };
+  }, [keyInput, modelInput, onSave]);
 
   // Handle Enter key to save
   useEffect(() => {
@@ -39,7 +39,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [keyInput, modelInput, onSave]);
+  }, [keyInput, modelInput, onSave, handleSave]);
 
   return (
     <div className="flex flex-col w-full h-full p-4 gap-3 animate-fadeIn text-gray-800">

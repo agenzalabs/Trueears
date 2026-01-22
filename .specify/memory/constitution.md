@@ -2,23 +2,23 @@
 ============================================================================
 SYNC IMPACT REPORT
 ============================================================================
-Version Change: 1.0.0 → 1.1.0 (MINOR - added auth-server component)
+Version Change: 1.1.0 → 1.1.1 (PATCH - clarifications and accuracy fixes)
 
-Modified Principles: N/A
+Modified Principles:
+  - None renamed
 
-Added Sections:
-  - Auth Server stack in Technology Stack table
-  - Auth Server file organization
-  - SEC-007 through SEC-010 (auth-server security requirements)
-  - PERF-007 (auth-server API latency)
-  - REL-004, REL-005 (auth-server reliability)
+Updated Sections:
+  - Technology Stack: Rust version updated 1.70+ → 1.77+ (matches Cargo.toml)
+  - SEC-009: Clarified applies to auth-server only (desktop uses OAuth)
+  - File Organization: Added log_mode.rs to backend structure
+  - Added SEC-012: Log mode file write restrictions
 
 Removed Sections: N/A
 
 Templates Requiring Updates:
-  - .specify/templates/plan-template.md: ✅ Compatible (Constitution Check section ready)
-  - .specify/templates/spec-template.md: ✅ Compatible (no constitution-specific refs)
-  - .specify/templates/tasks-template.md: ✅ Compatible (supports TDD workflow)
+  - .specify/templates/plan-template.md: ✅ Compatible (no changes needed)
+  - .specify/templates/spec-template.md: ✅ Compatible (no changes needed)
+  - .specify/templates/tasks-template.md: ✅ Compatible (no changes needed)
 
 Follow-up TODOs: None
 ============================================================================
@@ -124,6 +124,7 @@ All changes MUST be small, testable, and reversible.
 | Styling | TailwindCSS | 4.x |
 | Build | Vite | 6.x |
 | Desktop Backend | Tauri (Rust) | 2.x |
+| Rust Toolchain | Rust | 1.77+ |
 | Auth Server | Axum (Rust) | 0.7.x |
 | Auth Database | PostgreSQL | 14+ |
 | Auth Tokens | JWT (jsonwebtoken) | 9.x |
@@ -159,7 +160,10 @@ backend/src/
 ├── lib.rs          # Core app logic and commands
 ├── automation.rs   # Keyboard & clipboard
 ├── shortcuts.rs    # Global hotkey handling
-└── window.rs       # Active window detection
+├── window.rs       # Active window detection
+├── installed_apps.rs  # App discovery
+├── auth.rs         # OAuth integration
+└── log_mode.rs     # Voice logging file I/O
 
 auth-server/src/
 ├── main.rs         # Axum server entry point
@@ -190,9 +194,10 @@ auth-server/migrations/  # SQLx migrations (PostgreSQL)
 - **SEC-006**: Settings window MUST mask API key inputs
 - **SEC-007**: Auth server MUST use HTTPS in production (TLS termination at load balancer acceptable)
 - **SEC-008**: JWT secrets MUST be loaded from environment variables, never hardcoded
-- **SEC-009**: Passwords MUST be hashed with SHA-256 minimum (bcrypt/argon2 preferred)
+- **SEC-009**: Auth server passwords (if implemented) MUST be hashed with bcrypt/argon2 (SHA-256 minimum)
 - **SEC-010**: OAuth tokens from Google MUST be validated server-side before trusting claims
 - **SEC-011**: Database credentials MUST use environment variables via `dotenvy`
+- **SEC-012**: Log mode file writes MUST be restricted to user-specified paths with validation
 
 ### Performance Budgets
 
@@ -234,4 +239,4 @@ auth-server/migrations/  # SQLx migrations (PostgreSQL)
 - Violations of NON-NEGOTIABLE principles block merge
 - Use `.specify/memory/constitution.md` as the authoritative source
 
-**Version**: 1.1.0 | **Ratified**: 2025-12-24 | **Last Amended**: 2025-12-24
+**Version**: 1.1.1 | **Ratified**: 2025-12-24 | **Last Amended**: 2026-01-09

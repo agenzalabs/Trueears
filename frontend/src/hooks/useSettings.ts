@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { DEFAULT_LLM_MODEL, DEFAULT_SYSTEM_PROMPT, BASE_SYSTEM_PROMPT } from '../types/appProfile';
 import { tauriAPI } from '../utils/tauriApi';
+import { debug } from '../utils/debug';
 
 export const DEFAULT_GROQ_MODEL = 'whisper-large-v3-turbo';
 
@@ -47,10 +48,10 @@ export const useSettings = () => {
     let savedLlmApiKey = await tauriAPI.getStoreValue('SCRIBE_LLM_API_KEY');
     let savedLlmModel = await tauriAPI.getStoreValue('SCRIBE_LLM_MODEL');
     let savedSystemPrompt = await tauriAPI.getStoreValue('SCRIBE_DEFAULT_SYSTEM_PROMPT');
-    let savedOnboardingComplete = await tauriAPI.getStoreValue('SCRIBE_ONBOARDING_COMPLETE');
-    let savedTheme = await tauriAPI.getStoreValue('SCRIBE_THEME');
+    const savedOnboardingComplete = await tauriAPI.getStoreValue('SCRIBE_ONBOARDING_COMPLETE');
+    const savedTheme = await tauriAPI.getStoreValue('SCRIBE_THEME');
 
-    console.log('[useSettings] loadKeys - store values:', {
+    debug.log('[useSettings] loadKeys - store values:', {
       groqKey, groqModel,
       savedLlmEnabled, savedLlmApiKey, savedLlmModel, savedSystemPrompt
     });
@@ -134,7 +135,7 @@ export const useSettings = () => {
       // Listen for Tauri event (cross-window)
       let unlistenTauri: (() => void) | undefined;
       tauriAPI.onSettingsChanged(async () => {
-        console.log('[useSettings] settings-changed event received, reloading keys');
+        debug.log('[useSettings] settings-changed event received, reloading keys');
         await loadKeys();
       }).then(unlisten => {
           unlistenTauri = unlisten;
@@ -161,7 +162,7 @@ export const useSettings = () => {
   };
 
   const saveLlmEnabled = async (enabled: boolean) => {
-    console.log('[useSettings] saveLlmEnabled called with:', enabled);
+    debug.log('[useSettings] saveLlmEnabled called with:', enabled);
     setLlmEnabled(enabled);
     await tauriAPI.setStoreValue('SCRIBE_LLM_ENABLED', enabled.toString());
     tauriAPI.emitSettingsChanged();

@@ -114,3 +114,4 @@ npm run test:coverage
 
 - [Development Guide](../docs/guides/development.md)
 - [Architecture Overview](../docs/architecture/overview.md)
+- [Tauri Commands Reference](../docs/reference/tauri-commands.md)

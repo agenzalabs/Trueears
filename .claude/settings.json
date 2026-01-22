@@ -1,0 +1,5 @@
+{
+  "enabledPlugins": {
+    "codebase-cleanup@claude-code-workflows": true
+  }
+}
