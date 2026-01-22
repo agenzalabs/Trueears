@@ -392,6 +392,7 @@ pub fn get_installed_popular_apps() -> Vec<InstalledApp> {
 }
 
 /// Force refresh the cache (call when user clicks "Refresh" button)
+#[allow(dead_code)]
 pub fn force_refresh_cache() {
     // Clear memory cache
     if let Ok(mut cache) = INSTALLED_APPS_CACHE.write() {
