@@ -35,7 +35,10 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": [
+      "nsis"
+    ],
+    "licenseFile": "./assets/legal/terms-and-privacy.txt",
     "icon": [
       "../build/icon.ico"
     ],
