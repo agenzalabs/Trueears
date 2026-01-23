@@ -79,6 +79,17 @@ Yes. Go to Settings > App Profiles to:
 - Add profiles for new applications
 - Modify formatting instructions
 - Set context-specific system prompts
+- **Override transcription language per app** (e.g., Spanish for WhatsApp, English for VS Code)
+
+### Can I use different languages for different apps?
+
+Yes! Each App Profile supports a Language Override feature:
+1. Go to **Settings > App Profiles**
+2. Create or edit a profile
+3. Under **Language Override**, select your preferred language
+4. The language you select will be used automatically when recording in that app
+
+This is perfect for multilingual workflows where you switch between languages throughout the day.
 
 ---
 
