@@ -39,7 +39,7 @@ Press `Ctrl+Shift+S` to configure your Groq API key, then `Ctrl+Shift+K` to star
 
 ## App Profiles
 
-Pre-configured formatting for popular applications:
+Pre-configured formatting and language settings for popular applications:
 
 | App | Formatting |
 |-----|------------|
@@ -47,6 +47,10 @@ Pre-configured formatting for popular applications:
 | Slack / Discord | Casual chat messages |
 | Outlook | Professional email format |
 | Notion / OneNote | Structured notes |
+
+Each profile supports:
+- **Custom System Prompts** - App-specific formatting instructions
+- **Language Override** - Automatic language switching per app (e.g., Spanish for WhatsApp, English for VS Code)
 
 Customize in Settings > App Profiles.
 

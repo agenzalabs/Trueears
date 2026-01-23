@@ -18,6 +18,11 @@ export interface AppProfile {
   iconBase64?: string;      // optional icon for display
   windowTitlePattern?: string; // Optional regex pattern to match window title for more specific matching
   /**
+   * Optional language override for this profile (ISO 639-1 code).
+   * If set, this language will be used for transcription instead of the global default.
+   */
+  language?: string;
+  /**
    * For browser profiles: the website URL/domain to match against the active tab URL (best-effort).
    * Example: "mail.google.com" or "web.whatsapp.com".
    */
