@@ -100,6 +100,25 @@ Scribe auto-detects your active application and applies context-specific formatt
 | Notion/OneNote | Structured notes with bullets |
 | Word | Formal document content |
 
+### Language Override
+
+Each App Profile can override the global transcription language, perfect for multilingual workflows:
+
+**Example Use Cases:**
+- Spanish for WhatsApp chats
+- English for VS Code programming
+- French for Email client
+- Auto-detect for general apps
+
+**To Configure:**
+1. Go to **Settings > App Profiles**
+2. Create or edit a profile
+3. Under **Language Override**, click **Change**
+4. Select your language (shows flag icons) or leave as "Default"
+5. Click **Save**
+
+The language override takes priority over the global transcription setting when recording in that app.
+
 Customize profiles in **Settings > App Profiles**.
 
 ## Log Mode

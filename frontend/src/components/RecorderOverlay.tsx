@@ -9,7 +9,8 @@ import { StatusIndicator } from './StatusIndicator';
 import { WarningView } from './WarningView';
 import { ConfigPrompt } from './ConfigPrompt';
 import { tauriAPI, ShortcutPressedPayload } from '../utils/tauriApi';
-import { ActiveWindowInfo } from '../types/appProfile';
+import { AppProfile, ActiveWindowInfo } from '../types/appProfile';
+import { AppProfileService } from '../services/appProfileService';
 import { debug } from '../utils/debug';
 
 // Module-level flag to prevent duplicate listeners (survives React Strict Mode)
@@ -323,11 +324,16 @@ export const RecorderOverlay: React.FC = () => {
 
   // -- Action: Stop Recording --
   const handleStopRecording = useCallback(async () => {
-    // Use selected language, or undefined if auto-detect is enabled
-    const transcriptionLanguage = autoDetectLanguage ? undefined : (language || 'en');
+    // Get profile-specific language if available for the active window
+    const profile = _activeWindowInfo ? AppProfileService.matchProfile(_activeWindowInfo) : null;
+    const profileLanguage = profile?.language;
+
+    // Use profile language (highest priority), then auto-detect (if enabled), then global language setting
+    const transcriptionLanguage = profileLanguage || (autoDetectLanguage ? undefined : (language || 'en'));
+
     await stopDictation(
-      apiKey, 
-      model, 
+      apiKey,
+      model,
       (msg) => showToast(msg, 'error'),
       llmEnabled,
       llmApiKey || apiKey,
@@ -335,7 +341,7 @@ export const RecorderOverlay: React.FC = () => {
       defaultSystemPrompt,
       transcriptionLanguage
     );
-  }, [stopDictation, apiKey, model, showToast, llmEnabled, llmApiKey, llmModel, defaultSystemPrompt, language, autoDetectLanguage]);
+  }, [stopDictation, apiKey, model, showToast, llmEnabled, llmApiKey, llmModel, defaultSystemPrompt, language, autoDetectLanguage, _activeWindowInfo]);
 
   const lastToggleTimeRef = useRef(0);
   const pendingWindowInfoRef = useRef<ActiveWindowInfo | null>(null);
