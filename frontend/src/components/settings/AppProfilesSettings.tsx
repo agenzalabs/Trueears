@@ -1,9 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import 'flag-icons/css/flag-icons.min.css';
 import { AppProfile } from '../../types/appProfile';
 import { AppProfileService } from '../../services/appProfileService';
 import { tauriAPI } from '../../utils/tauriApi';
 import { POPULAR_APPS, PopularApp, BrowserVariant } from '../../data/popularApps';
 import { invoke } from '@tauri-apps/api/core';
+import { WHISPER_LANGUAGES, getLanguageByCode } from '../../types/languages';
+import { useSettings } from '../../hooks/useSettings';
 
 interface AppProfilesSettingsProps {
   theme: 'light' | 'dark';
@@ -317,9 +320,9 @@ const BrowserAppSetupModal = ({
 };
 
 // Profile Edit Modal
-const ProfileModal = ({ 
-  profile, isOpen, onClose, onSave, onDelete, existingProfiles, theme
-}: { 
+const ProfileModal = ({
+  profile, isOpen, onClose, onSave, onDelete, existingProfiles, theme, globalLanguage, globalAutoDetect
+}: {
   profile: AppProfile | null;
   isOpen: boolean;
   onClose: () => void;
@@ -327,8 +330,11 @@ const ProfileModal = ({
   onDelete?: (id: string) => void;
   existingProfiles: AppProfile[];
   theme: 'light' | 'dark';
+  globalLanguage: string;
+  globalAutoDetect: boolean;
 }) => {
   const isDark = theme === 'dark';
+  const globalLang = getLanguageByCode(globalLanguage);
   const [formData, setFormData] = useState<AppProfile>({
     id: '', appName: '', displayName: '', systemPrompt: '', enabled: true
   });
@@ -339,16 +345,32 @@ const ProfileModal = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [manualMode, setManualMode] = useState(false);
   const [selectedAppIcon, setSelectedAppIcon] = useState<string | undefined>();
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('');
+  const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
+  const [languageSearchQuery, setLanguageSearchQuery] = useState('');
+
+  const filteredLanguages = useMemo(() => {
+    if (!languageSearchQuery.trim()) return WHISPER_LANGUAGES;
+    const query = languageSearchQuery.toLowerCase();
+    return WHISPER_LANGUAGES.filter(lang =>
+      lang.name.toLowerCase().includes(query) ||
+      lang.code.toLowerCase().includes(query)
+    );
+  }, [languageSearchQuery]);
+
+  const selectedLang = getLanguageByCode(selectedLanguage);
 
   useEffect(() => {
     if (profile) {
       setFormData({ ...profile });
       setManualMode(true);
       setSelectedAppIcon(profile.iconBase64);
+      setSelectedLanguage(profile.language || '');
     } else {
       setFormData({ id: `custom-${Date.now()}`, appName: '', displayName: '', systemPrompt: '', enabled: true });
       setManualMode(false);
       setSelectedAppIcon(undefined);
+      setSelectedLanguage('');
     }
     setSearchQuery('');
     setSearchResults([]);
@@ -428,6 +450,7 @@ const ProfileModal = ({
         // safe fallback (only matches if host is literally present in title)
         windowTitlePattern: normalizedUrl ? escapeRegexLiteral(hostOnly || '') : formData.windowTitlePattern,
         iconBase64: selectedAppIcon,
+        language: selectedLanguage || undefined,
       });
     }
   };
@@ -601,6 +624,40 @@ const ProfileModal = ({
                     placeholder="Add formatting instructions (e.g., 'Format as casual chat' or 'Use professional email tone')"
                   />
                 </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Language Override <span className={`font-normal ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>(optional)</span>
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <div className={`flex-1 flex items-center gap-2 border rounded-lg p-3 min-h-12 ${isDark ? 'bg-[#1a1a1a] border-[#333]' : 'bg-white border-gray-300'}`}>
+                      {selectedLang ? (
+                        <span className={`flex items-center gap-2 px-2 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
+                          <span className={`fi fi-${selectedLang.countryCode.toLowerCase()}`}></span> {selectedLang.name}
+                        </span>
+                      ) : globalAutoDetect ? (
+                        <span className="text-sm text-gray-400 italic flex items-center gap-2">🌐 Default (Auto-detect)</span>
+                      ) : globalLang ? (
+                        <span className="text-sm text-gray-400 flex items-center gap-2">
+                          <span className={`fi fi-${globalLang.countryCode.toLowerCase()}`}></span>
+                          <span className="italic">Default ({globalLang.name})</span>
+                        </span>
+                      ) : (
+                        <span className="text-sm text-gray-400 italic flex items-center gap-2">🌐 Default (Use Global Setting)</span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setLanguageSearchQuery(''); setIsLanguageModalOpen(true); }}
+                      className={`px-4 py-3 border rounded-lg text-sm transition-colors cursor-pointer ${isDark ? 'bg-[#1a1a1a] border-[#333] text-gray-200 hover:bg-[#252525]' : 'bg-white border-gray-300 text-gray-800 hover:bg-gray-50'}`}
+                    >
+                      Change
+                    </button>
+                  </div>
+                  <p className={`text-xs mt-1.5 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                    Force a specific language when recording in this app
+                  </p>
+                </div>
               </>
             )}
           </div>
@@ -615,6 +672,80 @@ const ProfileModal = ({
           </div>
         </div>
       </div>
+
+      {/* Language Selection Modal */}
+      {isLanguageModalOpen && (
+        <div className={`fixed inset-0 backdrop-blur-sm flex items-center justify-center z-[60] ${isDark ? 'bg-black/50' : 'bg-slate-900/20'}`}>
+          <div className={`w-[500px] max-h-[450px] border rounded-2xl shadow-2xl flex flex-col overflow-hidden ${isDark ? 'bg-[#111] border-[#333]' : 'bg-white border-gray-300'}`}>
+            {/* Header */}
+            <div className={`flex items-center justify-between p-5 border-b ${isDark ? 'border-[#333]' : 'border-gray-300'}`}>
+              <div>
+                <h2 className={`text-lg font-bold ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>Select Language</h2>
+                <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Override transcription language for this app</p>
+              </div>
+              <button
+                onClick={() => setIsLanguageModalOpen(false)}
+                className={`p-2 rounded-full cursor-pointer transition-colors ${isDark ? 'hover:bg-[#333] text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 flex flex-col p-4 overflow-hidden">
+              {/* Search */}
+              <div className="relative mb-3">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search languages..."
+                  value={languageSearchQuery}
+                  onChange={(e) => setLanguageSearchQuery(e.target.value)}
+                  className={`w-full border rounded-xl pl-10 pr-4 py-2.5 text-sm placeholder-gray-500 focus:outline-none focus:border-emerald-500/50 transition-colors ${isDark ? 'bg-[#1a1a1a] border-[#333] text-gray-200' : 'bg-gray-50 border-gray-300 text-gray-800'}`}
+                />
+              </div>
+
+              {/* Default Option */}
+              <button
+                onClick={() => { setSelectedLanguage(''); setIsLanguageModalOpen(false); }}
+                className={`flex items-center gap-2 px-3 py-2.5 mb-2 rounded-lg text-left transition-all duration-200 cursor-pointer ${
+                  !selectedLanguage
+                    ? isDark ? 'bg-emerald-500/20 border border-emerald-500/50 text-gray-100' : 'bg-emerald-500/20 border border-emerald-500/50 text-gray-800'
+                    : isDark ? 'bg-transparent border border-transparent hover:bg-[#252525] text-gray-400' : 'bg-transparent border border-transparent hover:bg-gray-50 text-gray-600'
+                }`}
+              >
+                <span>🌐</span>
+                <span className="text-sm">Default (Use Global Setting)</span>
+              </button>
+
+              {/* Grid */}
+              <div className="flex-1 overflow-y-auto pr-2">
+                <div className="grid grid-cols-3 gap-2">
+                  {filteredLanguages.map(lang => {
+                    const isSelected = selectedLanguage === lang.code;
+                    return (
+                      <button
+                        key={lang.code}
+                        onClick={() => { setSelectedLanguage(lang.code); setIsLanguageModalOpen(false); }}
+                        className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-left transition-all duration-200 cursor-pointer ${
+                          isSelected
+                            ? isDark ? 'bg-emerald-500/20 border border-emerald-500/50 text-gray-100' : 'bg-emerald-500/20 border border-emerald-500/50 text-gray-800'
+                            : isDark ? 'bg-transparent border border-transparent hover:bg-[#252525] text-gray-400' : 'bg-transparent border border-transparent hover:bg-gray-50 text-gray-600'
+                        }`}
+                      >
+                        <span className={`fi fi-${lang.countryCode.toLowerCase()}`}></span>
+                        <span className="text-sm truncate">{lang.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ConfirmModal
         isOpen={showDeleteConfirm}
@@ -631,6 +762,7 @@ const ProfileModal = ({
 // Main Component
 export const AppProfilesSettings: React.FC<AppProfilesSettingsProps> = ({ theme }) => {
   const isDark = theme === 'dark';
+  const { language: globalLanguage, autoDetectLanguage: globalAutoDetect } = useSettings();
   const [profiles, setProfiles] = useState<AppProfile[]>([]);
   const [browserSetupApp, setBrowserSetupApp] = useState<InstalledApp | null>(null);
   const [browserAppSetup, setBrowserAppSetup] = useState<PopularApp | null>(null);
@@ -1081,6 +1213,8 @@ export const AppProfilesSettings: React.FC<AppProfilesSettingsProps> = ({ theme 
         onDelete={handleDeleteProfile}
         existingProfiles={profiles}
         theme={theme}
+        globalLanguage={globalLanguage || 'en'}
+        globalAutoDetect={globalAutoDetect}
       />
     </div>
   );
