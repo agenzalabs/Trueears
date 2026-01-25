@@ -58,7 +58,7 @@ export const StepSignIn: React.FC<StepProps> & { Visual: React.FC } = ({ onNext 
             </div>
 
             <h2 className="font-bold text-2xl text-gray-900 mb-3 leading-tight">
-                Welcome to Scribe
+                Welcome to Trueears
             </h2>
 
             <p className="text-gray-500 text-sm leading-relaxed mb-8">
@@ -158,7 +158,7 @@ export const StepSignIn: React.FC<StepProps> & { Visual: React.FC } = ({ onNext 
 StepSignIn.Visual = function Visual() {
     return (
         <div className="flex flex-col items-center justify-center animate-[fadeIn_0.5s_ease]">
-            {/* Scribe Logo */}
+            {/* Trueears Logo */}
             <div className="w-28 h-28 bg-white rounded-3xl flex items-center justify-center shadow-2xl mb-8">
                 <svg className="w-14 h-14 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
@@ -166,7 +166,7 @@ StepSignIn.Visual = function Visual() {
             </div>
 
             {/* App name */}
-            <h1 className="text-4xl font-bold text-gray-800 mb-2 tracking-tight">Scribe</h1>
+            <h1 className="text-4xl font-bold text-gray-800 mb-2 tracking-tight">Trueears</h1>
             <p className="text-gray-400 text-sm">AI-Powered Voice Dictation</p>
 
             {/* Floating accent dots */}

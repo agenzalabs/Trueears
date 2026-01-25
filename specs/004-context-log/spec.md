@@ -7,7 +7,7 @@
 
 ## Overview
 
-Context-Aware Log Mode enables users to capture thoughts and notes via voice without interrupting their current workflow. When a user speaks a customizable trigger phrase (e.g., "Log...", "Note to self..."), Scribe detects the active application, determines the mapped destination file, and silently appends the transcribed text in Markdown format. This feature transforms Scribe from a "typing replacement" into a "thought capture engine."
+Context-Aware Log Mode enables users to capture thoughts and notes via voice without interrupting their current workflow. When a user speaks a customizable trigger phrase (e.g., "Log...", "Note to self..."), Trueears detects the active application, determines the mapped destination file, and silently appends the tranTrueearsd text in Markdown format. This feature transforms Trueears from a "typing replacement" into a "thought capture engine."
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -21,11 +21,11 @@ As a developer deep in a coding session, I want to capture a quick thought witho
 
 **Acceptance Scenarios**:
 
-1. **Given** the user is in VS Code with a file mapping configured (VS Code → `dev-notes.md`), **When** the user says "Log check the Redis timeout issue", **Then** Scribe appends `- [2025-12-28 14:30] check the Redis timeout issue` to `dev-notes.md` and provides sound + visual confirmation.
+1. **Given** the user is in VS Code with a file mapping configured (VS Code → `dev-notes.md`), **When** the user says "Log check the Redis timeout issue", **Then** Trueears appends `- [2025-12-28 14:30] check the Redis timeout issue` to `dev-notes.md` and provides sound + visual confirmation.
 
 2. **Given** the user is in any application with a configured mapping, **When** the user speaks a trigger phrase followed by their note, **Then** the trigger phrase is stripped and only the note content is saved.
 
-3. **Given** the destination file does not exist, **When** the user triggers a log, **Then** Scribe creates the file and appends the entry.
+3. **Given** the destination file does not exist, **When** the user triggers a log, **Then** Trueears creates the file and appends the entry.
 
 ---
 
@@ -39,11 +39,11 @@ As a user who triggers Log Mode in an unmapped application, I want to be prompte
 
 **Acceptance Scenarios**:
 
-1. **Given** the user is in Slack (no mapping configured), **When** the user says "Log remember to follow up with client", **Then** Scribe displays a configuration prompt asking for the destination file path for Slack.
+1. **Given** the user is in Slack (no mapping configured), **When** the user says "Log remember to follow up with client", **Then** Trueears displays a configuration prompt asking for the destination file path for Slack.
 
-2. **Given** the configuration prompt is displayed, **When** the user provides a file path (e.g., `C:\Notes\slack-notes.md`), **Then** Scribe saves this mapping and appends the current log entry to that file.
+2. **Given** the configuration prompt is displayed, **When** the user provides a file path (e.g., `C:\Notes\slack-notes.md`), **Then** Trueears saves this mapping and appends the current log entry to that file.
 
-3. **Given** the configuration prompt is displayed, **When** the user cancels the prompt, **Then** Scribe copies the transcription to the clipboard as a fallback and notifies the user.
+3. **Given** the configuration prompt is displayed, **When** the user cancels the prompt, **Then** Trueears copies the transcription to the clipboard as a fallback and notifies the user.
 
 ---
 
@@ -86,16 +86,16 @@ As a user, I want to view and edit my app-to-file mappings in Settings, so that 
 ### Edge Cases
 
 - **What happens when the destination file is locked by another application?**
-  - Scribe retries once after 500ms. If still locked, copies to clipboard and notifies user.
+  - Trueears retries once after 500ms. If still locked, copies to clipboard and notifies user.
 
 - **What happens when the destination path is invalid or inaccessible (e.g., network drive offline)?**
-  - Scribe copies to clipboard and displays an error notification with the issue.
+  - Trueears copies to clipboard and displays an error notification with the issue.
 
 - **What happens when the user speaks only the trigger phrase with no content (e.g., just "Log")?**
-  - Scribe ignores the command and does not create an empty entry.
+  - Trueears ignores the command and does not create an empty entry.
 
 - **What happens when the trigger phrase is spoken mid-sentence (e.g., "I need to log this bug")?**
-  - Scribe only activates if the trigger phrase is at the START of the dictation.
+  - Trueears only activates if the trigger phrase is at the START of the dictation.
 
 - **What happens when multiple apps share the same file mapping?**
   - This is allowed. Entries from both apps append to the same file.
@@ -108,7 +108,7 @@ As a user, I want to view and edit my app-to-file mappings in Settings, so that 
 - **FR-002**: System MUST strip the trigger phrase from the output before saving.
 - **FR-003**: System MUST determine the active application when Log Mode is triggered.
 - **FR-004**: System MUST look up the destination file path based on the active application.
-- **FR-005**: System MUST append the transcribed text to the destination file in Markdown bullet format with timestamp: `- [YYYY-MM-DD HH:MM] <text>`.
+- **FR-005**: System MUST append the tranTrueearsd text to the destination file in Markdown bullet format with timestamp: `- [YYYY-MM-DD HH:MM] <text>`.
 - **FR-006**: System MUST create the destination file if it does not exist.
 - **FR-007**: System MUST provide audio and visual confirmation when a log entry is saved successfully.
 - **FR-008**: System MUST prompt the user to configure a file mapping when Log Mode is triggered in an unmapped application.
@@ -139,8 +139,8 @@ As a user, I want to view and edit my app-to-file mappings in Settings, so that 
 - Users have write access to the file paths they configure.
 - The timestamp format (`YYYY-MM-DD HH:MM`) uses the user's local timezone.
 - Default trigger phrases ship with the app: "Log", "Note to self", "Remember" (all customizable).
-- The active window detection logic already exists in Scribe (reuse from App Profiles feature).
-- Sound and visual feedback mechanisms already exist in Scribe (reuse from current dictation flow).
+- The active window detection logic already exists in Trueears (reuse from App Profiles feature).
+- Sound and visual feedback mechanisms already exist in Trueears (reuse from current dictation flow).
 
 ## Out of Scope
 

@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Build Scribe for production distribution.
+Build Trueears for production distribution.
 
 ## Prerequisites
 
@@ -31,9 +31,9 @@ The installer is generated in:
 ```
 backend/target/release/bundle/
 ├── nsis/
-│   └── Scribe_<version>_x64-setup.exe    # Windows NSIS installer
+│   └── Trueears_<version>_x64-setup.exe    # Windows NSIS installer
 └── msi/
-    └── Scribe_<version>_x64_en-US.msi    # Windows MSI installer
+    └── Trueears_<version>_x64_en-US.msi    # Windows MSI installer
 ```
 
 **Bundle size:** ~15-20 MB (vs ~150MB with Electron)
@@ -46,7 +46,7 @@ Key settings in `backend/tauri.conf.json`:
 
 ```json
 {
-  "productName": "Scribe",
+  "productName": "Trueears",
   "version": "0.2.0",
   "bundle": {
     "targets": "all",

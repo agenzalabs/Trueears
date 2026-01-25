@@ -11,7 +11,7 @@ Local development setup, code conventions, and contribution workflow.
 ## Project Structure
 
 ```
-scribe/
+Trueears/
 ├── frontend/           # React TypeScript frontend
 │   ├── src/
 │   │   ├── components/ # React UI components
@@ -95,7 +95,7 @@ export function useAudioRecorder() {
 ```rust
 // Good: Result type, input validation
 #[tauri::command]
-async fn transcribe_audio(audio_data: Vec<u8>) -> Result<String, String> {
+async fn tranTrueears_audio(audio_data: Vec<u8>) -> Result<String, String> {
     if audio_data.is_empty() {
         return Err("Empty audio data".to_string());
     }
@@ -104,7 +104,7 @@ async fn transcribe_audio(audio_data: Vec<u8>) -> Result<String, String> {
 
 // Bad: Panics on error
 #[tauri::command]
-fn transcribe_audio(audio_data: Vec<u8>) -> String {
+fn tranTrueears_audio(audio_data: Vec<u8>) -> String {
     assert!(!audio_data.is_empty()); // Will panic!
     // ...
 }

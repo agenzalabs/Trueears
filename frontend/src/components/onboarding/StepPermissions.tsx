@@ -16,7 +16,7 @@ const PermissionsVisual: React.FC = () => {
             <path d="M19 10v2a7 7 0 01-14 0v-2"></path>
           </svg>
         </div>
-        <h3 className="text-gray-800 font-bold text-sm mb-1">"Scribe" wants to use your microphone</h3>
+        <h3 className="text-gray-800 font-bold text-sm mb-1">"Trueears" wants to use your microphone</h3>
         <p className="text-gray-400 text-xs mb-6 leading-relaxed">Click "Allow" when your browser asks.</p>
 
         <div className="flex justify-end gap-2">
@@ -65,7 +65,7 @@ export const StepPermissions: React.FC<StepProps> & { Visual: React.FC } = ({ on
           Allow<br/>Microphone
         </h1>
         <p className="text-gray-500 text-sm font-medium max-w-xs leading-relaxed mb-8">
-          Scribe listens only when you hold the shortcut. Audio stays on your device.
+          Trueears listens only when you hold the shortcut. Audio stays on your device.
         </p>
 
         <div className="space-y-4">

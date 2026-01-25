@@ -29,9 +29,9 @@ pub struct PathValidation {
     pub error_message: Option<String>,
 }
 
-/// Get the default log directory path (Documents/Scribe).
+/// Get the default log directory path (Documents/Trueears).
 ///
-/// Returns the path to the Scribe logs directory in the user's Documents folder.
+/// Returns the path to the Trueears logs directory in the user's Documents folder.
 /// This directory may not exist yet - it will be created when the first log is saved.
 #[tauri::command]
 pub async fn get_default_log_directory() -> Result<String, String> {
@@ -40,7 +40,7 @@ pub async fn get_default_log_directory() -> Result<String, String> {
         if let Ok(user_profile) = std::env::var("USERPROFILE") {
             let documents_path = std::path::Path::new(&user_profile)
                 .join("Documents")
-                .join("Scribe");
+                .join("Trueears");
             log::info!("get_default_log_directory: {}", documents_path.display());
             return Ok(documents_path.to_string_lossy().to_string());
         }
@@ -51,7 +51,7 @@ pub async fn get_default_log_directory() -> Result<String, String> {
         if let Ok(home) = std::env::var("HOME") {
             let documents_path = std::path::Path::new(&home)
                 .join("Documents")
-                .join("Scribe");
+                .join("Trueears");
             log::info!("get_default_log_directory: {}", documents_path.display());
             return Ok(documents_path.to_string_lossy().to_string());
         }
@@ -62,7 +62,7 @@ pub async fn get_default_log_directory() -> Result<String, String> {
         if let Ok(home) = std::env::var("HOME") {
             let documents_path = std::path::Path::new(&home)
                 .join("Documents")
-                .join("Scribe");
+                .join("Trueears");
             log::info!("get_default_log_directory: {}", documents_path.display());
             return Ok(documents_path.to_string_lossy().to_string());
         }

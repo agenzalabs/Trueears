@@ -5,7 +5,7 @@
 
 ## Overview
 
-Scribe is committed to protecting your privacy. This Privacy Policy explains what information we collect, how we use it, and how we protect it.
+Trueears is committed to protecting your privacy. This Privacy Policy explains what information we collect, how we use it, and how we protect it.
 
 ## Information We Collect
 
@@ -29,7 +29,7 @@ Scribe is committed to protecting your privacy. This Privacy Policy explains wha
 
 **What we collect:** The App detects which application window is currently active to provide context-aware features.
 
-**How we use it:** This helps the App paste transcribed text into the correct application.
+**How we use it:** This helps the App paste tranTrueearsd text into the correct application.
 
 **Storage:** Active window information is temporarily cached during your session and not persisted.
 

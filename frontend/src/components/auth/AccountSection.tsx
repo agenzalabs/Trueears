@@ -47,14 +47,14 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
                                     ACCOUNT
                                 </div>
                                 <h3 className={`font-bold text-xl mb-2 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
-                                    Sign in to <span className="text-emerald-500">Scribe</span>
+                                    Sign in to <span className="text-emerald-500">Trueears</span>
                                 </h3>
                                 <p className={`text-sm leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                                     Sync your settings across devices and unlock premium features.
                                 </p>
                             </div>
 
-                            {/* Scribe Logo */}
+                            {/* Trueears Logo */}
                             <div className={`group w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 ${isDark ? 'bg-[#252525] hover:bg-[#2a2a2a]' : 'bg-gray-50 hover:bg-white hover:shadow-md'} shadow-sm`}>
                                 <svg className={`w-7 h-7 transition-colors duration-300 ${isDark ? 'text-gray-300 group-hover:text-emerald-400' : 'text-gray-700 group-hover:text-emerald-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />

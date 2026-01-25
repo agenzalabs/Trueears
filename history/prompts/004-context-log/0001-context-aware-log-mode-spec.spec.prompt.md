@@ -24,7 +24,7 @@ tests:
 
 ## Prompt
 
-User initiated a brainstorming session about competitor analysis (Superwhisper) and potential features for Scribe. After discussing several options including:
+User initiated a brainstorming session about competitor analysis (Superwhisper) and potential features for Trueears. After discussing several options including:
 - Reprocess from History
 - Clipboard Context Injection
 - Ephemeral Scratchpad
@@ -57,7 +57,7 @@ Created comprehensive feature specification for Context-Aware Log Mode including
 - Tests: N/A (spec phase)
 - Files: specs/004-context-log/spec.md, specs/004-context-log/checklists/requirements.md
 - Next prompts: /sp.clarify or /sp.plan
-- Reflection: Brainstorming led to a well-scoped feature that aligns with Scribe's minimalist philosophy while adding significant value for developers
+- Reflection: Brainstorming led to a well-scoped feature that aligns with Trueears's minimalist philosophy while adding significant value for developers
 
 ## Evaluation notes (flywheel)
 

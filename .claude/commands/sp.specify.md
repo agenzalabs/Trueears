@@ -240,7 +240,7 @@ Success criteria must be:
 
 1. **Measurable**: Include specific metrics (time, percentage, count, rate)
 2. **Technology-agnostic**: No mention of frameworks, languages, databases, or tools
-3. **User-focused**: Describe outcomes from user/business perspective, not system internals
+3. **User-focused**: DeTrueears outcomes from user/business perspective, not system internals
 4. **Verifiable**: Can be tested/validated without knowing implementation details
 
 **Good examples**:

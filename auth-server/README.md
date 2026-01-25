@@ -1,6 +1,6 @@
 # Auth Server
 
-Standalone Rust authentication server for Scribe using Google OAuth.
+Standalone Rust authentication server for Trueears using Google OAuth.
 
 ## Tech Stack
 

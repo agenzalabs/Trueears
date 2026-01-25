@@ -20,7 +20,7 @@ const SignInVisual: React.FC = () => {
             <div className="font-mono text-[11px] leading-relaxed text-gray-400 space-y-1">
                 <div className="flex gap-2">
                     <span className="text-gray-600">$</span>
-                    <span className="text-gray-300">scribe auth --provider=google</span>
+                    <span className="text-gray-300">Trueears auth --provider=google</span>
                 </div>
                 <div className="flex gap-2">
                     <span className="text-gray-600">{'>'}</span>
@@ -71,7 +71,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({ onSuccess }) => {
                     <div className="flex-1 flex flex-col">
                         <h1 className="font-['Syne'] font-extrabold text-4xl leading-[0.95] tracking-tight mb-4 text-gray-900">
                             Welcome to<br />
-                            <span className="text-emerald-400">Scribe</span>
+                            <span className="text-emerald-400">Trueears</span>
                         </h1>
                         <p className="text-gray-500 text-sm font-medium max-w-xs leading-relaxed mb-8">
                             Sign in to sync your settings and access premium features. Your data is encrypted and secure.

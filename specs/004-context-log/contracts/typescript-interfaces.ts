@@ -14,7 +14,7 @@ This document defines the TypeScript interfaces for the Log Mode feature.
 ```typescript
 /**
  * Root configuration for Log Mode feature.
- * Stored in Tauri Store under key: SCRIBE_LOG_MODE_CONFIG
+ * Stored in Tauri Store under key: Trueears_LOG_MODE_CONFIG
  */
 export interface LogModeConfig {
   /** Master toggle for Log Mode feature */
@@ -281,7 +281,7 @@ export interface ILogModeService {
   addAppMapping(appIdentifier: string, appDisplayName: string, filePath: string): Promise<AppLogMapping>;
 
   /**
-   * Subscribe to configuration changes.
+   * SubTrueears to configuration changes.
    */
   onConfigChange(callback: (config: LogModeConfig) => void): () => void;
 }
@@ -293,7 +293,7 @@ export interface ILogModeService {
 
 ```typescript
 /** Storage key for Log Mode configuration */
-export const LOG_MODE_CONFIG_KEY = 'SCRIBE_LOG_MODE_CONFIG';
+export const LOG_MODE_CONFIG_KEY = 'Trueears_LOG_MODE_CONFIG';
 
 /** Allowed file extensions for log files */
 export const ALLOWED_LOG_EXTENSIONS = ['.md', '.txt', '.log'];

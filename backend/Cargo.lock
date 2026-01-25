@@ -3,6 +3,40 @@
 version = 3
 
 [[package]]
+name = "Trueears"
+version = "0.1.0"
+dependencies = [
+ "arboard",
+ "base64 0.22.1",
+ "dotenvy",
+ "enigo",
+ "image",
+ "keyring",
+ "lnk",
+ "log",
+ "once_cell",
+ "open",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-global-shortcut",
+ "tauri-plugin-log",
+ "tauri-plugin-process",
+ "tauri-plugin-shell",
+ "tauri-plugin-store",
+ "tiny_http",
+ "tokio",
+ "url",
+ "urlencoding",
+ "uuid",
+ "walkdir",
+ "windows 0.52.0",
+ "winreg 0.52.0",
+]
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4017,40 +4051,6 @@ name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
-
-[[package]]
-name = "scribe"
-version = "0.1.0"
-dependencies = [
- "arboard",
- "base64 0.22.1",
- "dotenvy",
- "enigo",
- "image",
- "keyring",
- "lnk",
- "log",
- "once_cell",
- "open",
- "reqwest",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-global-shortcut",
- "tauri-plugin-log",
- "tauri-plugin-process",
- "tauri-plugin-shell",
- "tauri-plugin-store",
- "tiny_http",
- "tokio",
- "url",
- "urlencoding",
- "uuid",
- "walkdir",
- "windows 0.52.0",
- "winreg 0.52.0",
-]
 
 [[package]]
 name = "seahash"

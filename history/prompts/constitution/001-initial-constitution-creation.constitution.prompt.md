@@ -24,7 +24,7 @@ tests:
 
 ## Prompt
 
-User invoked `/sp.constitution` command to establish the project constitution for Scribe.
+User invoked `/sp.constitution` command to establish the project constitution for Trueears.
 
 User preferences gathered via clarifying questions:
 - Number of principles: 7+ principles
@@ -58,7 +58,7 @@ Created comprehensive constitution v1.0.0 with:
 
 ## Outcome
 
-- ✅ Impact: Established governance framework for Scribe project development
+- ✅ Impact: Established governance framework for Trueears project development
 - 🧪 Tests: N/A (governance document, not code)
 - 📁 Files: constitution.md (created), plan-template.md (updated)
 - 🔁 Next prompts: Consider `/sp.adr` if significant architectural decisions arise during feature development

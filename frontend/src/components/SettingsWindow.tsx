@@ -138,7 +138,7 @@ export const SettingsWindow: React.FC = () => {
         {/* Header */}
         <div className={`p-4 border-b ${isDark ? 'border-[#333]' : 'border-gray-200'}`}>
           <h1 className="text-lg font-bold">⚙️ Settings</h1>
-          <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Scribe Configuration</p>
+          <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Trueears Configuration</p>
         </div>
 
         {/* Navigation */}

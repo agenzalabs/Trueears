@@ -156,7 +156,7 @@ const APP_ALIASES: &[(&str, &str)] = &[
 fn get_cache_path() -> Option<PathBuf> {
     let app_data = std::env::var("APPDATA").ok()?;
     let mut path = PathBuf::from(app_data);
-    path.push("com.scribe");
+    path.push("com.Trueears");
     // Ensure directory exists
     std::fs::create_dir_all(&path).ok()?;
     path.push(CACHE_FILENAME);

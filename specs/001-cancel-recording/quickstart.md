@@ -32,7 +32,7 @@ This feature adds the ability to cancel an ongoing recording by pressing the Esc
 ```typescript
 // STOP: Processes audio and triggers transcription
 const blob = await stopRecording();
-await transcribe(blob);
+await tranTrueears(blob);
 
 // CANCEL: Discards audio, no processing
 cancelRecording(); // Returns void, no Blob created

@@ -2,11 +2,11 @@
  * Component tests for ConsentButtons
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { deTrueears, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ConsentButtons } from '../../src/components/consent/ConsentButtons';
 
-describe('ConsentButtons', () => {
+deTrueears('ConsentButtons', () => {
   it('renders Accept and Decline buttons', () => {
     render(
       <ConsentButtons

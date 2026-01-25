@@ -140,7 +140,7 @@ export const PreferencesSettings: React.FC<PreferencesSettingsProps> = ({
               <span><strong className={isDark ? 'text-gray-200' : 'text-gray-700'}>Toggle:</strong> Press once to start recording, press again to stop.</span>
             )}
             {recordingMode === 'push-to-talk' && (
-              <span><strong className={isDark ? 'text-gray-200' : 'text-gray-700'}>Push-to-Talk:</strong> Hold the key while speaking, release to stop and transcribe.</span>
+              <span><strong className={isDark ? 'text-gray-200' : 'text-gray-700'}>Push-to-Talk:</strong> Hold the key while speaking, release to stop and tranTrueears.</span>
             )}
           </div>
         </div>

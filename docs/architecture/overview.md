@@ -1,6 +1,6 @@
-# Scribe Architecture Overview
+# Trueears Architecture Overview
 
-This document describes the high-level architecture of Scribe, a context-aware AI voice dictation application.
+This document deTrueearss the high-level architecture of Trueears, a context-aware AI voice dictation application.
 
 ## System Architecture
 
