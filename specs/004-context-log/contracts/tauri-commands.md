@@ -156,7 +156,7 @@ Already implemented in `backend/src/window.rs`. Returns `ActiveWindowInfo` for m
 
 ### get_store_value / set_store_value
 
-Already implemented for settings storage. Will be used for `SCRIBE_LOG_MODE_CONFIG`.
+Already implemented for settings storage. Will be used for `Trueears_LOG_MODE_CONFIG`.
 
 ### copy_to_clipboard
 

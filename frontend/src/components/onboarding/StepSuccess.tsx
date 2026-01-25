@@ -79,7 +79,7 @@ export const StepSuccess: React.FC<StepProps> = ({ onNext }) => {
           </div>
 
           <h1 className="font-bold text-3xl leading-tight tracking-tight mb-4 text-gray-900">
-            Welcome to Scribe! 🎉
+            Welcome to Trueears! 🎉
           </h1>
 
           <p className="text-gray-500 text-sm leading-relaxed mb-8">
@@ -119,7 +119,7 @@ export const StepSuccess: React.FC<StepProps> = ({ onNext }) => {
             onClick={onNext}
             className="w-full py-4 rounded-xl font-semibold text-sm uppercase tracking-wider bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 cursor-pointer"
           >
-            Start Using Scribe
+            Start Using Trueears
           </button>
         </div>
       </div>
@@ -145,7 +145,7 @@ export const StepSuccess: React.FC<StepProps> = ({ onNext }) => {
             </svg>
           </div>
           <div className="text-4xl font-bold text-gray-800 tracking-tight">
-            Scribe
+            Trueears
           </div>
           <div className="text-gray-400 text-sm mt-2">
             AI-Powered Voice Dictation

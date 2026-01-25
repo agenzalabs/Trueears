@@ -225,7 +225,7 @@ find [codebase-path] -type d -name "*domain*" -o -name "*infrastructure*" -o -na
 
 **Check for Event-Driven**:
 ```bash
-grep -r "event\|emit\|publish\|subscribe\|listener\|handler" [codebase-path] --include="*.py" --include="*.ts" --include="*.go" | wc -l
+grep -r "event\|emit\|publish\|subTrueears\|listener\|handler" [codebase-path] --include="*.py" --include="*.ts" --include="*.go" | wc -l
 ```
 
 **Check for CQRS**:
@@ -275,7 +275,7 @@ grep -rn "http.get\|requests.post\|fetch\|axios\|http.Client" [codebase-path] --
 grep -rn "SELECT\|INSERT\|UPDATE\|DELETE\|query\|execute\|find\|create\|save" [codebase-path] --include="*.py" --include="*.ts" --include="*.go" | head -20
 
 # Queue/messaging
-grep -rn "publish\|subscribe\|send_message\|consume\|produce" [codebase-path] --include="*.py" --include="*.ts" --include="*.go"
+grep -rn "publish\|subTrueears\|send_message\|consume\|produce" [codebase-path] --include="*.py" --include="*.ts" --include="*.go"
 ```
 
 #### 3.4 Cross-Cutting Concern Identification
@@ -650,7 +650,7 @@ Create implementation plan:
 
 ### Event Flow (Asynchronous) - if applicable
 1. **Event Producer** emits event to queue
-2. **Message Broker** routes to subscribers
+2. **Message Broker** routes to subTrueearsrs
 3. **Event Handler** processes asynchronously
 4. **Service** updates state
 5. **Event** published for downstream consumers

@@ -24,14 +24,14 @@ Follow-up TODOs: None
 ============================================================================
 -->
 
-# Scribe Constitution
+# Trueears Constitution
 
 ## Core Principles
 
 ### I. Simplicity & Speed First
 
 Every feature MUST prioritize lightweight implementation and fast user experience.
-Scribe is a **desktop dictation tool** that MUST remain fast, responsive, and resource-efficient.
+Trueears is a **desktop dictation tool** that MUST remain fast, responsive, and resource-efficient.
 
 - Bundle size MUST stay under 25MB
 - UI interactions MUST respond within 100ms
@@ -88,7 +88,7 @@ Handle API keys, user audio, and clipboard data with care.
 - No telemetry or analytics without explicit user consent
 - LLM prompts MUST prevent injection attacks via user-spoken content
 
-**Rationale**: Dictation apps have privileged access to microphone, clipboard, and keyboard. Users trust Scribe with sensitive data; that trust MUST be honored.
+**Rationale**: Dictation apps have privileged access to microphone, clipboard, and keyboard. Users trust Trueears with sensitive data; that trust MUST be honored.
 
 ### VI. Platform-Native Experience
 

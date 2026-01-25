@@ -1,7 +1,7 @@
 import { AppProfile, ActiveWindowInfo, DEFAULT_APP_PROFILES, DEFAULT_SYSTEM_PROMPT, BASE_SYSTEM_PROMPT } from '../types/appProfile';
 import { tauriAPI } from '../utils/tauriApi';
 
-const STORAGE_KEY = 'SCRIBE_APP_PROFILES';
+const STORAGE_KEY = 'Trueears_APP_PROFILES';
 
 type ProfilesListener = (profiles: AppProfile[]) => void;
 
@@ -80,7 +80,7 @@ function notifyListeners(): void {
 }
 
 export class AppProfileService {
-  static subscribe(cb: ProfilesListener): () => void {
+  static subTrueears(cb: ProfilesListener): () => void {
     listeners.add(cb);
     return () => listeners.delete(cb);
   }

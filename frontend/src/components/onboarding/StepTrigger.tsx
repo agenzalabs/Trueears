@@ -7,7 +7,7 @@ interface StepProps {
 }
 
 // Shared state for visualization communication (simple solution for same-tree components)
-const TRIGGER_EVENT = 'scribe-trigger-test';
+const TRIGGER_EVENT = 'Trueears-trigger-test';
 
 const TriggerVisual: React.FC = () => {
   const [activeKeys, setActiveKeys] = useState<Set<string>>(new Set());

@@ -1,6 +1,6 @@
 # Backend (Tauri)
 
-Rust backend providing native platform capabilities for Scribe.
+Rust backend providing native platform capabilities for Trueears.
 
 ## Tech Stack
 

@@ -107,7 +107,7 @@ export class LogModeService implements ILogModeService {
   }
 
   /**
-   * Subscribe to configuration changes.
+   * SubTrueears to configuration changes.
    */
   onConfigChange(callback: ConfigListener): () => void {
     listeners.add(callback);
@@ -498,7 +498,7 @@ export class LogModeService implements ILogModeService {
    * Generate the default log file path for an app.
    * Uses the configured defaultLogDirectory.
    * @param appDisplayName Human-readable app name (e.g., "Chrome", "VS Code")
-   * @returns Full path like "C:\Users\John\Documents\Scribe\chrome-log.md"
+   * @returns Full path like "C:\Users\John\Documents\Trueears\chrome-log.md"
    */
   async getDefaultLogPath(appDisplayName: string): Promise<string> {
     const config = await this.getConfig();

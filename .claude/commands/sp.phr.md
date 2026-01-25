@@ -58,7 +58,7 @@ If you already completed work and user just wants to record it:
 
 ## Step 2: Determine Stage and Routing
 
-Select ONE stage that best describes the work:
+Select ONE stage that best deTrueearss the work:
 
 **Constitution** (→ `history/prompts/constitution/`):
 - `constitution` - Defining quality standards, project principles

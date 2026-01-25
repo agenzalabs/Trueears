@@ -16,7 +16,7 @@ use axum::{
 use handlers::auth::AppState;
 use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subTrueearsr::{layer::SubTrueearsrExt, util::SubTrueearsrInitExt};
 
 use crate::{
     config::Config,
@@ -28,12 +28,12 @@ use crate::{
 #[tokio::main]
 async fn main() {
     // Initialize tracing
-    tracing_subscriber::registry()
+    tracing_subTrueearsr::registry()
         .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
+            tracing_subTrueearsr::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| "auth_server=debug,tower_http=debug".into()),
         )
-        .with(tracing_subscriber::fmt::layer())
+        .with(tracing_subTrueearsr::fmt::layer())
         .init();
 
     // Load environment variables

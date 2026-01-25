@@ -29,7 +29,7 @@ tests:
 ## Prompt
 
 <system-reminder>
-The user opened the file d:\Scribe\frontend\src\components\RecorderOverlay.tsx in the IDE.
+The user opened the file d:\Trueears\frontend\src\components\RecorderOverlay.tsx in the IDE.
 This may or may not be related to the current task.
 </system-reminder>So now I'm not able to minimize or click anywhere, as beside the config prompt widget when it open, is this your fix ?
 

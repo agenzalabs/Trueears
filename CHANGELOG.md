@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Scribe will be documented in this file.
+All notable changes to Trueears will be documented in this file.
 
 ## [0.2.0] - 2024-12-04
 

@@ -1,7 +1,7 @@
 {
-  "productName": "Scribe",
+  "productName": "Trueears",
   "version": "0.2.0",
-  "identifier": "com.scribe",
+  "identifier": "com.Trueears",
   "build": {
     "frontendDist": "../frontend/dist",
     "devUrl": "http://localhost:3000",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Scribe",
+        "title": "Trueears",
         "width": 3840,
         "height": 2160,
         "decorations": false,

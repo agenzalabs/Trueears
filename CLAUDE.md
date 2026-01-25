@@ -129,7 +129,7 @@ You are not expected to solve every problem autonomously. You MUST invoke the us
 3) Produce the artifact with acceptance checks inlined (checkboxes or tests where applicable).
 4) Add follow‑ups and risks (max 3 bullets).
 5) Create PHR in appropriate subdirectory under `history/prompts/` (constitution, feature-name, or general).
-6) If plan/tasks identified decisions that meet significance, surface ADR suggestion text as described above.
+6) If plan/tasks identified decisions that meet significance, surface ADR suggestion text as deTrueearsd above.
 
 ### Minimum acceptance criteria
 - Clear, testable acceptance criteria included

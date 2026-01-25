@@ -44,12 +44,12 @@ export const useSettings = () => {
     // Try to load from store first
     let groqKey = await tauriAPI.getStoreValue('GROQ_API_KEY');
     let groqModel = await tauriAPI.getStoreValue('GROQ_MODEL');
-    let savedLlmEnabled = await tauriAPI.getStoreValue('SCRIBE_LLM_ENABLED');
-    let savedLlmApiKey = await tauriAPI.getStoreValue('SCRIBE_LLM_API_KEY');
-    let savedLlmModel = await tauriAPI.getStoreValue('SCRIBE_LLM_MODEL');
-    let savedSystemPrompt = await tauriAPI.getStoreValue('SCRIBE_DEFAULT_SYSTEM_PROMPT');
-    const savedOnboardingComplete = await tauriAPI.getStoreValue('SCRIBE_ONBOARDING_COMPLETE');
-    const savedTheme = await tauriAPI.getStoreValue('SCRIBE_THEME');
+    let savedLlmEnabled = await tauriAPI.getStoreValue('Trueears_LLM_ENABLED');
+    let savedLlmApiKey = await tauriAPI.getStoreValue('Trueears_LLM_API_KEY');
+    let savedLlmModel = await tauriAPI.getStoreValue('Trueears_LLM_MODEL');
+    let savedSystemPrompt = await tauriAPI.getStoreValue('Trueears_DEFAULT_SYSTEM_PROMPT');
+    const savedOnboardingComplete = await tauriAPI.getStoreValue('Trueears_ONBOARDING_COMPLETE');
+    const savedTheme = await tauriAPI.getStoreValue('Trueears_THEME');
 
     debug.log('[useSettings] loadKeys - store values:', {
       groqKey, groqModel,
@@ -67,33 +67,33 @@ export const useSettings = () => {
       await tauriAPI.setStoreValue('GROQ_MODEL', groqModel);
     }
     if (savedLlmEnabled === null) {
-      savedLlmEnabled = localStorage.getItem('SCRIBE_LLM_ENABLED') || 'false';
-      await tauriAPI.setStoreValue('SCRIBE_LLM_ENABLED', savedLlmEnabled);
+      savedLlmEnabled = localStorage.getItem('Trueears_LLM_ENABLED') || 'false';
+      await tauriAPI.setStoreValue('Trueears_LLM_ENABLED', savedLlmEnabled);
     }
     if (savedLlmApiKey === null) {
-      savedLlmApiKey = localStorage.getItem('SCRIBE_LLM_API_KEY') || groqKey || '';
-      await tauriAPI.setStoreValue('SCRIBE_LLM_API_KEY', savedLlmApiKey);
+      savedLlmApiKey = localStorage.getItem('Trueears_LLM_API_KEY') || groqKey || '';
+      await tauriAPI.setStoreValue('Trueears_LLM_API_KEY', savedLlmApiKey);
     }
     if (savedLlmModel === null) {
-      savedLlmModel = localStorage.getItem('SCRIBE_LLM_MODEL') || DEFAULT_LLM_MODEL;
-      await tauriAPI.setStoreValue('SCRIBE_LLM_MODEL', savedLlmModel);
+      savedLlmModel = localStorage.getItem('Trueears_LLM_MODEL') || DEFAULT_LLM_MODEL;
+      await tauriAPI.setStoreValue('Trueears_LLM_MODEL', savedLlmModel);
     }
     if (savedSystemPrompt === null) {
-      savedSystemPrompt = localStorage.getItem('SCRIBE_DEFAULT_SYSTEM_PROMPT') || DEFAULT_SYSTEM_PROMPT;
-      await tauriAPI.setStoreValue('SCRIBE_DEFAULT_SYSTEM_PROMPT', savedSystemPrompt);
+      savedSystemPrompt = localStorage.getItem('Trueears_DEFAULT_SYSTEM_PROMPT') || DEFAULT_SYSTEM_PROMPT;
+      await tauriAPI.setStoreValue('Trueears_DEFAULT_SYSTEM_PROMPT', savedSystemPrompt);
     }
 
     // Load language settings
-    let savedLanguage = await tauriAPI.getStoreValue('SCRIBE_LANGUAGE');
-    let savedAutoDetect = await tauriAPI.getStoreValue('SCRIBE_AUTO_DETECT_LANGUAGE');
+    let savedLanguage = await tauriAPI.getStoreValue('Trueears_LANGUAGE');
+    let savedAutoDetect = await tauriAPI.getStoreValue('Trueears_AUTO_DETECT_LANGUAGE');
 
     if (savedLanguage === null) {
-      savedLanguage = localStorage.getItem('SCRIBE_LANGUAGE') || 'en';
-      await tauriAPI.setStoreValue('SCRIBE_LANGUAGE', savedLanguage);
+      savedLanguage = localStorage.getItem('Trueears_LANGUAGE') || 'en';
+      await tauriAPI.setStoreValue('Trueears_LANGUAGE', savedLanguage);
     }
     if (savedAutoDetect === null) {
-      savedAutoDetect = localStorage.getItem('SCRIBE_AUTO_DETECT_LANGUAGE') || 'false';
-      await tauriAPI.setStoreValue('SCRIBE_AUTO_DETECT_LANGUAGE', savedAutoDetect);
+      savedAutoDetect = localStorage.getItem('Trueears_AUTO_DETECT_LANGUAGE') || 'false';
+      await tauriAPI.setStoreValue('Trueears_AUTO_DETECT_LANGUAGE', savedAutoDetect);
     }
 
     setApiKey(groqKey || '');
@@ -115,10 +115,10 @@ export const useSettings = () => {
     document.documentElement.setAttribute('data-theme', validTheme);
     
     // Load recording mode
-    let savedRecordingMode = await tauriAPI.getStoreValue('SCRIBE_RECORDING_MODE');
+    let savedRecordingMode = await tauriAPI.getStoreValue('Trueears_RECORDING_MODE');
     if (savedRecordingMode === null) {
       savedRecordingMode = 'auto';
-      await tauriAPI.setStoreValue('SCRIBE_RECORDING_MODE', savedRecordingMode);
+      await tauriAPI.setStoreValue('Trueears_RECORDING_MODE', savedRecordingMode);
     }
     const validRecordingMode = (savedRecordingMode === 'auto' || savedRecordingMode === 'toggle' || savedRecordingMode === 'push-to-talk') 
       ? savedRecordingMode as 'auto' | 'toggle' | 'push-to-talk'
@@ -164,55 +164,55 @@ export const useSettings = () => {
   const saveLlmEnabled = async (enabled: boolean) => {
     debug.log('[useSettings] saveLlmEnabled called with:', enabled);
     setLlmEnabled(enabled);
-    await tauriAPI.setStoreValue('SCRIBE_LLM_ENABLED', enabled.toString());
+    await tauriAPI.setStoreValue('Trueears_LLM_ENABLED', enabled.toString());
     tauriAPI.emitSettingsChanged();
   };
 
   const saveLlmApiKey = async (key: string) => {
     setLlmApiKey(key);
-    await tauriAPI.setStoreValue('SCRIBE_LLM_API_KEY', key);
+    await tauriAPI.setStoreValue('Trueears_LLM_API_KEY', key);
     tauriAPI.emitSettingsChanged();
   };
 
   const saveLlmModel = async (model: string) => {
     setLlmModel(model);
-    await tauriAPI.setStoreValue('SCRIBE_LLM_MODEL', model);
+    await tauriAPI.setStoreValue('Trueears_LLM_MODEL', model);
     tauriAPI.emitSettingsChanged();
   };
 
   const saveDefaultSystemPrompt = async (prompt: string) => {
     setDefaultSystemPrompt(prompt);
-    await tauriAPI.setStoreValue('SCRIBE_DEFAULT_SYSTEM_PROMPT', prompt);
+    await tauriAPI.setStoreValue('Trueears_DEFAULT_SYSTEM_PROMPT', prompt);
     tauriAPI.emitSettingsChanged();
   };
 
   const markOnboardingComplete = async () => {
     setOnboardingComplete(true);
-    await tauriAPI.setStoreValue('SCRIBE_ONBOARDING_COMPLETE', 'true');
+    await tauriAPI.setStoreValue('Trueears_ONBOARDING_COMPLETE', 'true');
   };
 
   const saveLanguage = async (lang: string) => {
     setLanguage(lang);
-    await tauriAPI.setStoreValue('SCRIBE_LANGUAGE', lang);
+    await tauriAPI.setStoreValue('Trueears_LANGUAGE', lang);
     tauriAPI.emitSettingsChanged();
   };
 
   const saveAutoDetectLanguage = async (enabled: boolean) => {
     setAutoDetectLanguage(enabled);
-    await tauriAPI.setStoreValue('SCRIBE_AUTO_DETECT_LANGUAGE', enabled.toString());
+    await tauriAPI.setStoreValue('Trueears_AUTO_DETECT_LANGUAGE', enabled.toString());
     tauriAPI.emitSettingsChanged();
   };
 
   const saveTheme = async (newTheme: 'light' | 'dark') => {
     setTheme(newTheme);
     document.documentElement.setAttribute('data-theme', newTheme);
-    await tauriAPI.setStoreValue('SCRIBE_THEME', newTheme);
+    await tauriAPI.setStoreValue('Trueears_THEME', newTheme);
     tauriAPI.emitSettingsChanged();
   };
 
   const saveRecordingMode = async (mode: 'auto' | 'toggle' | 'push-to-talk') => {
     setRecordingMode(mode);
-    await tauriAPI.setStoreValue('SCRIBE_RECORDING_MODE', mode);
+    await tauriAPI.setStoreValue('Trueears_RECORDING_MODE', mode);
     tauriAPI.emitSettingsChanged();
   };
 

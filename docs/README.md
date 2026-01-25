@@ -1,6 +1,6 @@
-# Scribe Documentation
+# Trueears Documentation
 
-Welcome to the Scribe documentation. Choose a section based on your needs.
+Welcome to the Trueears documentation. Choose a section based on your needs.
 
 ## Quick Links
 
@@ -11,7 +11,7 @@ Welcome to the Scribe documentation. Choose a section based on your needs.
 | Build for production | [Deployment Guide](guides/deployment.md) |
 | Understand the architecture | [Architecture Overview](architecture/overview.md) |
 | Fix a problem | [Troubleshooting](troubleshooting/README.md) |
-| Contribute to Scribe | [Contributing](../CONTRIBUTING.md) |
+| Contribute to Trueears | [Contributing](../CONTRIBUTING.md) |
 
 ## Documentation Structure
 

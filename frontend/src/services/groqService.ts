@@ -1,7 +1,7 @@
 export class GroqService {
   private static readonly API_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 
-  static async transcribe(audioBlob: Blob, apiKey: string, model: string, language?: string): Promise<string> {
+  static async tranTrueears(audioBlob: Blob, apiKey: string, model: string, language?: string): Promise<string> {
     const formData = new FormData();
     // Groq accepts m4a, mp3, webm, mp4, mpga, wav, mpeg
     // Chrome MediaRecorder usually results in audio/webm

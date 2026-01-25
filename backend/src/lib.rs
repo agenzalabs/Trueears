@@ -158,7 +158,7 @@ async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
         "settings",
         tauri::WebviewUrl::App("/".into())
     )
-    .title("Scribe Settings")
+    .title("Trueears Settings")
     .inner_size(1200.0, 800.0)
     .min_inner_size(800.0, 600.0)
     .maximized(true)
@@ -249,16 +249,16 @@ pub fn run() {
             // Initialize installed apps cache in background
             installed_apps::init_cache();
 
-            // Always enable logging (logs to file in AppData/com.scribe/logs)
+            // Always enable logging (logs to file in AppData/com.Trueears/logs)
             app.handle().plugin(
                 tauri_plugin_log::Builder::default()
                     .level(log::LevelFilter::Info)
                     .target(tauri_plugin_log::Target::new(
-                        tauri_plugin_log::TargetKind::LogDir { file_name: Some("scribe.log".into()) }
+                        tauri_plugin_log::TargetKind::LogDir { file_name: Some("Trueears.log".into()) }
                     ))
                     .build(),
             )?;
-            log::info!("=== Scribe Application Started ===");
+            log::info!("=== Trueears Application Started ===");
 
             // Open DevTools (temporarily enabled for debugging)
             // if let Some(window) = app.get_webview_window("main") {
@@ -327,7 +327,7 @@ pub fn run() {
                 .map(|s| !s.is_empty())
                 .unwrap_or(false);
             let onboarding_complete = store
-                .get("SCRIBE_ONBOARDING_COMPLETE")
+                .get("Trueears_ONBOARDING_COMPLETE")
                 .and_then(|v| v.as_str().map(|s| s.to_string()))
                 .map(|s| s == "true")
                 .unwrap_or(false);

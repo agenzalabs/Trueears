@@ -38,7 +38,7 @@ Use the existing Tauri secure store (`settings.json`) with the same pattern as o
 ## R2: First-Run Detection Pattern
 
 ### Decision
-Follow the existing `SCRIBE_ONBOARDING_COMPLETE` pattern - store a boolean flag that indicates consent has been given.
+Follow the existing `Trueears_ONBOARDING_COMPLETE` pattern - store a boolean flag that indicates consent has been given.
 
 ### Rationale
 - Consistent with how onboarding complete is tracked

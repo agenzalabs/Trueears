@@ -1,6 +1,6 @@
-# Getting Started with Scribe
+# Getting Started with Trueears
 
-Get Scribe running in under 5 minutes.
+Get Trueears running in under 5 minutes.
 
 ## Prerequisites
 
@@ -26,7 +26,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 ```bash
 git clone <repository-url>
-cd scribe
+cd Trueears
 npm install
 ```
 
@@ -36,7 +36,7 @@ npm install
 npm run dev
 ```
 
-This starts the Vite dev server and launches Scribe with hot-reload.
+This starts the Vite dev server and launches Trueears with hot-reload.
 
 ### 3. Configure API Keys
 
@@ -56,7 +56,7 @@ Settings are saved automatically.
 2. Press `Ctrl+Shift+K` to start recording
 3. Speak your text
 4. Press `Ctrl+Shift+K` again to stop
-5. Text is automatically transcribed and pasted
+5. Text is automatically tranTrueearsd and pasted
 
 ## Recording Modes
 
@@ -90,7 +90,7 @@ Transform any selected text:
 
 ## App Profiles
 
-Scribe auto-detects your active application and applies context-specific formatting:
+Trueears auto-detects your active application and applies context-specific formatting:
 
 | App | Formatting Style |
 |-----|-----------------|
@@ -132,14 +132,14 @@ Quickly save voice notes to markdown files based on your active application:
    - "Remember to call John tomorrow"
    - "Note to self review the PR before merging"
 
-2. **Scribe automatically**:
+2. **Trueears automatically**:
    - Detects the trigger phrase
    - Saves to an app-specific log file (e.g., `chrome-log.md`)
    - Adds timestamp: `- [2025-12-29 16:30] your note here`
 
 3. **First-time setup per app**:
    - On first use in a new app, you'll be prompted to set a log file path
-   - Default path: `Documents/Scribe/<app-name>-log.md`
+   - Default path: `Documents/Trueears/<app-name>-log.md`
    - Click **Save** to confirm or **Skip** to copy to clipboard instead
 
 ### Default Trigger Phrases
@@ -155,7 +155,7 @@ Quickly save voice notes to markdown files based on your active application:
 Configure Log Mode in **Settings > Log Mode**:
 
 - **Enable/Disable**: Master toggle for the feature
-- **Default Log Directory**: Base folder for new log files (default: `Documents/Scribe`)
+- **Default Log Directory**: Base folder for new log files (default: `Documents/Trueears`)
 - **Trigger Phrases**: Add, edit, or disable trigger phrases
 - **App Mappings**: View and edit app-to-file mappings
 

@@ -6,7 +6,7 @@ import { tauriAPI } from '../utils/tauriApi';
 import { ActiveWindowInfo } from '../types/appProfile';
 
 export const processTranscription = async (audioBlob: Blob, apiKey: string, model: string, language?: string): Promise<string> => {
-  return await GroqService.transcribe(audioBlob, apiKey, model, language);
+  return await GroqService.tranTrueears(audioBlob, apiKey, model, language);
 };
 
 export const postProcessTranscription = async (
