@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Common issues and solutions for Scribe.
+Common issues and solutions for Trueears.
 
 ## Quick Fixes
 
@@ -59,7 +59,7 @@ Settings are stored via Tauri's Store plugin. If not saving:
 
 ### Microphone Not Detected
 
-1. Check Windows/macOS microphone permissions for Scribe
+1. Check Windows/macOS microphone permissions for Trueears
 2. Verify microphone works in other applications
 3. Try selecting a different input device in Settings
 
@@ -72,8 +72,8 @@ Settings are stored via Tauri's Store plugin. If not saving:
 ### Hotkey Not Responding
 
 1. Ensure no other application is using `Ctrl+Shift+K`
-2. Check if Scribe is running (system tray icon)
-3. Restart Scribe
+2. Check if Trueears is running (system tray icon)
+3. Restart Trueears
 4. Some applications (games, elevated apps) may block global hotkeys
 
 ---
@@ -160,7 +160,7 @@ Install from [Visual Studio Downloads](https://visualstudio.microsoft.com/downlo
 
 When reporting issues, include:
 
-1. Scribe version (`Settings > About`)
+1. Trueears version (`Settings > About`)
 2. Operating system and version
 3. Steps to reproduce
 4. Console errors (F12 in dev mode)

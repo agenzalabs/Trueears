@@ -42,7 +42,7 @@ Check `backend/tauri.conf.json` contains:
 
 2. Verify the executable dependencies (requires `dumpbin` from VS tools):
    ```powershell
-   dumpbin /dependents backend/target/release/scribe.exe
+   dumpbin /dependents backend/target/release/Trueears.exe
    ```
    *Expected*: Should NOT list `VCRUNTIME140.dll` or `MSVCP140.dll` as direct dependencies.
 

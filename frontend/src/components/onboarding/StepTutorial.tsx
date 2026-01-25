@@ -7,7 +7,7 @@ interface StepProps {
 }
 
 // Event for syncing (Quick solution for decoupled layout)
-const TUTORIAL_EVENT = 'scribe-tutorial-change';
+const TUTORIAL_EVENT = 'Trueears-tutorial-change';
 
 const TutorialVisual: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
@@ -157,7 +157,7 @@ export const StepTutorial: React.FC<StepProps> & { Visual: React.FC } = ({ onNex
     return () => {
       window.removeEventListener(TUTORIAL_EVENT as any, handleTabChange);
       // Reset title on unmount
-      tauriAPI.setWindowTitle("Scribe Settings");
+      tauriAPI.setWindowTitle("Trueears Settings");
     };
   }, []);
 
@@ -168,13 +168,13 @@ export const StepTutorial: React.FC<StepProps> & { Visual: React.FC } = ({ onNex
     
     // Set store value for RecorderOverlay override
     const modeMap = ['tutorial-slack', 'tutorial-gmail', 'tutorial-notion'];
-    tauriAPI.setStoreValue('SCRIBE_TUTORIAL_MODE', modeMap[activeTab]);
+    tauriAPI.setStoreValue('Trueears_TUTORIAL_MODE', modeMap[activeTab]);
   }, [activeTab]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-        tauriAPI.setStoreValue('SCRIBE_TUTORIAL_MODE', '');
+        tauriAPI.setStoreValue('Trueears_TUTORIAL_MODE', '');
     };
   }, []);
 

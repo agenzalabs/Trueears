@@ -388,7 +388,7 @@ export const tauriAPI = {
     },
 
     /**
-     * Get the default log directory path (Documents/Scribe).
+     * Get the default log directory path (Documents/Trueears).
      * @returns Default log directory path
      */
     getDefaultLogDirectory: async (): Promise<string> => {
@@ -396,14 +396,14 @@ export const tauriAPI = {
         try {
             if (!isTauri()) {
                 console.warn('[tauriAPI] Not in Tauri context, returning fallback');
-                return 'C:\\Documents\\Scribe';
+                return 'C:\\Documents\\Trueears';
             }
             const result = await invoke<string>('get_default_log_directory');
             console.log('[tauriAPI] Default log directory:', result);
             return result;
         } catch (error) {
             console.error('[tauriAPI] Failed to get default log directory:', error);
-            return 'C:\\Documents\\Scribe';
+            return 'C:\\Documents\\Trueears';
         }
     },
 
@@ -430,7 +430,7 @@ export const tauriAPI = {
 
     /**
      * Dynamically register the global Escape shortcut.
-     * Call this when the Scribe overlay becomes visible to enable global Escape to cancel.
+     * Call this when the Trueears overlay becomes visible to enable global Escape to cancel.
      */
     registerEscapeShortcut: async (): Promise<void> => {
         try {
@@ -447,7 +447,7 @@ export const tauriAPI = {
 
     /**
      * Dynamically unregister the global Escape shortcut.
-     * Call this when the Scribe overlay is hidden to allow other apps to use Escape normally.
+     * Call this when the Trueears overlay is hidden to allow other apps to use Escape normally.
      */
     unregisterEscapeShortcut: async (): Promise<void> => {
         try {

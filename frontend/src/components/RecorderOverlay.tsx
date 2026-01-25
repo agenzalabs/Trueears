@@ -235,7 +235,7 @@ export const RecorderOverlay: React.FC = () => {
   }, [isVisible, recordingStatus, uiMode, isStartingRecording]);
 
   // -- Effect: Dynamically register/unregister Escape shortcut based on visibility --
-  // This prevents the global Escape shortcut from interfering with other apps when Scribe is not visible
+  // This prevents the global Escape shortcut from interfering with other apps when Trueears is not visible
   useEffect(() => {
     if (isVisible) {
       // Register Escape shortcut when overlay becomes visible
@@ -395,7 +395,7 @@ export const RecorderOverlay: React.FC = () => {
     
     // Check for Tutorial Override
     try {
-        const tutorialMode = await tauriAPI.getStoreValue('SCRIBE_TUTORIAL_MODE');
+        const tutorialMode = await tauriAPI.getStoreValue('Trueears_TUTORIAL_MODE');
         if (tutorialMode && tutorialMode.length > 0) {
             debug.log('[RecorderOverlay] Tutorial Mode Detected:', tutorialMode);
             const titleMap: Record<string, string> = {
@@ -404,8 +404,8 @@ export const RecorderOverlay: React.FC = () => {
                 'tutorial-notion': 'Tutorial - Notion'
             };
             effectiveWindowInfo = {
-                app_name: 'scribe.exe',
-                window_title: titleMap[tutorialMode] || 'Scribe Settings',
+                app_name: 'Trueears.exe',
+                window_title: titleMap[tutorialMode] || 'Trueears Settings',
                 executable_path: ''
             };
         }

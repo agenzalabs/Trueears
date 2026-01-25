@@ -36,12 +36,12 @@ export const LogModeSettings: React.FC<LogModeSettingsProps> = ({ isDark }) => {
     };
     loadConfig();
 
-    // Subscribe to cross-window changes
-    const unsubscribe = logModeService.onConfigChange(() => {
+    // SubTrueears to cross-window changes
+    const unsubTrueears = logModeService.onConfigChange(() => {
       loadConfig();
     });
 
-    return () => unsubscribe();
+    return () => unsubTrueears();
   }, []);
 
   // Save config helper
@@ -229,7 +229,7 @@ export const LogModeSettings: React.FC<LogModeSettingsProps> = ({ isDark }) => {
                       if (e.key === 'Enter') handleSaveDirectory();
                       if (e.key === 'Escape') handleCancelEditDirectory();
                     }}
-                    placeholder="C:\Users\You\Documents\Scribe"
+                    placeholder="C:\Users\You\Documents\Trueears"
                     className={`
                       w-full px-3 py-2 text-sm rounded border
                       outline-none transition-colors

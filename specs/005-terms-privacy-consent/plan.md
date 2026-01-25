@@ -5,7 +5,7 @@
 
 ## Summary
 
-Implement a first-run consent flow that requires users to accept Terms of Service and Privacy Policy before using Scribe. This feature adds legal compliance for data collection (microphone, clipboard, window info) by:
+Implement a first-run consent flow that requires users to accept Terms of Service and Privacy Policy before using Trueears. This feature adds legal compliance for data collection (microphone, clipboard, window info) by:
 1. Displaying a consent screen on first launch (before onboarding)
 2. Persisting consent state in Tauri secure store
 3. Adding legal document access in Settings
@@ -114,11 +114,11 @@ frontend/tests/
 
 ### D4: Consent Storage Keys
 **Decision**: Add to existing `settings.json` store with keys:
-- `SCRIBE_CONSENT_STATUS`: 'accepted' | 'declined' | null
-- `SCRIBE_CONSENT_TIMESTAMP`: ISO 8601 string
-- `SCRIBE_CONSENT_TERMS_VERSION`: string (e.g., '1.0.0')
-- `SCRIBE_CONSENT_PRIVACY_VERSION`: string (e.g., '1.0.0')
-- `SCRIBE_CONSENT_APP_VERSION`: string (e.g., '0.2.0')
+- `Trueears_CONSENT_STATUS`: 'accepted' | 'declined' | null
+- `Trueears_CONSENT_TIMESTAMP`: ISO 8601 string
+- `Trueears_CONSENT_TERMS_VERSION`: string (e.g., '1.0.0')
+- `Trueears_CONSENT_PRIVACY_VERSION`: string (e.g., '1.0.0')
+- `Trueears_CONSENT_APP_VERSION`: string (e.g., '0.2.0')
 
 **Rationale**: Uses proven secure store mechanism, consistent with existing settings pattern
 
@@ -127,7 +127,7 @@ frontend/tests/
 ```
 App Launch
     ↓
-Check SCRIBE_CONSENT_STATUS
+Check Trueears_CONSENT_STATUS
     ↓
 [null/needs update] → ConsentScreen (blocks)
     ↓

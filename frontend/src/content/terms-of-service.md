@@ -5,17 +5,17 @@
 
 ## 1. Acceptance of Terms
 
-By downloading, installing, or using Scribe ("the App"), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the App.
+By downloading, installing, or using Trueears ("the App"), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the App.
 
 ## 2. Description of Service
 
-Scribe is a desktop dictation application that converts your speech to text. The App uses your device's microphone to capture audio, which is then processed by third-party speech-to-text services.
+Trueears is a desktop dictation application that converts your speech to text. The App uses your device's microphone to capture audio, which is then processed by third-party speech-to-text services.
 
 ## 3. User Responsibilities
 
 You agree to:
 - Use the App only for lawful purposes
-- Not use the App to transcribe content that violates others' rights
+- Not use the App to tranTrueears content that violates others' rights
 - Provide your own API keys for speech-to-text services
 - Keep your API keys secure and confidential
 - Not attempt to reverse engineer or modify the App

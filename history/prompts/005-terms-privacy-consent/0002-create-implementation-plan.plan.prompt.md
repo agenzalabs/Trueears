@@ -35,7 +35,7 @@ Generated comprehensive implementation plan with:
 
 **Phase 0 - Research (research.md)**:
 - R1: Storage pattern - Use existing Tauri secure store
-- R2: First-run detection - Follow SCRIBE_ONBOARDING_COMPLETE pattern
+- R2: First-run detection - Follow Trueears_ONBOARDING_COMPLETE pattern
 - R3: Document bundling - Vite raw imports for markdown
 - R4: Version comparison - Semantic versioning with major-only re-consent
 - R5: UI patterns - Full-screen modal, theme-aware

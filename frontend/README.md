@@ -1,6 +1,6 @@
 # Frontend
 
-React TypeScript frontend for Scribe dictation application.
+React TypeScript frontend for Trueears dictation application.
 
 ## Tech Stack
 

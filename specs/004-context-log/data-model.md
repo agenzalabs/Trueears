@@ -15,7 +15,7 @@ The root configuration object for Log Mode, stored as a single JSON value in Tau
 | `triggerPhrases` | TriggerPhrase[] | Yes | List of voice triggers that activate Log Mode |
 | `appMappings` | AppLogMapping[] | Yes | App-to-file routing configuration |
 
-**Storage Key**: `SCRIBE_LOG_MODE_CONFIG`
+**Storage Key**: `Trueears_LOG_MODE_CONFIG`
 
 **Default Value**:
 ```json
@@ -80,7 +80,7 @@ A single log entry written to a file. This is not stored in settings; it's the o
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `timestamp` | string | Yes | Format: `YYYY-MM-DD HH:MM` (local time) |
-| `content` | string | Yes | The transcribed text (trigger phrase stripped) |
+| `content` | string | Yes | The tranTrueearsd text (trigger phrase stripped) |
 | `sourceApp` | string | No | App identifier that triggered this entry |
 
 **File Format**:
@@ -95,7 +95,7 @@ Each entry is a single line: `- [TIMESTAMP] CONTENT\n`
 
 ### 5. ActiveWindowInfo (Existing - Reused)
 
-Already defined in Scribe. Used for app matching.
+Already defined in Trueears. Used for app matching.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -134,7 +134,7 @@ User Settings UI
 LogModeSettings.tsx
        │
        ▼
-logModeService.ts ──► tauriAPI.setStoreValue('SCRIBE_LOG_MODE_CONFIG', config)
+logModeService.ts ──► tauriAPI.setStoreValue('Trueears_LOG_MODE_CONFIG', config)
        │
        ▼
 Tauri Store (settings.json)
@@ -205,7 +205,7 @@ function detectTrigger(text: string): { trigger: TriggerPhrase; content: string 
 ## Migration Strategy
 
 ### From Empty State
-- On first load, if `SCRIBE_LOG_MODE_CONFIG` is not set, initialize with default config
+- On first load, if `Trueears_LOG_MODE_CONFIG` is not set, initialize with default config
 - Default includes 3 trigger phrases, no app mappings
 
 ### Future Schema Changes

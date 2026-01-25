@@ -1,6 +1,6 @@
-# Contributing to Scribe
+# Contributing to Trueears
 
-Thank you for your interest in contributing to Scribe! This guide will help you get started.
+Thank you for your interest in contributing to Trueears! This guide will help you get started.
 
 ## Quick Links
 
@@ -26,7 +26,7 @@ Thank you for your interest in contributing to Scribe! This guide will help you 
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd scribe
+cd Trueears
 
 # Install dependencies
 npm install
@@ -71,7 +71,7 @@ export function useAudioRecorder() {
 ```rust
 // Good
 #[tauri::command]
-async fn transcribe_audio(audio_data: Vec<u8>) -> Result<String, String> {
+async fn tranTrueears_audio(audio_data: Vec<u8>) -> Result<String, String> {
     if audio_data.is_empty() {
         return Err("Empty audio data".to_string());
     }
@@ -80,7 +80,7 @@ async fn transcribe_audio(audio_data: Vec<u8>) -> Result<String, String> {
 
 // Avoid
 #[tauri::command]
-fn transcribe_audio(audio_data: Vec<u8>) -> String {
+fn tranTrueears_audio(audio_data: Vec<u8>) -> String {
     assert!(!audio_data.is_empty()); // Will panic!
     // ...
 }
@@ -183,7 +183,7 @@ Include in your PR description:
 
 Include:
 
-1. **Scribe version** (`Settings > About`)
+1. **Trueears version** (`Settings > About`)
 2. **Operating system** and version
 3. **Steps to reproduce**
 4. **Expected vs actual behavior**
@@ -204,7 +204,7 @@ Include:
 ## Project Structure
 
 ```
-scribe/
+Trueears/
 ├── frontend/           # React TypeScript UI
 │   ├── src/
 │   │   ├── components/ # UI components
@@ -229,7 +229,7 @@ scribe/
 
 ## Spec-Driven Development
 
-Scribe follows a spec-driven development workflow:
+Trueears follows a spec-driven development workflow:
 
 1. **Specification** (`specs/<feature>/spec.md`) - Define requirements
 2. **Plan** (`specs/<feature>/plan.md`) - Architecture decisions

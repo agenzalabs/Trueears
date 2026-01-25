@@ -5,7 +5,7 @@
 
 ## Summary
 
-Add cancel recording functionality allowing users to abort an ongoing recording by pressing Escape. The recording is discarded without transcription, the overlay displays a distinct "cancelled" status (amber/yellow), and a unique cancellation sound plays. This addresses the current behavior where Escape triggers `handleStopRecording()` which still processes and transcribes the audio.
+Add cancel recording functionality allowing users to abort an ongoing recording by pressing Escape. The recording is discarded without transcription, the overlay displays a distinct "cancelled" status (amber/yellow), and a unique cancellation sound plays. This addresses the current behavior where Escape triggers `handleStopRecording()` which still processes and tranTrueearss the audio.
 
 ## Technical Context
 

@@ -1,4 +1,4 @@
-//! OAuth authentication module for Scribe
+//! OAuth authentication module for Trueears
 //! Handles Google OAuth flow, token storage, and API communication
 
 use serde::{Deserialize, Serialize};
@@ -76,7 +76,7 @@ fn get_auth_file_path() -> Option<PathBuf> {
     {
         if let Some(app_data) = std::env::var_os("APPDATA") {
             let path = PathBuf::from(&app_data)
-                .join("com.scribe")
+                .join("com.Trueears")
                 .join(AUTH_FILE_NAME);
             // Ensure directory exists
             if let Some(parent) = path.parent() {
@@ -89,7 +89,7 @@ fn get_auth_file_path() -> Option<PathBuf> {
     #[cfg(not(target_os = "windows"))]
     {
         if let Some(home) = std::env::var_os("HOME") {
-            let path = PathBuf::from(home).join(".scribe").join(AUTH_FILE_NAME);
+            let path = PathBuf::from(home).join(".Trueears").join(AUTH_FILE_NAME);
             if let Some(parent) = path.parent() {
                 let _ = fs::create_dir_all(parent);
             }
@@ -100,13 +100,13 @@ fn get_auth_file_path() -> Option<PathBuf> {
     None
 }
 
-/// Migrate legacy auth storage from the old `scribe` folder into `com.scribe`
+/// Migrate legacy auth storage from the old `Trueears` folder into `com.Trueears`
 pub fn migrate_legacy_auth_file() {
     #[cfg(target_os = "windows")]
     {
         if let Some(app_data) = std::env::var_os("APPDATA") {
-            let legacy_path = PathBuf::from(&app_data).join("scribe").join(AUTH_FILE_NAME);
-            let new_dir = PathBuf::from(&app_data).join("com.scribe");
+            let legacy_path = PathBuf::from(&app_data).join("Trueears").join(AUTH_FILE_NAME);
+            let new_dir = PathBuf::from(&app_data).join("com.Trueears");
             let new_path = new_dir.join(AUTH_FILE_NAME);
             if legacy_path.exists() {
                 let _ = fs::create_dir_all(&new_dir);
@@ -305,12 +305,12 @@ fn run_callback_server<R: tauri::Runtime>(
                 if let Some(code) = extract_code_from_url(&url) {
                     log::info!("Authorization code received");
 
-                    // Send success response to browser with Scribe branding
+                    // Send success response to browser with Trueears branding
                     let response = tiny_http::Response::from_string(
                         r#"<!DOCTYPE html>
 <html>
 <head>
-    <title>Scribe - Authentication Successful</title>
+    <title>Trueears - Authentication Successful</title>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -427,7 +427,7 @@ fn run_callback_server<R: tauri::Runtime>(
             </svg>
         </div>
         <div class="badge">AUTHENTICATION COMPLETE</div>
-        <h1>Welcome to <span>Scribe</span></h1>
+        <h1>Welcome to <span>Trueears</span></h1>
         <p>Your account is now connected. You're all set to use voice dictation with AI-powered formatting.</p>
         <div class="features">
             <div class="feature">
@@ -449,7 +449,7 @@ fn run_callback_server<R: tauri::Runtime>(
                 Priority support access
             </div>
         </div>
-        <p class="close-msg">You can close this window and return to Scribe.</p>
+        <p class="close-msg">You can close this window and return to Trueears.</p>
     </div>
     <script>
         const colors = ['#3b82f6', '#ef4444', '#eab308', '#10b981'];

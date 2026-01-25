@@ -1,18 +1,18 @@
 # Frequently Asked Questions
 
-Quick answers to common questions about Scribe.
+Quick answers to common questions about Trueears.
 
 ---
 
 ## General
 
-### What is Scribe?
+### What is Trueears?
 
-Scribe is a minimalist, context-aware AI voice dictation application. It transforms speech into intelligently formatted text based on the active application (VS Code, Slack, Outlook, etc.).
+Trueears is a minimalist, context-aware AI voice dictation application. It transforms speech into intelligently formatted text based on the active application (VS Code, Slack, Outlook, etc.).
 
 ### How much does it cost?
 
-Scribe itself is free and open source. You only pay for API usage:
+Trueears itself is free and open source. You only pay for API usage:
 - **Groq API**: Free tier available with generous limits
 - **LLM Post-Processing**: Uses Groq's free chat models
 
@@ -26,7 +26,7 @@ Scribe itself is free and open source. You only pay for API usage:
 
 ## Privacy & Security
 
-### Does Scribe store my audio?
+### Does Trueears store my audio?
 
 No. Audio is:
 1. Recorded locally in memory
@@ -41,9 +41,9 @@ API keys are stored in Tauri's secure store plugin, which uses the operating sys
 
 ### Is my voice data sent anywhere besides Groq?
 
-No. Voice data is only sent to Groq's Whisper API for transcription. If you enable LLM post-processing, the transcribed *text* (not audio) is sent to Groq's chat API for formatting.
+No. Voice data is only sent to Groq's Whisper API for transcription. If you enable LLM post-processing, the tranTrueearsd *text* (not audio) is sent to Groq's chat API for formatting.
 
-### Can I use Scribe offline?
+### Can I use Trueears offline?
 
 Transcription requires internet access (Groq API). Local/offline model support is planned for future versions.
 
@@ -71,7 +71,7 @@ Select-to-Transform lets you transform existing text with voice:
 
 Log Mode lets you quickly save voice notes to markdown files:
 1. Say "Log" followed by your note (e.g., "Log fix the login button")
-2. Scribe saves it to an app-specific log file with a timestamp
+2. Trueears saves it to an app-specific log file with a timestamp
 
 ### Can I customize app profiles?
 
@@ -122,11 +122,11 @@ This provides the best balance of speed and accuracy.
 
 ### How do global hotkeys work?
 
-Scribe registers system-wide hotkeys using Tauri's global-shortcut plugin:
+Trueears registers system-wide hotkeys using Tauri's global-shortcut plugin:
 - `Ctrl+Shift+K`: Start/stop recording
 - `Ctrl+Shift+S`: Open settings
 
-These work even when Scribe isn't focused.
+These work even when Trueears isn't focused.
 
 ---
 
@@ -156,7 +156,7 @@ See [CONTRIBUTING.md](../../CONTRIBUTING.md) for:
 ### Where do I report bugs?
 
 Open an issue on GitHub with:
-- Scribe version
+- Trueears version
 - Operating system
 - Steps to reproduce
 - Console errors (F12)

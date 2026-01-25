@@ -1,4 +1,4 @@
-# Scribe
+# Trueears
 
 A minimalist, context-aware AI voice dictation application built with Tauri, React, and Rust. Uses Groq's Whisper models for fast speech-to-text and LLM-powered post-processing to format your words intelligently based on the active application.
 
@@ -12,7 +12,7 @@ A minimalist, context-aware AI voice dictation application built with Tauri, Rea
 - **Context-Aware Formatting** - Detects active window and applies app-specific formatting
 - **Select-to-Transform** - Select text, speak a transformation ("make it professional"), auto-replace
 - **LLM Post-Processing** - Optional GPT-powered formatting (not responding, just formatting)
-- **Auto-Paste** - Transcribed text automatically pastes into active application
+- **Auto-Paste** - TranTrueearsd text automatically pastes into active application
 - **Minimalist Overlay** - Non-intrusive floating UI with recording status
 
 ## Quick Start
@@ -21,7 +21,7 @@ A minimalist, context-aware AI voice dictation application built with Tauri, Rea
 # Prerequisites: Node.js v18+, Rust, Groq API Key
 
 git clone <repository-url>
-cd scribe
+cd Trueears
 npm install
 npm run dev
 ```
@@ -77,7 +77,7 @@ Customize in Settings > App Profiles.
 ## Project Structure
 
 ```
-scribe/
+Trueears/
 ├── frontend/       # React UI
 ├── backend/        # Tauri Rust backend
 ├── auth-server/    # OAuth authentication server

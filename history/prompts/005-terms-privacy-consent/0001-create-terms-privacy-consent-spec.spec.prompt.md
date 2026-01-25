@@ -27,7 +27,7 @@ tests:
 User initially asked about whether apps have terms of service and privacy policy on installation. After research showing that:
 1. Microsoft Store requires privacy policy if collecting personal data
 2. GDPR, CalOPPA, PIPEDA regulations apply globally
-3. Scribe collects sensitive data (microphone, clipboard, window info, sends audio to Groq)
+3. Trueears collects sensitive data (microphone, clipboard, window info, sends audio to Groq)
 
 User requested: "go ahead and do whatever is best for us all" - triggering the /sp.specify workflow to create a formal feature specification for Terms of Service and Privacy Policy with first-run consent flow.
 

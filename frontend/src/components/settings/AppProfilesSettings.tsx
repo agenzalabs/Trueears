@@ -784,7 +784,7 @@ export const AppProfilesSettings: React.FC<AppProfilesSettingsProps> = ({ theme 
 
   // Keep UI in sync when profiles change (including changes from another window)
   useEffect(() => {
-    const unsubscribe = AppProfileService.subscribe(() => {
+    const unsubTrueears = AppProfileService.subTrueears(() => {
       loadProfiles();
     });
     // Also listen for backend store updates (cross-window)
@@ -794,7 +794,7 @@ export const AppProfilesSettings: React.FC<AppProfilesSettingsProps> = ({ theme 
     }).then(u => { unlisten = u; }).catch(() => {});
 
     return () => {
-      unsubscribe();
+      unsubTrueears();
       unlisten?.();
     };
   }, []);

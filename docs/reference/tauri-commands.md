@@ -1,6 +1,6 @@
 # Tauri Commands Reference
 
-This document describes all Tauri commands exposed from the Rust backend to the frontend.
+This document deTrueearss all Tauri commands exposed from the Rust backend to the frontend.
 
 ## Overview
 
@@ -132,7 +132,7 @@ await invoke('open_settings_window');
 
 ### `transcription_complete`
 
-Pastes transcribed text into the active application.
+Pastes tranTrueearsd text into the active application.
 
 ```typescript
 await invoke('transcription_complete', { text: 'Hello world!' });
@@ -299,7 +299,7 @@ Appends a timestamped entry to a log file.
 
 ```typescript
 await invoke('append_to_file', {
-  path: 'C:/Users/name/Documents/Scribe/vscode-log.md',
+  path: 'C:/Users/name/Documents/Trueears/vscode-log.md',
   content: 'Fix the authentication bug'
 });
 ```
@@ -325,7 +325,7 @@ interface PathValidation {
 }
 
 const result = await invoke<PathValidation>('validate_log_path', {
-  path: 'C:/Users/name/Documents/Scribe/log.md'
+  path: 'C:/Users/name/Documents/Trueears/log.md'
 });
 ```
 
@@ -342,7 +342,7 @@ Returns the default directory for log files.
 
 ```typescript
 const dir = await invoke<string>('get_default_log_directory');
-// Returns: "C:/Users/name/Documents/Scribe"
+// Returns: "C:/Users/name/Documents/Trueears"
 ```
 
 ---
@@ -352,7 +352,7 @@ const dir = await invoke<string>('get_default_log_directory');
 Opens a log file in the default application.
 
 ```typescript
-await invoke('open_log_file', { path: 'C:/Users/name/Documents/Scribe/log.md' });
+await invoke('open_log_file', { path: 'C:/Users/name/Documents/Trueears/log.md' });
 ```
 
 ---

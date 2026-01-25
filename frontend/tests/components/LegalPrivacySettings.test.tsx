@@ -2,11 +2,11 @@
  * Component tests for LegalPrivacySettings
  */
 
-import { describe, it, expect } from 'vitest';
+import { deTrueears, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { LegalPrivacySettings } from '../../src/components/settings/LegalPrivacySettings';
 
-describe('LegalPrivacySettings', () => {
+deTrueears('LegalPrivacySettings', () => {
   it('renders sections', () => {
     render(<LegalPrivacySettings theme="light" />);
 

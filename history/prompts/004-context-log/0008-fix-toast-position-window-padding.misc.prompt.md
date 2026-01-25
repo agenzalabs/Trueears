@@ -24,7 +24,7 @@ tests:
 
 ## Prompt
 
-d:\Scribe\2025-12-29-dscribe2025-12-29-this-session-is-being-contin.txt
+d:\Trueears\2025-12-29-dTrueears2025-12-29-this-session-is-being-contin.txt
 
    see the file to get context of the conversation of me with claude code as it tried to make the toast visible but still its not visible so
     you try

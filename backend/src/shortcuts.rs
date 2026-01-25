@@ -37,7 +37,7 @@ pub fn register_shortcuts(app: &AppHandle) -> Result<(), Box<dyn std::error::Err
     }
 
     // NOTE: Escape shortcut is NOT registered at startup to avoid interfering with other apps.
-    // It is registered dynamically when the Scribe overlay becomes visible and
+    // It is registered dynamically when the Trueears overlay becomes visible and
     // unregistered when the overlay is hidden. See register_escape_shortcut() and unregister_escape_shortcut().
 
     log::info!("Global shortcuts registered successfully");
@@ -67,7 +67,7 @@ fn register_recording_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error
                 }
 
                 // IMPORTANT: Copy selected text IMMEDIATELY before any window operations
-                // This must happen before focus shifts to the Scribe window
+                // This must happen before focus shifts to the Trueears window
                 let selected_text = match copy_selected_text() {
                     Ok(text) => {
                         if let Some(ref t) = text {
@@ -90,7 +90,7 @@ fn register_recording_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error
                 // Check by window title to avoid focus detection issues with global hotkeys
                 let is_in_settings = window_info
                     .as_ref()
-                    .map(|info| info.window_title.contains("Scribe Settings"))
+                    .map(|info| info.window_title.contains("Trueears Settings"))
                     .unwrap_or(false);
 
                 if let Some(settings_window) = app_handle.get_webview_window("settings") {
@@ -189,7 +189,7 @@ fn register_settings_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error:
 }
 
 /// Dynamically register the Escape shortcut.
-/// Called when the Scribe overlay becomes visible to allow global Escape to cancel recording.
+/// Called when the Trueears overlay becomes visible to allow global Escape to cancel recording.
 pub fn register_escape_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let escape_shortcut = get_escape_shortcut();
 
@@ -219,7 +219,7 @@ pub fn register_escape_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::erro
 }
 
 /// Dynamically unregister the Escape shortcut.
-/// Called when the Scribe overlay is hidden to allow other apps to use Escape normally.
+/// Called when the Trueears overlay is hidden to allow other apps to use Escape normally.
 pub fn unregister_escape_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let escape_shortcut = get_escape_shortcut();
 

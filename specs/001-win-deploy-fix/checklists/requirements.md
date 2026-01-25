@@ -2,7 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2025-12-26
-**Feature**: [001-win-deploy-fix/spec.md](D:/Scribe/specs/001-win-deploy-fix/spec.md)
+**Feature**: [001-win-deploy-fix/spec.md](D:/Trueears/specs/001-win-deploy-fix/spec.md)
 
 ## Content Quality
 

@@ -19,8 +19,8 @@ links:
   adr: null
   pr: null
 files_yaml:
-  - "D:\\Scribe\\windo.md"
-  - "D:\\Scribe\\backend\\tauri.conf.json"
+  - "D:\\Trueears\\windo.md"
+  - "D:\\Trueears\\backend\\tauri.conf.json"
 tests_yaml: []
 prompt_text: |
   see this @windo.md  and tell me what do you think?

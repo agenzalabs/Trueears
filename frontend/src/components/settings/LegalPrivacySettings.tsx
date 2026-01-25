@@ -57,12 +57,12 @@ export const LegalPrivacySettings: React.FC<LegalPrivacySettingsProps> = ({ them
           {expandedSection === 'terms' && (
             <div className={`px-4 pb-4 pt-0 border-t ${isDark ? 'border-[#333]' : 'border-gray-200'}`}>
               <div className={`mt-4 text-sm space-y-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                <p>By downloading, installing, or using Scribe, you agree to be bound by these Terms of Service.</p>
+                <p>By downloading, installing, or using Trueears, you agree to be bound by these Terms of Service.</p>
 
                 <h4 className={`font-medium ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>User Responsibilities</h4>
                 <ul className="list-disc pl-5 space-y-1">
                   <li>Use the App only for lawful purposes</li>
-                  <li>Not use the App to transcribe content that violates others' rights</li>
+                  <li>Not use the App to tranTrueears content that violates others' rights</li>
                   <li>Provide your own API keys for speech-to-text services</li>
                   <li>Keep your API keys secure and confidential</li>
                 </ul>
@@ -111,7 +111,7 @@ export const LegalPrivacySettings: React.FC<LegalPrivacySettingsProps> = ({ them
           {expandedSection === 'privacy' && (
             <div className={`px-4 pb-4 pt-0 border-t ${isDark ? 'border-[#333]' : 'border-gray-200'}`}>
               <div className={`mt-4 text-sm space-y-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                <p>Scribe is committed to protecting your privacy. This policy explains what information we collect and how we use it.</p>
+                <p>Trueears is committed to protecting your privacy. This policy explains what information we collect and how we use it.</p>
 
                 <h4 className={`font-medium ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>Third-Party Services</h4>
                 <p>Your audio is sent to third-party services (like Groq) for transcription. Please review their privacy policies.</p>

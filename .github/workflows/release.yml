@@ -43,7 +43,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'Scribe v__VERSION__'
+          releaseName: 'Trueears v__VERSION__'
           releaseBody: |
             ## What's New in v0.2.0
 
@@ -74,7 +74,7 @@ jobs:
             - **Windows (.msi)**: Recommended for most users
             - **Windows (.exe)**: NSIS installer alternative
 
-            **[Full Changelog](https://github.com/devv-shayan/Scribe/blob/main/CHANGELOG.md)**
+            **[Full Changelog](https://github.com/devv-shayan/Trueears/blob/main/CHANGELOG.md)**
           releaseDraft: false
           prerelease: false
           projectPath: './backend'

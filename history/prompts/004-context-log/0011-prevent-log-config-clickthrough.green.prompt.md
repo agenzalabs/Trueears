@@ -27,7 +27,7 @@ tests:
 ## Prompt
 
 <system-reminder>
-The user opened the file d:\Scribe\frontend\src\components\RecorderOverlay.tsx in the IDE.
+The user opened the file d:\Trueears\frontend\src\components\RecorderOverlay.tsx in the IDE.
 This may or may not be related to the current task.
 </system-reminder>go for 1 first
 

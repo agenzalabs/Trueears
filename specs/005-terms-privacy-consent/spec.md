@@ -7,7 +7,7 @@
 
 ## Overview
 
-Scribe collects sensitive user data including microphone audio, clipboard content, and active window information. To comply with privacy regulations (GDPR, CalOPPA, PIPEDA) and establish clear user expectations, this feature introduces:
+Trueears collects sensitive user data including microphone audio, clipboard content, and active window information. To comply with privacy regulations (GDPR, CalOPPA, PIPEDA) and establish clear user expectations, this feature introduces:
 
 1. **Installer-based consent**: Users accept Terms of Service and Privacy Policy during Windows installation (NSIS license page)
 2. **In-app access**: Users can view legal documents and data controls anytime from Settings > Legal & Privacy tab
@@ -18,7 +18,7 @@ Scribe collects sensitive user data including microphone audio, clipboard conten
 
 ### User Story 1 - Installer Consent (Priority: P1)
 
-As a new user installing Scribe, I want to review and accept the Terms of Service and Privacy Policy during installation, so that I can make an informed decision before the app is installed.
+As a new user installing Trueears, I want to review and accept the Terms of Service and Privacy Policy during installation, so that I can make an informed decision before the app is installed.
 
 **Why this priority**: This is the core legal compliance requirement. Consent at install time ensures users agree before any data collection is possible.
 
@@ -26,10 +26,10 @@ As a new user installing Scribe, I want to review and accept the Terms of Servic
 
 **Acceptance Scenarios**:
 
-1. **Given** a user runs the Scribe installer, **When** the installation wizard reaches the consent step, **Then** the Terms of Service and Privacy Policy are displayed with checkboxes or explicit accept buttons
+1. **Given** a user runs the Trueears installer, **When** the installation wizard reaches the consent step, **Then** the Terms of Service and Privacy Policy are displayed with checkboxes or explicit accept buttons
 2. **Given** the consent step is displayed, **When** the user accepts the terms, **Then** installation proceeds normally
 3. **Given** the consent step is displayed, **When** the user declines or cancels, **Then** the installation is aborted with a message explaining consent is required
-4. **Given** a user upgrades Scribe, **When** the terms have not changed, **Then** no re-consent is required during upgrade
+4. **Given** a user upgrades Trueears, **When** the terms have not changed, **Then** no re-consent is required during upgrade
 
 ---
 
@@ -46,7 +46,7 @@ As an existing user, I want to review the Terms of Service, Privacy Policy, and 
 1. **Given** the user is in the Settings screen, **When** the user navigates to the "Legal & Privacy" tab, **Then** links/sections for Terms of Service, Privacy Policy, and Data Controls are visible
 2. **Given** the user clicks on "Terms of Service", **When** the document opens, **Then** the full legal text is displayed in a readable format (in-app or external link)
 3. **Given** the user clicks on "Privacy Policy", **When** the document opens, **Then** the full legal text is displayed with clear data collection explanations
-4. **Given** the user views "Data Controls", **When** the section loads, **Then** they see what data Scribe collects and any available controls
+4. **Given** the user views "Data Controls", **When** the section loads, **Then** they see what data Trueears collects and any available controls
 5. **Given** the user views "Data Controls", **When** the header is visible, **Then** a "Last updated" date is shown
 
 ---

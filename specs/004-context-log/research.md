@@ -27,7 +27,7 @@
 
 ### 2. Settings Storage Pattern
 
-**Decision**: Use existing **Tauri Store** pattern with key `SCRIBE_LOG_MODE_CONFIG`.
+**Decision**: Use existing **Tauri Store** pattern with key `Trueears_LOG_MODE_CONFIG`.
 
 **Rationale**:
 - Consistent with App Profiles storage pattern
@@ -70,7 +70,7 @@ interface AppLogMapping {
 **Decision**: Add new Tauri command `append_to_file` in backend with path validation.
 
 **Rationale**:
-- No existing file write capability in Scribe backend
+- No existing file write capability in Trueears backend
 - Rust's `std::fs` is sufficient, no external crates needed
 - Must be async to avoid blocking the main thread
 - Path validation required for security (prevent directory traversal)
