@@ -17,6 +17,8 @@ interface TranscriptionSettingsProps {
   saveLanguage: (lang: string) => void;
   saveAutoDetectLanguage: (enabled: boolean) => void;
   theme: 'light' | 'dark';
+  microphoneId: string;
+  saveMicrophoneId: (id: string) => void;
 }
 
 export const TranscriptionSettings: React.FC<TranscriptionSettingsProps> = ({
@@ -31,10 +33,13 @@ export const TranscriptionSettings: React.FC<TranscriptionSettingsProps> = ({
   saveLanguage,
   saveAutoDetectLanguage,
   theme,
+  microphoneId,
+  saveMicrophoneId,
 }) => {
   const isDark = theme === 'dark';
   const [apiKey, setApiKey] = useState(initialApiKey || '');
   const [model, setModel] = useState(initialModel || GROQ_MODELS[0]);
+  const [micInput, setMicInput] = useState(microphoneId || 'default');
   const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showBanner, setShowBanner] = useState(!onboardingComplete);
@@ -42,14 +47,62 @@ export const TranscriptionSettings: React.FC<TranscriptionSettingsProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [tempSelected, setTempSelected] = useState<string>(initialLanguage || 'en');
   const [tempAutoDetect, setTempAutoDetect] = useState(initialAutoDetect || false);
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
+  const [defaultLabel, setDefaultLabel] = useState('Default System Microphone');
+
+  // Load audio devices
+  useEffect(() => {
+    const loadDevices = async () => {
+      try {
+        const devs = await navigator.mediaDevices.enumerateDevices();
+        const defaultDev = devs.find(d => d.deviceId === 'default');
+
+        // Filter out "default" AND any physical device that is currently the default
+        // (to avoid showing "Default - Mic X" and "Mic X" simultaneously)
+        const inputs = devs.filter(d => {
+          if (d.kind !== 'audioinput') return false;
+          if (d.deviceId === 'default') return false;
+          // If this device's label matches the default device's label (minus "Default - " etc), hide it
+          if (defaultDev && defaultDev.label && defaultDev.label.includes(d.label)) {
+            return false;
+          }
+          return true;
+        });
+
+        if (defaultDev && defaultDev.label) {
+          setDefaultLabel(defaultDev.label);
+        }
+
+        setAudioDevices(inputs);
+
+        // If current selection is invalid, revert to default
+        if (microphoneId !== 'default' && !inputs.some(d => d.deviceId === microphoneId)) {
+          setMicInput('default');
+        } else {
+          setMicInput(microphoneId || 'default');
+        }
+      } catch (e) {
+        console.error('Failed to load audio devices:', e);
+      }
+    };
+    loadDevices();
+    navigator.mediaDevices.addEventListener('devicechange', loadDevices);
+    return () => navigator.mediaDevices.removeEventListener('devicechange', loadDevices);
+  }, [microphoneId]);
+
+  const handleMicChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newId = e.target.value;
+    setMicInput(newId);
+    saveMicrophoneId(newId); // Save immediately
+  };
 
   const selectedLang = getLanguageByCode(initialLanguage || 'en');
-  
+
   const filteredLanguages = useMemo(() => {
     if (!searchQuery.trim()) return WHISPER_LANGUAGES;
     const query = searchQuery.toLowerCase();
-    return WHISPER_LANGUAGES.filter(lang => 
-      lang.name.toLowerCase().includes(query) || 
+    return WHISPER_LANGUAGES.filter(lang =>
+      lang.name.toLowerCase().includes(query) ||
       lang.code.toLowerCase().includes(query)
     );
   }, [searchQuery]);
@@ -166,6 +219,33 @@ export const TranscriptionSettings: React.FC<TranscriptionSettingsProps> = ({
           </p>
         </div>
 
+        {/* Microphone Input */}
+        <div className="flex flex-col gap-2">
+          <label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Microphone</label>
+          <div className="relative">
+            <select
+              value={micInput}
+              onChange={handleMicChange}
+              className={`w-full border rounded-lg px-4 py-3 pr-12 text-sm focus:outline-none transition-colors font-mono appearance-none cursor-pointer ${isDark ? 'bg-[#1a1a1a] border-[#333] text-gray-200 focus:border-[#444]' : 'bg-white border-gray-300 text-gray-800 focus:border-gray-400'}`}
+            >
+              <option value="default">{defaultLabel}</option>
+              {audioDevices.map((device) => (
+                <option key={device.deviceId} value={device.deviceId}>
+                  {device.label || `Microphone ${device.deviceId.slice(0, 4)}...`}
+                </option>
+              ))}
+            </select>
+            <div className={`absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
+          <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            Select which microphone Trueears should listen to
+          </p>
+        </div>
+
         {/* Language Selection */}
         <div className="flex flex-col gap-2">
           <label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Transcription Language</label>
@@ -194,11 +274,10 @@ export const TranscriptionSettings: React.FC<TranscriptionSettingsProps> = ({
         {/* Save Button */}
         <button
           onClick={handleSave}
-          className={`w-full py-3 rounded-lg font-medium transition-colors cursor-pointer border ${
-            saved
-              ? 'bg-emerald-500 text-gray-800 border-emerald-600'
-              : isDark ? 'bg-[#1a1a1a] text-gray-200 hover:bg-[#252525] border-[#333] hover:border-[#444]' : 'bg-white text-gray-900 hover:bg-gray-50 border-gray-300 hover:border-gray-400'
-          }`}
+          className={`w-full py-3 rounded-lg font-medium transition-colors cursor-pointer border ${saved
+            ? 'bg-emerald-500 text-gray-800 border-emerald-600'
+            : isDark ? 'bg-[#1a1a1a] text-gray-200 hover:bg-[#252525] border-[#333] hover:border-[#444]' : 'bg-white text-gray-900 hover:bg-gray-50 border-gray-300 hover:border-gray-400'
+            }`}
         >
           {saved ? '✓ Saved!' : 'Save Transcription Settings'}
         </button>
@@ -218,13 +297,11 @@ export const TranscriptionSettings: React.FC<TranscriptionSettingsProps> = ({
                 <span className="text-sm text-gray-400">Auto-detect</span>
                 <button
                   onClick={() => setTempAutoDetect(!tempAutoDetect)}
-                  className={`w-12 h-6 rounded-full transition-colors duration-200 cursor-pointer ${
-                    tempAutoDetect ? 'bg-emerald-500' : isDark ? 'bg-[#333]' : 'bg-gray-200'
-                  }`}
+                  className={`w-12 h-6 rounded-full transition-colors duration-200 cursor-pointer ${tempAutoDetect ? 'bg-emerald-500' : isDark ? 'bg-[#333]' : 'bg-gray-200'
+                    }`}
                 >
-                  <div className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-200 ${
-                    tempAutoDetect ? 'translate-x-6' : 'translate-x-0.5'
-                  }`} />
+                  <div className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-200 ${tempAutoDetect ? 'translate-x-6' : 'translate-x-0.5'
+                    }`} />
                 </button>
               </div>
             </div>
@@ -254,11 +331,10 @@ export const TranscriptionSettings: React.FC<TranscriptionSettingsProps> = ({
                       <button
                         key={lang.code}
                         onClick={() => handleSelectLanguage(lang.code)}
-                        className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-left transition-all duration-200 cursor-pointer ${
-                          isSelected 
-                            ? isDark ? 'bg-emerald-500/20 border border-emerald-500/50 text-gray-100' : 'bg-emerald-500/20 border border-emerald-500/50 text-gray-800'
-                            : isDark ? 'bg-transparent border border-transparent hover:bg-[#252525] text-gray-400' : 'bg-transparent border border-transparent hover:bg-gray-50 text-gray-600'
-                        }`}
+                        className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-left transition-all duration-200 cursor-pointer ${isSelected
+                          ? isDark ? 'bg-emerald-500/20 border border-emerald-500/50 text-gray-100' : 'bg-emerald-500/20 border border-emerald-500/50 text-gray-800'
+                          : isDark ? 'bg-transparent border border-transparent hover:bg-[#252525] text-gray-400' : 'bg-transparent border border-transparent hover:bg-gray-50 text-gray-600'
+                          }`}
                       >
                         <span className={`fi fi-${lang.countryCode.toLowerCase()}`}></span>
                         <span className="text-sm truncate">{lang.name}</span>

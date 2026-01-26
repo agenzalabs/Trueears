@@ -3,11 +3,11 @@ import { useState, useRef, useCallback } from 'react';
 export const useAudioRecorder = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
-  
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
-  const startRecording = async () => {
+  const startRecording = async (deviceId?: string) => {
     console.log('[useAudioRecorder] startRecording called');
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
@@ -26,7 +26,12 @@ export const useAudioRecorder = () => {
       }
 
       const MIC_REQUEST_TIMEOUT_MS = 10_000;
-      const streamPromise = navigator.mediaDevices.getUserMedia({ audio: true });
+      const constraints: MediaStreamConstraints = {
+        audio: deviceId && deviceId !== 'default'
+          ? { deviceId: { exact: deviceId } }
+          : true
+      };
+      const streamPromise = navigator.mediaDevices.getUserMedia(constraints);
 
       const result = await Promise.race([
         streamPromise.then((stream) => ({ kind: 'stream' as const, stream })),
