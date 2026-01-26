@@ -22,13 +22,13 @@ export const useDictation = () => {
   const [pendingLogContent, setPendingLogContent] = useState<string | null>(null);
   const [pendingLogApp, setPendingLogApp] = useState<{ identifier: string; displayName: string } | null>(null);
 
-  const startDictation = async (windowInfo?: ActiveWindowInfo | null, preSelectedText?: string | null) => {
+  const startDictation = async (windowInfo?: ActiveWindowInfo | null, preSelectedText?: string | null, microphoneId?: string) => {
     debug.log('[useDictation] startDictation called with window info:', windowInfo, 'selected text:', preSelectedText ? `${preSelectedText.length} chars` : 'none');
     try {
       if (windowInfo) {
         setActiveWindowInfo(windowInfo);
       }
-      
+
       // Use the pre-copied selected text passed from backend (copied before focus changed)
       if (preSelectedText && preSelectedText.trim().length > 0) {
         setMode('transform');
@@ -39,8 +39,8 @@ export const useDictation = () => {
         setSelectedText(null);
         debug.log('[useDictation] Dictation mode - no text selected');
       }
-      
-      await startRecording();
+
+      await startRecording(microphoneId);
       setStatus('recording');
       debug.log('[useDictation] Status set to recording');
     } catch (error) {
@@ -61,18 +61,18 @@ export const useDictation = () => {
     language?: string
   ) => {
     debug.log('[useDictation] stopDictation called with llmEnabled:', llmEnabled, 'mode:', mode);
-    
+
     if (!isRecording) {
       console.warn('[useDictation] Not recording, ignoring stop request');
       return;
     }
-    
+
     // If already processing, ignore this call
     if (isProcessingRef.current) {
       console.warn('[useDictation] Already processing a transcription, ignoring stop request');
       return;
     }
-    
+
     isProcessingRef.current = true;
     setStatus('processing');
     debug.log('[useDictation] Status set to processing');
@@ -91,7 +91,7 @@ export const useDictation = () => {
     try {
       const audioBlob = await stopRecording();
       debug.log('[useDictation] Audio blob size:', audioBlob.size);
-      
+
       if (audioBlob.size === 0) {
         throw new Error("No audio captured");
       }
@@ -182,14 +182,14 @@ export const useDictation = () => {
         try {
           const effectiveLlmKey = llmApiKey || apiKey;
           const effectiveLlmModel = llmModel || 'openai/gpt-oss-120b';
-          
+
           const transformed = await transformSelectedText(
             selectedText,
             rawText, // The spoken instruction
             effectiveLlmKey,
             effectiveLlmModel
           );
-          
+
           if (transformed && transformed.trim().length > 0) {
             finalText = transformed;
             debug.log('[useDictation] Transformed text:', finalText);

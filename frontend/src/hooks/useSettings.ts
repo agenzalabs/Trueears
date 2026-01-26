@@ -20,25 +20,28 @@ export const useSettings = () => {
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState(DEFAULT_GROQ_MODEL);
   const [isKeyLoaded, setIsKeyLoaded] = useState(false);
-  
+
   // LLM post-processing settings
   const [llmEnabled, setLlmEnabled] = useState(false);
   const [llmApiKey, setLlmApiKey] = useState('');
   const [llmModel, setLlmModel] = useState(DEFAULT_LLM_MODEL);
   const [defaultSystemPrompt, setDefaultSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
-  
+
   // Language settings
   const [language, setLanguage] = useState<string>('en');
   const [autoDetectLanguage, setAutoDetectLanguage] = useState(false);
-  
+
   // Onboarding state - default to false so banner shows until we confirm it's complete
   const [onboardingComplete, setOnboardingComplete] = useState(false);
-  
+
   // Theme state - default to 'light'
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  
+
   // Recording mode state - 'auto' | 'toggle' | 'push-to-talk'
   const [recordingMode, setRecordingMode] = useState<'auto' | 'toggle' | 'push-to-talk'>('auto');
+
+  // Microphone state
+  const [microphoneId, setMicrophoneId] = useState<string>('default');
 
   const loadKeys = async () => {
     // Try to load from store first
@@ -98,33 +101,41 @@ export const useSettings = () => {
 
     setApiKey(groqKey || '');
     setModel(groqModel || DEFAULT_GROQ_MODEL);
-    
+
     setLlmEnabled(savedLlmEnabled === 'true');
     setLlmApiKey(savedLlmApiKey || groqKey || '');
     setLlmModel(savedLlmModel || DEFAULT_LLM_MODEL);
     setDefaultSystemPrompt(savedSystemPrompt || DEFAULT_SYSTEM_PROMPT);
-    
+
     setLanguage(savedLanguage || 'en');
     setAutoDetectLanguage(savedAutoDetect === 'true');
-    
+
     setOnboardingComplete(savedOnboardingComplete === 'true');
-    
+
     // Load theme
     const validTheme = (savedTheme === 'dark' || savedTheme === 'light') ? savedTheme : 'light';
     setTheme(validTheme);
     document.documentElement.setAttribute('data-theme', validTheme);
-    
+
     // Load recording mode
     let savedRecordingMode = await tauriAPI.getStoreValue('Trueears_RECORDING_MODE');
     if (savedRecordingMode === null) {
       savedRecordingMode = 'auto';
       await tauriAPI.setStoreValue('Trueears_RECORDING_MODE', savedRecordingMode);
     }
-    const validRecordingMode = (savedRecordingMode === 'auto' || savedRecordingMode === 'toggle' || savedRecordingMode === 'push-to-talk') 
+    const validRecordingMode = (savedRecordingMode === 'auto' || savedRecordingMode === 'toggle' || savedRecordingMode === 'push-to-talk')
       ? savedRecordingMode as 'auto' | 'toggle' | 'push-to-talk'
       : 'auto';
     setRecordingMode(validRecordingMode);
-    
+
+    // Load microphone ID
+    let savedMicId = await tauriAPI.getStoreValue('Trueears_MICROPHONE_ID');
+    if (savedMicId === null) {
+      savedMicId = localStorage.getItem('Trueears_MICROPHONE_ID') || 'default';
+      await tauriAPI.setStoreValue('Trueears_MICROPHONE_ID', savedMicId);
+    }
+    setMicrophoneId(savedMicId || 'default');
+
     setIsKeyLoaded(true);
   };
 
@@ -138,7 +149,7 @@ export const useSettings = () => {
         debug.log('[useSettings] settings-changed event received, reloading keys');
         await loadKeys();
       }).then(unlisten => {
-          unlistenTauri = unlisten;
+        unlistenTauri = unlisten;
       });
 
       return () => {
@@ -216,6 +227,14 @@ export const useSettings = () => {
     tauriAPI.emitSettingsChanged();
   };
 
+  const saveMicrophoneId = async (id: string) => {
+    setMicrophoneId(id);
+    await tauriAPI.setStoreValue('Trueears_MICROPHONE_ID', id);
+    // Also save to localStorage for fallback/web matches
+    localStorage.setItem('Trueears_MICROPHONE_ID', id);
+    tauriAPI.emitSettingsChanged();
+  };
+
   return {
     apiKey,
     model,
@@ -245,5 +264,8 @@ export const useSettings = () => {
     // Recording mode settings
     recordingMode,
     saveRecordingMode,
+    // Microphone settings
+    microphoneId,
+    saveMicrophoneId,
   };
 };

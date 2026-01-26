@@ -19,12 +19,11 @@ export const SettingsWindow: React.FC = () => {
   const [micPermissionGranted, setMicPermissionGranted] = useState<boolean | null>(null);
   const settings = useSettings();
   const auth = useAuth(); // Lift auth state to SettingsWindow level
-  const { onboardingComplete, isKeyLoaded } = settings;
+  const { onboardingComplete, isKeyLoaded, theme } = settings;
 
   console.log('[SettingsWindow] Render state:', { onboardingComplete, isKeyLoaded });
 
-  // If the WebView permission state was reset (e.g., clearing EBWebView cache),
-  // the store can still say onboarding is complete but mic permission is not.
+  // If the WebView permission state was reset (e.g., clearing EBWebView// Placeholder to ensure correct content, will run view_file first complete but mic permission is not.
   // Detect this and re-show onboarding so the user can grant mic access.
   useEffect(() => {
     let cancelled = false;
@@ -106,12 +105,12 @@ export const SettingsWindow: React.FC = () => {
       });
     };
     showWindow();
-  }, [settings.theme]);
+  }, [theme]);
 
   // Wait for settings to load
   if (!isKeyLoaded) {
     console.log('[SettingsWindow] Waiting for keys to load...');
-    return <div className={`w-screen h-screen ${settings.theme === 'dark' ? 'bg-[#0a0a0a]' : 'bg-white'}`} />;
+    return <div className={`w-screen h-screen ${theme === 'dark' ? 'bg-[#0a0a0a]' : 'bg-white'}`} />;
   }
 
   if (micPermissionGranted === null) {
@@ -265,6 +264,8 @@ export const SettingsWindow: React.FC = () => {
             saveLanguage={settings.saveLanguage}
             saveAutoDetectLanguage={settings.saveAutoDetectLanguage}
             theme={settings.theme}
+            microphoneId={settings.microphoneId}
+            saveMicrophoneId={settings.saveMicrophoneId}
           />
         )}
         {activeTab === 'llm' && <LLMSettings {...settings} theme={settings.theme} />}
@@ -272,15 +273,15 @@ export const SettingsWindow: React.FC = () => {
         {activeTab === 'logmode' && <LogModeSettings isDark={isDark} />}
         {activeTab === 'preferences' && <PreferencesSettings theme={settings.theme} saveTheme={settings.saveTheme} recordingMode={settings.recordingMode} saveRecordingMode={settings.saveRecordingMode} />}
         {activeTab === 'account' && (
-            <AccountSection
-              theme={settings.theme}
-              isAuthenticated={auth.isAuthenticated}
-              isLoading={auth.isLoading}
-              user={auth.user}
-              login={auth.login}
-              logout={auth.logout}
-              refreshAuthState={auth.refreshAuthState}
-            />
+          <AccountSection
+            theme={settings.theme}
+            isAuthenticated={auth.isAuthenticated}
+            isLoading={auth.isLoading}
+            user={auth.user}
+            login={auth.login}
+            logout={auth.logout}
+            refreshAuthState={auth.refreshAuthState}
+          />
         )}
         {activeTab === 'legal' && <LegalPrivacySettings theme={settings.theme} />}
         {activeTab === 'about' && <AboutSettings theme={settings.theme} />}
