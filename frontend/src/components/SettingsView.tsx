@@ -6,29 +6,59 @@ import { open } from '@tauri-apps/plugin-shell';
 interface SettingsViewProps {
   apiKey: string;
   model: string;
-  onSave: (key: string, model: string) => void;
+  microphoneId: string;
+  onSave: (key: string, model: string, micId: string) => void;
   onClose: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   apiKey,
   model,
+  microphoneId,
   onSave,
   onClose
 }) => {
   const [keyInput, setKeyInput] = useState(apiKey || '');
   const [modelInput, setModelInput] = useState(model || GROQ_MODELS[0]);
+  const [micInput, setMicInput] = useState(microphoneId || 'default');
   const [showKey, setShowKey] = useState(false);
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
 
   // Initialize inputs when props change
   useEffect(() => {
     setKeyInput(apiKey || '');
     setModelInput(model || GROQ_MODELS[0]);
-  }, [apiKey, model]);
+    setMicInput(microphoneId || 'default');
+  }, [apiKey, model, microphoneId]);
+
+  // Load audio devices
+  useEffect(() => {
+    const loadDevices = async () => {
+      try {
+        // Request permission if not already granted (needed for labels)
+        // Note: In Settings, we might assume they already granted it, or we re-trigger it
+        const devs = await navigator.mediaDevices.enumerateDevices();
+        const inputs = devs.filter(d => d.kind === 'audioinput');
+        setAudioDevices(inputs);
+
+        // If current selection is invalid, revert to default
+        if (microphoneId !== 'default' && !inputs.some(d => d.deviceId === microphoneId)) {
+          setMicInput('default');
+        }
+      } catch (e) {
+        console.error('Failed to load audio devices:', e);
+      }
+    };
+    loadDevices();
+
+    // Listen for device changes
+    navigator.mediaDevices.addEventListener('devicechange', loadDevices);
+    return () => navigator.mediaDevices.removeEventListener('devicechange', loadDevices);
+  }, [microphoneId]);
 
   const handleSave = useCallback(() => {
-    onSave(keyInput, modelInput);
-  }, [keyInput, modelInput, onSave]);
+    onSave(keyInput, modelInput, micInput);
+  }, [keyInput, modelInput, micInput, onSave]);
 
   // Handle Enter key to save
   useEffect(() => {
@@ -56,7 +86,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       <div className="flex flex-col gap-1">
         <div className="flex justify-between items-center">
           <label className="text-[10px] text-gray-500 font-mono">API KEY</label>
-          <button 
+          <button
             onClick={() => open('https://console.groq.com/keys')}
             className="text-[9px] text-gray-500 hover:text-gray-800 underline decoration-gray-600 hover:decoration-gray-400 transition-colors cursor-pointer"
           >
@@ -86,6 +116,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </svg>
             )}
           </button>
+        </div>
+      </div>
+
+      {/* Microphone Input */}
+      <div className="flex flex-col gap-1">
+        <label className="text-[10px] text-gray-500 font-mono">MICROPHONE</label>
+        <div className="relative">
+          <select
+            value={micInput}
+            onChange={(e) => setMicInput(e.target.value)}
+            className="w-full bg-white/5 border border-gray-300 rounded px-2 py-1.5 text-xs text-gray-800 focus:outline-none focus:border-gray-400 transition-colors font-mono appearance-none cursor-pointer hover:bg-gray-50"
+          >
+            <option value="default">Default System Microphone</option>
+            {audioDevices.map((device) => (
+              <option key={device.deviceId} value={device.deviceId}>
+                {device.label || `Microphone ${device.deviceId.slice(0, 4)}...`}
+              </option>
+            ))}
+          </select>
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
         </div>
       </div>
 
