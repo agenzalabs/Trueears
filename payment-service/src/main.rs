@@ -12,6 +12,7 @@ use axum::{
     Router,
 };
 use config::Config;
+use handlers::checkout::create_checkout;
 use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -50,10 +51,7 @@ async fn main() {
             "development"
         }
     );
-    tracing::info!(
-        "LemonSqueezy test mode: {}",
-        config.lemonsqueezy_test_mode
-    );
+    tracing::info!("LemonSqueezy test mode: {}", config.lemonsqueezy_test_mode);
 
     // Create database pool
     let pool = db::create_pool(&config.database_url)
@@ -81,6 +79,7 @@ async fn main() {
     let app = Router::new()
         // Public routes
         .route("/health", get(health_check))
+        .route("/api/checkout", post(create_checkout))
         // Protected routes will be added here
         .layer(cors)
         .with_state(state);
