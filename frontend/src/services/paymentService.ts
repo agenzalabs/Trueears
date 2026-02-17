@@ -95,6 +95,15 @@ class PaymentService {
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        if (response.status === 401) {
+          const message = String(error.error || '');
+          if (message.toLowerCase().includes('invalidsignature')) {
+            throw new Error(
+              'Authentication token is invalid for payment service. Sign out, sign in again, and verify JWT_SECRET matches auth-server.'
+            );
+          }
+          throw new Error('Authentication required. Please sign in again.');
+        }
         throw new Error(error.error || `HTTP ${response.status}`);
       }
 
