@@ -44,6 +44,13 @@ export const authService = {
   },
 
   /**
+   * Get stored access token for authenticated API requests
+   */
+  getAccessToken: async (): Promise<string | null> => {
+    return invoke('get_access_token');
+  },
+
+  /**
    * Listen for auth success event
    */
   onAuthSuccess: async (callback: (user: UserInfo) => void): Promise<() => void> => {

@@ -70,21 +70,22 @@ impl IntoResponse for PaymentError {
             // 400 Bad Request
             PaymentError::InvalidRequest(msg) => (StatusCode::BAD_REQUEST, msg),
             PaymentError::InvalidVariantId(msg) => (StatusCode::BAD_REQUEST, msg),
-            PaymentError::InvalidWebhookSignature => {
-                (StatusCode::BAD_REQUEST, "Invalid webhook signature".to_string())
-            }
-            PaymentError::MissingWebhookSignature => {
-                (StatusCode::BAD_REQUEST, "Missing X-Signature header".to_string())
-            }
+            PaymentError::InvalidWebhookSignature => (
+                StatusCode::BAD_REQUEST,
+                "Invalid webhook signature".to_string(),
+            ),
+            PaymentError::MissingWebhookSignature => (
+                StatusCode::BAD_REQUEST,
+                "Missing X-Signature header".to_string(),
+            ),
 
             // 401 Unauthorized
             PaymentError::InvalidToken(msg) => (StatusCode::UNAUTHORIZED, msg),
-            PaymentError::MissingAuthHeader => {
-                (StatusCode::UNAUTHORIZED, "Missing Authorization header".to_string())
-            }
-            PaymentError::Unauthorized => {
-                (StatusCode::UNAUTHORIZED, "Unauthorized".to_string())
-            }
+            PaymentError::MissingAuthHeader => (
+                StatusCode::UNAUTHORIZED,
+                "Missing Authorization header".to_string(),
+            ),
+            PaymentError::Unauthorized => (StatusCode::UNAUTHORIZED, "Unauthorized".to_string()),
 
             // 404 Not Found
             PaymentError::SubscriptionNotFound => {
@@ -93,9 +94,7 @@ impl IntoResponse for PaymentError {
             PaymentError::CustomerNotFound => {
                 (StatusCode::NOT_FOUND, "Customer not found".to_string())
             }
-            PaymentError::OrderNotFound => {
-                (StatusCode::NOT_FOUND, "Order not found".to_string())
-            }
+            PaymentError::OrderNotFound => (StatusCode::NOT_FOUND, "Order not found".to_string()),
 
             // 500 Internal Server Error
             PaymentError::Database(err) => {
