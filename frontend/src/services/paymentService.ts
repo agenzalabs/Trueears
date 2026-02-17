@@ -196,6 +196,7 @@ class PaymentService {
       const response = await fetch(`${this.baseUrl}/api/license/deactivate`, {
         method: 'POST',
         headers: this.getHeaders(),
+        body: JSON.stringify({}),
       });
 
       if (!response.ok) {
