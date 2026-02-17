@@ -18,6 +18,57 @@ struct CursorPosition {
 // Global state to track if onboarding trigger step is active
 pub static ONBOARDING_TRIGGER_ACTIVE: AtomicBool = AtomicBool::new(false);
 
+#[cfg(target_os = "linux")]
+fn configure_linux_webview_media(window: &tauri::WebviewWindow) {
+    use webkit2gtk::glib::ObjectExt;
+    use webkit2gtk::{
+        DeviceInfoPermissionRequest, PermissionRequest, PermissionRequestExt, SettingsExt,
+        UserMediaPermissionRequest, WebViewExt,
+    };
+
+    let window_label = window.label().to_string();
+    let label_for_setup = window_label.clone();
+    if let Err(err) = window.with_webview(move |webview| {
+        let webview = webview.inner();
+
+        if let Some(settings) = webview.settings() {
+            settings.set_enable_media_stream(true);
+            log::info!(
+                "Enabled WebKit media stream for Linux window '{}'",
+                label_for_setup
+            );
+        } else {
+            log::warn!(
+                "WebKit settings unavailable while configuring media stream for '{}'",
+                label_for_setup
+            );
+        }
+
+        let permission_window_label = label_for_setup.clone();
+        webview.connect_permission_request(move |_view, request: &PermissionRequest| {
+            if request.is::<UserMediaPermissionRequest>() || request.is::<DeviceInfoPermissionRequest>() {
+                log::info!(
+                    "Allowing Linux media permission request for '{}'",
+                    permission_window_label
+                );
+                request.allow();
+                return true;
+            }
+
+            false
+        });
+    }) {
+        log::error!(
+            "Failed to configure Linux webview media permissions for '{}': {}",
+            window_label,
+            err
+        );
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn configure_linux_webview_media(_window: &tauri::WebviewWindow) {}
+
 fn is_sensitive_store_key(key: &str) -> bool {
     let k = key.to_ascii_uppercase();
     k.contains("KEY") || k.contains("TOKEN") || k.contains("SECRET") || k.contains("PASSWORD")
@@ -25,6 +76,16 @@ fn is_sensitive_store_key(key: &str) -> bool {
 
 #[tauri::command]
 async fn set_ignore_mouse_events(window: tauri::Window, ignore: bool) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    {
+        // tao/wry on Linux can panic when enabling cursor-ignore before the
+        // GTK window surface is ready. Keep Linux stable by skipping this call.
+        if ignore {
+            log::debug!("Skipping set_ignore_cursor_events(true) on Linux");
+            return Ok(());
+        }
+    }
+
     window
         .set_ignore_cursor_events(ignore)
         .map_err(|e| e.to_string())
@@ -173,6 +234,8 @@ async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
     .build()
     .map_err(|e| e.to_string())?;
 
+    configure_linux_webview_media(&settings_window);
+
     // Ensure the window is interactive
     settings_window
         .set_ignore_cursor_events(false)
@@ -275,6 +338,8 @@ pub fn run() {
             // Resize main window to span all monitors
             // Add padding to account for Windows display scaling issues
             if let Some(window) = app.get_webview_window("main") {
+                configure_linux_webview_media(&window);
+
                 let monitors = window.available_monitors().unwrap_or_default();
                 if !monitors.is_empty() {
                     let mut min_x = i32::MAX;
@@ -338,8 +403,19 @@ pub fn run() {
                 .map(|s| s == "true")
                 .unwrap_or(false);
 
-            if !onboarding_complete {
-                log::info!("First run detected: onboarding not complete. Opening settings.");
+            let force_open_settings_on_start = std::env::var("TRUEEARS_OPEN_SETTINGS_ON_START")
+                .map(|v| {
+                    let value = v.trim().to_ascii_lowercase();
+                    value == "1" || value == "true" || value == "yes" || value == "on"
+                })
+                .unwrap_or(false);
+
+            if !onboarding_complete || force_open_settings_on_start {
+                if force_open_settings_on_start {
+                    log::info!("TRUEEARS_OPEN_SETTINGS_ON_START enabled. Opening settings.");
+                } else {
+                    log::info!("First run detected: onboarding not complete. Opening settings.");
+                }
                 let app_handle = app.handle().clone();
                 // Spawn async task to open settings window after a short delay
                 tauri::async_runtime::spawn(async move {

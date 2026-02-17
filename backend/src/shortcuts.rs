@@ -29,8 +29,7 @@ pub fn register_shortcuts(app: &AppHandle) -> Result<(), Box<dyn std::error::Err
         // Don't crash - the app can still work, user just needs to close conflicting app
     }
 
-    // Register settings shortcut (Ctrl+Shift+; / Cmd+Shift+;)
-    // Using semicolon instead of L to avoid conflicts with other apps
+    // Register settings shortcut(s)
     if let Err(e) = register_settings_shortcut(app) {
         log::warn!("Failed to register settings shortcut (non-fatal): {}", e);
         // Don't return error - settings can still be opened from the app
@@ -160,31 +159,58 @@ fn register_recording_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error
 }
 
 fn register_settings_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    // Using S key for Settings shortcut
-    let settings_shortcut = if cfg!(target_os = "macos") {
-        Shortcut::new(Some(Modifiers::META | Modifiers::SHIFT), Code::KeyS)
+    let mut shortcuts: Vec<Shortcut> = Vec::new();
+
+    if cfg!(target_os = "macos") {
+        shortcuts.push(Shortcut::new(Some(Modifiers::META | Modifiers::SHIFT), Code::KeyS));
     } else {
-        Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyS)
-    };
+        // Primary binding used on all non-macOS platforms.
+        shortcuts.push(Shortcut::new(
+            Some(Modifiers::CONTROL | Modifiers::SHIFT),
+            Code::KeyS,
+        ));
 
-    app.global_shortcut().on_shortcut(settings_shortcut, {
-        let app_handle = app.clone();
-        move |_app, _shortcut, event| {
-            if event.state == ShortcutState::Pressed {
-                log::info!("Settings shortcut pressed - opening settings window");
+        // Linux fallback: avoid layout/compositor quirks on alpha keys.
+        #[cfg(target_os = "linux")]
+        {
+            shortcuts.push(Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Semicolon));
+            shortcuts.push(Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::F10));
+        }
+    }
 
-                // Call open_settings_window command
-                let app_clone = app_handle.clone();
-                tauri::async_runtime::spawn(async move {
-                    if let Err(e) = crate::open_settings_window(app_clone).await {
-                        log::error!("Failed to open settings window: {}", e);
-                    }
-                });
+    let mut registered_any = false;
+    for shortcut in shortcuts {
+        match app.global_shortcut().on_shortcut(shortcut, {
+            let app_handle = app.clone();
+            move |_app, _shortcut, event| {
+                if event.state == ShortcutState::Pressed {
+                    log::info!("Settings shortcut pressed - opening settings window");
+
+                    // Call open_settings_window command
+                    let app_clone = app_handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        if let Err(e) = crate::open_settings_window(app_clone).await {
+                            log::error!("Failed to open settings window: {}", e);
+                        }
+                    });
+                }
+            }
+        }) {
+            Ok(()) => {
+                registered_any = true;
+                log::info!("Registered settings shortcut binding: {:?}", shortcut);
+            }
+            Err(e) => {
+                log::warn!("Failed to register settings shortcut binding {:?}: {}", shortcut, e);
             }
         }
-    })?;
+    }
 
-    log::info!("Settings shortcut (Ctrl+Shift+S) registered");
+    if !registered_any {
+        return Err("No settings shortcut bindings could be registered".into());
+    }
+
+    log::info!("Settings shortcut bindings registered");
     Ok(())
 }
 

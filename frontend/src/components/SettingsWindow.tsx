@@ -45,12 +45,36 @@ export const SettingsWindow: React.FC = () => {
           return;
         }
 
+        // Prefer explicit permission state when available.
+        if ((navigator as Navigator & { permissions?: Permissions }).permissions?.query) {
+          try {
+            const result = await navigator.permissions.query({
+              name: 'microphone' as PermissionName,
+            });
+
+            if (!cancelled) {
+              if (result.state === 'granted') {
+                setMicPermissionGranted(true);
+                return;
+              }
+              if (result.state === 'denied') {
+                setMicPermissionGranted(false);
+                return;
+              }
+            }
+          } catch {
+            // Fallback to enumerateDevices heuristic below.
+          }
+        }
+
         const devices = await navigator.mediaDevices.enumerateDevices();
         const hasLabel = devices.some(
           (d) => d.kind === 'audioinput' && (d.label || '').trim().length > 0
         );
         if (!cancelled) {
-          setMicPermissionGranted(hasLabel);
+          // Linux/WebKit can return empty labels even when access works.
+          // Don't force onboarding loop for users who already completed onboarding.
+          setMicPermissionGranted(onboardingComplete ? true : hasLabel);
         }
       } catch (err) {
         console.warn('[SettingsWindow] Failed to check mic permission:', err);
@@ -64,7 +88,7 @@ export const SettingsWindow: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [onboardingComplete]);
 
   const handleClose = async () => {
     try {
