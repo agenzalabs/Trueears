@@ -28,6 +28,8 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
 
     const PRO_VARIANT_ID =
         import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID_PRO ||
+        import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID_PRO_MONTHLY ||
+        import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID_PRO_ANNUAL ||
         import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID_MONTHLY ||
         import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID_ANNUAL ||
         '';
@@ -42,7 +44,9 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
         }
 
         if (!PRO_VARIANT_ID) {
-            setUpgradeError('Pro variant ID is not configured. Set VITE_LEMONSQUEEZY_VARIANT_ID_PRO.');
+            setUpgradeError(
+                'Pro variant ID is not configured. Set LEMONSQUEEZY_VARIANT_ID_PRO (or VITE_LEMONSQUEEZY_VARIANT_ID_PRO) in root .env.'
+            );
             return;
         }
 
