@@ -27,6 +27,8 @@ interface OrderResponse {
   total: number;
   currency: string;
   license_key?: string;
+  variant_id?: string;
+  license_status?: string;
   created_at: string;
 }
 

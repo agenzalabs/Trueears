@@ -47,6 +47,7 @@ pub async fn get_license_status(
     let record = sqlx::query_as::<
         _,
         (
+            String,
             Option<String>,
             Option<String>,
             Option<i32>,
@@ -58,6 +59,7 @@ pub async fn get_license_status(
     >(
         r#"
         SELECT
+            o.status::text,
             o.license_key,
             o.license_status,
             o.license_activations_used,
@@ -68,7 +70,6 @@ pub async fn get_license_status(
         FROM orders o
         INNER JOIN customers c ON c.id = o.customer_id
         WHERE c.user_id = $1
-          AND o.license_key IS NOT NULL
         ORDER BY
             CASE WHEN o.ls_variant_id::text = $2 THEN 1 ELSE 0 END DESC,
             o.created_at DESC
@@ -81,6 +82,7 @@ pub async fn get_license_status(
     .await?;
 
     let Some((
+        order_status,
         license_key,
         license_status,
         activations_used,
@@ -102,7 +104,8 @@ pub async fn get_license_status(
     };
 
     let expired = expires_at.map(|e| e < chrono::Utc::now()).unwrap_or(false);
-    let valid = license_status.as_deref() != Some("inactive")
+    let valid = order_status != "refunded"
+        && license_status.as_deref() != Some("inactive")
         && license_status.as_deref() != Some("disabled")
         && !expired;
 

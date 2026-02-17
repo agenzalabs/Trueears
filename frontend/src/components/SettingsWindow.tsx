@@ -8,7 +8,6 @@ import { AboutSettings } from './settings/AboutSettings';
 import { AccountSection } from './auth/AccountSection';
 import { OnboardingWizard } from './onboarding/OnboardingWizard';
 import { LegalPrivacySettings } from './settings/LegalPrivacySettings';
-import { LicenseSettings } from './settings/LicenseSettings';
 import { useSettings } from '../hooks/useSettings';
 import { useAuth } from '../hooks/useAuth';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -20,7 +19,6 @@ type SettingsTab =
   | 'logmode'
   | 'preferences'
   | 'account'
-  | 'license'
   | 'legal'
   | 'about';
 
@@ -330,29 +328,6 @@ export const SettingsWindow: React.FC = () => {
           </button>
 
           <button
-            onClick={() => setActiveTab('license')}
-            className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-3 cursor-pointer ${
-              activeTab === 'license'
-                ? isDark
-                  ? 'bg-[#252525] text-gray-100 font-medium'
-                  : 'bg-gray-100 text-gray-800 font-medium'
-                : isDark
-                  ? 'text-gray-400 hover:bg-[#252525] hover:text-gray-100'
-                  : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'
-            }`}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
-              />
-            </svg>
-            License
-          </button>
-
-          <button
             onClick={() => setActiveTab('legal')}
             className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-3 cursor-pointer ${
               activeTab === 'legal'
@@ -439,13 +414,6 @@ export const SettingsWindow: React.FC = () => {
             login={auth.login}
             logout={auth.logout}
             refreshAuthState={auth.refreshAuthState}
-          />
-        )}
-        {activeTab === 'license' && (
-          <LicenseSettings
-            theme={settings.theme}
-            isAuthenticated={auth.isAuthenticated}
-            login={auth.login}
           />
         )}
         {activeTab === 'legal' && <LegalPrivacySettings theme={settings.theme} />}

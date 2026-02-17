@@ -10,6 +10,8 @@ pub struct OrderDto {
     pub total: i64,
     pub currency: String,
     pub license_key: Option<String>,
+    pub variant_id: Option<String>,
+    pub license_status: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
@@ -25,11 +27,13 @@ pub async fn get_my_orders(
             i64,
             String,
             Option<String>,
+            Option<i64>,
+            Option<String>,
             chrono::DateTime<chrono::Utc>,
         ),
     >(
         r#"
-        SELECT o.id, o.status::text, o.total, o.currency, o.license_key, o.created_at
+        SELECT o.id, o.status::text, o.total, o.currency, o.license_key, o.ls_variant_id, o.license_status, o.created_at
         FROM orders o
         INNER JOIN customers c ON c.id = o.customer_id
         WHERE c.user_id = $1
@@ -43,12 +47,23 @@ pub async fn get_my_orders(
     let orders = rows
         .into_iter()
         .map(
-            |(id, status, total, currency, license_key, created_at)| OrderDto {
+            |(
+                id,
+                status,
+                total,
+                currency,
+                license_key,
+                variant_id,
+                license_status,
+                created_at,
+            )| OrderDto {
                 id: id.to_string(),
                 status,
                 total,
                 currency,
                 license_key,
+                variant_id: variant_id.map(|v| v.to_string()),
+                license_status,
                 created_at,
             },
         )
