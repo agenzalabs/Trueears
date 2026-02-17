@@ -23,10 +23,13 @@ A minimalist, context-aware AI voice dictation application built with Tauri, Rea
 git clone <repository-url>
 cd Trueears
 npm install
+cp .env.example .env
 npm run dev
 ```
 
 Press `Ctrl+Shift+S` to configure your Groq API key, then `Ctrl+Shift+K` to start dictating.
+
+Use the workspace root `.env` as the centralized config for frontend, backend, and payment-service.
 
 [Full Getting Started Guide](docs/guides/getting-started.md)
 

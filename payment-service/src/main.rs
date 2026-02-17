@@ -25,6 +25,20 @@ use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+fn load_env_with_workspace_fallback() {
+    // Load shared workspace env first.
+    match dotenvy::from_filename("../.env") {
+        Ok(path) => tracing::info!("Loaded workspace env from {:?}", path),
+        Err(e) => tracing::debug!("Workspace env not loaded: {}", e),
+    }
+
+    // Then load payment-service local env only for missing values.
+    match dotenvy::from_filename(".env") {
+        Ok(path) => tracing::info!("Loaded payment-service env fallback from {:?}", path),
+        Err(e) => tracing::debug!("Payment-service env fallback not loaded: {}", e),
+    }
+}
+
 #[tokio::main]
 async fn main() {
     // Initialize tracing
@@ -36,12 +50,7 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    // Load environment variables
-    let dotenv_result = dotenvy::dotenv();
-    match &dotenv_result {
-        Ok(path) => tracing::info!("Loaded .env from: {:?}", path),
-        Err(e) => tracing::warn!("No .env file found: {}", e),
-    }
+    load_env_with_workspace_fallback();
 
     // Load configuration
     let config = Config::from_env().expect("Failed to load configuration");
