@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { authService, AuthState, UserInfo } from '../services/authService';
+import { paymentService } from '../services/paymentService';
 
 interface UseAuthReturn {
     isAuthenticated: boolean;
@@ -21,10 +22,22 @@ export const useAuth = (): UseAuthReturn => {
             const state = await authService.getAuthState();
             setIsAuthenticated(state.is_authenticated);
             setUser(state.user);
+
+            if (state.is_authenticated) {
+                const accessToken = await authService.getAccessToken();
+                if (accessToken) {
+                    paymentService.setAuthToken(accessToken);
+                } else {
+                    paymentService.clearAuthToken();
+                }
+            } else {
+                paymentService.clearAuthToken();
+            }
         } catch (error) {
             console.error('[useAuth] Failed to get auth state:', error);
             setIsAuthenticated(false);
             setUser(null);
+            paymentService.clearAuthToken();
         } finally {
             setIsLoading(false);
         }
@@ -45,6 +58,14 @@ export const useAuth = (): UseAuthReturn => {
                 setIsAuthenticated(true);
                 setUser(userInfo);
                 setIsLoading(false);
+
+                authService.getAccessToken()
+                    .then((token) => {
+                        if (token) paymentService.setAuthToken(token);
+                    })
+                    .catch((err) => {
+                        console.error('[useAuth] Failed to fetch access token:', err);
+                    });
             });
 
             // Listen for auth error
@@ -82,6 +103,7 @@ export const useAuth = (): UseAuthReturn => {
             await authService.logout();
             setIsAuthenticated(false);
             setUser(null);
+            paymentService.clearAuthToken();
         } catch (error) {
             console.error('[useAuth] Logout failed:', error);
             throw error;

@@ -4,6 +4,8 @@ import { open } from '@tauri-apps/plugin-shell';
 
 interface LicenseSettingsProps {
   theme: 'light' | 'dark';
+  isAuthenticated?: boolean;
+  login?: () => Promise<void>;
 }
 
 interface LicenseStatus {
@@ -16,7 +18,11 @@ interface LicenseStatus {
   expires_at?: string | null;
 }
 
-export const LicenseSettings: React.FC<LicenseSettingsProps> = ({ theme }) => {
+export const LicenseSettings: React.FC<LicenseSettingsProps> = ({
+  theme,
+  isAuthenticated = true,
+  login,
+}) => {
   const [licenseStatus, setLicenseStatus] = useState<LicenseStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [activating, setActivating] = useState(false);
@@ -31,8 +37,13 @@ export const LicenseSettings: React.FC<LicenseSettingsProps> = ({ theme }) => {
   const VARIANT_ID_PRO = import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID_PRO || '';
 
   useEffect(() => {
-    checkLicense();
-  }, []);
+    if (isAuthenticated) {
+      checkLicense();
+    } else {
+      setLoading(false);
+      setLicenseStatus({ valid: false });
+    }
+  }, [isAuthenticated]);
 
   const checkLicense = async () => {
     try {
@@ -49,6 +60,11 @@ export const LicenseSettings: React.FC<LicenseSettingsProps> = ({ theme }) => {
   };
 
   const handlePurchase = async (tier: 'basic' | 'pro') => {
+    if (!isAuthenticated) {
+      setError('Please sign in first to purchase a license.');
+      return;
+    }
+
     try {
       setError(null);
       setSuccess(null);
@@ -73,6 +89,11 @@ export const LicenseSettings: React.FC<LicenseSettingsProps> = ({ theme }) => {
   };
 
   const handleActivate = async () => {
+    if (!isAuthenticated) {
+      setError('Please sign in first to activate your license.');
+      return;
+    }
+
     if (!licenseKey.trim()) {
       setError('Please enter a license key');
       return;
@@ -142,6 +163,24 @@ export const LicenseSettings: React.FC<LicenseSettingsProps> = ({ theme }) => {
           Manage your Trueears license and upgrade options
         </p>
       </div>
+
+      {!isAuthenticated && (
+        <div className={`mb-6 p-4 rounded-lg border ${isDark ? 'bg-yellow-500/10 border-yellow-500/20' : 'bg-yellow-50 border-yellow-200'}`}>
+          <p className={`text-sm ${isDark ? 'text-yellow-300' : 'text-yellow-700'}`}>
+            Sign in is required for purchase and license activation.
+          </p>
+          {login && (
+            <button
+              onClick={() => void login()}
+              className={`mt-3 px-4 py-2 rounded-lg text-sm font-medium ${
+                isDark ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'
+              }`}
+            >
+              Sign in with Google
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Error/Success Messages */}
       {error && (
@@ -260,8 +299,11 @@ export const LicenseSettings: React.FC<LicenseSettingsProps> = ({ theme }) => {
 
             <button
               onClick={() => handlePurchase('basic')}
+              disabled={!isAuthenticated}
               className={`w-full py-3 rounded-lg font-medium transition-colors ${
-                isDark
+                !isAuthenticated
+                  ? isDark ? 'bg-[#333] text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : isDark
                   ? 'bg-blue-600 hover:bg-blue-700 text-white'
                   : 'bg-blue-500 hover:bg-blue-600 text-white'
               }`}
@@ -327,7 +369,12 @@ export const LicenseSettings: React.FC<LicenseSettingsProps> = ({ theme }) => {
 
             <button
               onClick={() => handlePurchase('pro')}
-              className="w-full py-3 rounded-lg font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+              disabled={!isAuthenticated}
+              className={`w-full py-3 rounded-lg font-medium transition-colors ${
+                !isAuthenticated
+                  ? isDark ? 'bg-[#333] text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
             >
               Purchase Pro
             </button>
@@ -361,7 +408,7 @@ export const LicenseSettings: React.FC<LicenseSettingsProps> = ({ theme }) => {
             onClick={handleActivate}
             disabled={activating || !licenseKey.trim()}
             className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-              activating || !licenseKey.trim()
+              activating || !licenseKey.trim() || !isAuthenticated
                 ? isDark
                   ? 'bg-[#333] text-gray-500 cursor-not-allowed'
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed'
