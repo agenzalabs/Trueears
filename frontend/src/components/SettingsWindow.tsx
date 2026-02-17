@@ -417,7 +417,13 @@ export const SettingsWindow: React.FC = () => {
             refreshAuthState={auth.refreshAuthState}
           />
         )}
-        {activeTab === 'license' && <LicenseSettings theme={settings.theme} />}
+        {activeTab === 'license' && (
+          <LicenseSettings
+            theme={settings.theme}
+            isAuthenticated={auth.isAuthenticated}
+            login={auth.login}
+          />
+        )}
         {activeTab === 'legal' && <LegalPrivacySettings theme={settings.theme} />}
         {activeTab === 'about' && <AboutSettings theme={settings.theme} />}
       </div>

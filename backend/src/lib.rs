@@ -225,6 +225,12 @@ async fn get_user_info() -> Result<Option<auth::UserInfo>, String> {
     Ok(auth::get_stored_user_info())
 }
 
+#[tauri::command]
+async fn get_access_token() -> Result<Option<String>, String> {
+    log::info!("get_access_token command called");
+    Ok(auth::get_access_token())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -367,6 +373,7 @@ pub fn run() {
             get_auth_state,
             logout,
             get_user_info,
+            get_access_token,
             // Log Mode commands
             log_mode::append_to_file,
             log_mode::validate_log_path,
