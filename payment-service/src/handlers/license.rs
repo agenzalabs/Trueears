@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     errors::PaymentError, middleware::AuthenticatedUser,
-    services::lemonsqueezy_client::LemonSqueezyClient, AppState,
+    services::{lemonsqueezy_client::LemonSqueezyClient, order_sync_service::sync_orders_for_user},
+    AppState,
 };
 
 #[derive(Debug, Serialize)]
@@ -44,42 +45,11 @@ pub async fn get_license_status(
     State(state): State<AppState>,
     Extension(user): Extension<AuthenticatedUser>,
 ) -> Result<Json<LicenseStatusResponse>, PaymentError> {
-    let record = sqlx::query_as::<
-        _,
-        (
-            String,
-            Option<String>,
-            Option<String>,
-            Option<i32>,
-            Option<i32>,
-            Option<chrono::DateTime<chrono::Utc>>,
-            Option<i64>,
-            Option<i64>,
-        ),
-    >(
-        r#"
-        SELECT
-            o.status::text,
-            o.license_key,
-            o.license_status,
-            o.license_activations_used,
-            o.license_activations_limit,
-            o.license_expires_at,
-            o.ls_product_id,
-            o.ls_variant_id
-        FROM orders o
-        INNER JOIN customers c ON c.id = o.customer_id
-        WHERE c.user_id = $1
-        ORDER BY
-            CASE WHEN o.ls_variant_id::text = $2 THEN 1 ELSE 0 END DESC,
-            o.created_at DESC
-        LIMIT 1
-        "#,
-    )
-    .bind(user.user_id)
-    .bind(&state.config.variant_id_pro)
-    .fetch_optional(&state.pool)
-    .await?;
+    let mut record = fetch_best_order_record(&state, user.user_id).await?;
+    if record.is_none() {
+        let _ = sync_orders_for_user(&state.pool, &state.config, user.user_id, &user.email).await;
+        record = fetch_best_order_record(&state, user.user_id).await?;
+    }
 
     let Some((
         order_status,
@@ -124,6 +94,62 @@ pub async fn get_license_status(
         activations_limit,
         expires_at,
     }))
+}
+
+async fn fetch_best_order_record(
+    state: &AppState,
+    user_id: uuid::Uuid,
+) -> Result<
+    Option<(
+        String,
+        Option<String>,
+        Option<String>,
+        Option<i32>,
+        Option<i32>,
+        Option<chrono::DateTime<chrono::Utc>>,
+        Option<i64>,
+        Option<i64>,
+    )>,
+    PaymentError,
+> {
+    let record = sqlx::query_as::<
+        _,
+        (
+            String,
+            Option<String>,
+            Option<String>,
+            Option<i32>,
+            Option<i32>,
+            Option<chrono::DateTime<chrono::Utc>>,
+            Option<i64>,
+            Option<i64>,
+        ),
+    >(
+        r#"
+        SELECT
+            o.status::text,
+            o.license_key,
+            o.license_status,
+            o.license_activations_used,
+            o.license_activations_limit,
+            o.license_expires_at,
+            o.ls_product_id,
+            o.ls_variant_id
+        FROM orders o
+        INNER JOIN customers c ON c.id = o.customer_id
+        WHERE c.user_id = $1
+        ORDER BY
+            CASE WHEN o.ls_variant_id::text = $2 THEN 1 ELSE 0 END DESC,
+            o.created_at DESC
+        LIMIT 1
+        "#,
+    )
+    .bind(user_id)
+    .bind(&state.config.variant_id_pro)
+    .fetch_optional(&state.pool)
+    .await?;
+
+    Ok(record)
 }
 
 pub async fn activate_license(
