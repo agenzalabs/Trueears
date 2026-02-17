@@ -32,6 +32,7 @@ dependencies = [
  "urlencoding",
  "uuid",
  "walkdir",
+ "webkit2gtk",
  "windows 0.52.0",
  "winreg 0.52.0",
 ]
