@@ -181,8 +181,7 @@ export const tauriAPI = {
             if (!isTauri()) {
                 return;
             }
-            const window = getCurrentWindow();
-            await window.setIgnoreCursorEvents(ignore);
+            await invoke('set_ignore_mouse_events', { ignore });
         } catch (error) {
             console.error('[tauriAPI] Failed to set ignore cursor events:', error);
         }

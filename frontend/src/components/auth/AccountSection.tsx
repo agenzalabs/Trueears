@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { UserInfo } from '../../services/authService';
+import { paymentService } from '../../services/paymentService';
+import { open } from '@tauri-apps/plugin-shell';
 
 interface AccountSectionProps {
     theme: 'light' | 'dark';
@@ -20,6 +22,42 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
     logout,
 }) => {
     const isDark = theme === 'dark';
+    const [isUpgrading, setIsUpgrading] = useState(false);
+    const [upgradeError, setUpgradeError] = useState<string | null>(null);
+    const [upgradeSuccess, setUpgradeSuccess] = useState<string | null>(null);
+
+    const PRO_VARIANT_ID =
+        import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID_PRO ||
+        import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID_MONTHLY ||
+        import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID_ANNUAL ||
+        '';
+
+    const handleUpgradeClick = async () => {
+        setUpgradeError(null);
+        setUpgradeSuccess(null);
+
+        if (!isAuthenticated) {
+            setUpgradeError('Please sign in first.');
+            return;
+        }
+
+        if (!PRO_VARIANT_ID) {
+            setUpgradeError('Pro variant ID is not configured. Set VITE_LEMONSQUEEZY_VARIANT_ID_PRO.');
+            return;
+        }
+
+        try {
+            setIsUpgrading(true);
+            const checkoutUrl = await paymentService.createCheckout(PRO_VARIANT_ID);
+            await open(checkoutUrl);
+            setUpgradeSuccess('Checkout opened in browser. Complete your purchase, then return to activate.');
+        } catch (error: any) {
+            console.error('[AccountSection] Upgrade failed:', error);
+            setUpgradeError(error?.message || 'Failed to start checkout.');
+        } finally {
+            setIsUpgrading(false);
+        }
+    };
 
     const renderContent = () => {
         if (isLoading) {
@@ -228,15 +266,24 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
                                 </div>
 
                                 <button
-                                    className="w-full py-3.5 rounded-xl font-bold text-sm bg-emerald-500 text-white hover:bg-emerald-400 shadow-[0_4px_14px_0_rgba(16,185,129,0.39)] hover:shadow-[0_6px_20px_rgba(16,185,129,0.23)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer flex items-center justify-center gap-2"
+                                    onClick={handleUpgradeClick}
+                                    disabled={isUpgrading}
+                                    className="w-full py-3.5 rounded-xl font-bold text-sm bg-emerald-500 text-white hover:bg-emerald-400 shadow-[0_4px_14px_0_rgba(16,185,129,0.39)] hover:shadow-[0_6px_20px_rgba(16,185,129,0.23)] hover:-translate-y-0.5 transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                                 >
-                                    <span>Upgrade Now</span>
+                                    <span>{isUpgrading ? 'Opening Checkout...' : 'Upgrade Now'}</span>
                                     <span className="opacity-80 font-normal">—</span>
                                     <span>$9/month</span>
                                     <svg className="w-4 h-4 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
                                     </svg>
                                 </button>
+
+                                {upgradeError && (
+                                    <p className="mt-3 text-xs text-rose-500">{upgradeError}</p>
+                                )}
+                                {upgradeSuccess && (
+                                    <p className="mt-3 text-xs text-emerald-500">{upgradeSuccess}</p>
+                                )}
                             </div>
                         </div>
                     </div>
