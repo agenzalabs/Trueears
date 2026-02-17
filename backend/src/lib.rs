@@ -70,8 +70,9 @@ fn configure_linux_webview_media(window: &tauri::WebviewWindow) {
 fn configure_linux_webview_media(_window: &tauri::WebviewWindow) {}
 
 fn load_env_with_workspace_fallback() {
-    // Load shared workspace env first.
-    match dotenvy::from_filename("../.env") {
+    // Load shared workspace env first, overriding stale exported shell values.
+    // This keeps local dev deterministic when multiple services share JWT/API vars.
+    match dotenvy::from_filename_override("../.env") {
         Ok(path) => log::info!("Loaded workspace env from {:?}", path),
         Err(e) => log::debug!("Workspace env not loaded: {}", e),
     }
