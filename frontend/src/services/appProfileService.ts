@@ -146,7 +146,7 @@ export class AppProfileService {
 
     const activeApp = windowInfo.app_name.toLowerCase();
     const activePath = (windowInfo.executable_path || '').toLowerCase();
-    const activeBasename = activePath.split('\\').pop() || activeApp;
+    const activeBasename = activePath.split(/[\\/]/).pop() || activeApp;
     const activeStem = activeBasename.endsWith('.exe')
       ? activeBasename.replace(/\.exe$/i, '')
       : activeBasename;
@@ -411,17 +411,29 @@ function matchesExecutable(profileExe: string, activeApp: string, activeBasename
 
 const BROWSER_EXECUTABLES = new Set([
   'chrome.exe',
+  'chrome',
+  'google-chrome',
   'msedge.exe',
+  'msedge',
+  'microsoft-edge',
   'firefox.exe',
+  'firefox',
   'brave.exe',
+  'brave',
+  'brave-browser',
   'opera.exe',
+  'opera',
   'vivaldi.exe',
+  'vivaldi',
   'arc.exe',
+  'arc',
+  'chromium',
+  'chromium-browser',
 ]);
 
 function isBrowserExecutable(exe: string): boolean {
   const lower = (exe || '').toLowerCase().trim();
-  const base = lower.split('\\').pop() || lower;
+  const base = lower.split(/[\\/]/).pop() || lower;
   return BROWSER_EXECUTABLES.has(base);
 }
 

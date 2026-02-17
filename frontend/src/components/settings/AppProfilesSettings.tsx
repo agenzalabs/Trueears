@@ -59,17 +59,29 @@ const isBrowser = (category: string) => category === 'browser';
 
 const BROWSER_EXECUTABLES = new Set([
   'chrome.exe',
+  'chrome',
+  'google-chrome',
   'msedge.exe',
+  'msedge',
+  'microsoft-edge',
   'firefox.exe',
+  'firefox',
   'brave.exe',
+  'brave',
+  'brave-browser',
   'opera.exe',
+  'opera',
   'vivaldi.exe',
+  'vivaldi',
   'arc.exe',
+  'arc',
+  'chromium',
+  'chromium-browser',
 ]);
 
 const isBrowserExecutable = (exe: string) => {
   const lower = (exe || '').toLowerCase().trim();
-  const base = lower.split('\\').pop() || lower;
+  const base = lower.split(/[\\/]/).pop() || lower;
   return BROWSER_EXECUTABLES.has(base);
 };
 
