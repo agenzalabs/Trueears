@@ -16,7 +16,7 @@ use axum::{
 use handlers::auth::AppState;
 use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
-use tracing_subTrueearsr::{layer::SubTrueearsrExt, util::SubTrueearsrInitExt};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
     config::Config,
@@ -25,23 +25,32 @@ use crate::{
     utils::JwtManager,
 };
 
+fn load_env_with_workspace_fallback() {
+    // Load shared workspace env first.
+    match dotenvy::from_filename("../.env") {
+        Ok(path) => tracing::info!("Loaded workspace env from {:?}", path),
+        Err(e) => tracing::debug!("Workspace env not loaded: {}", e),
+    }
+
+    // Then load auth-server local env only for missing values.
+    match dotenvy::from_filename(".env") {
+        Ok(path) => tracing::info!("Loaded auth-server env fallback from {:?}", path),
+        Err(e) => tracing::debug!("Auth-server env fallback not loaded: {}", e),
+    }
+}
+
 #[tokio::main]
 async fn main() {
     // Initialize tracing
-    tracing_subTrueearsr::registry()
+    tracing_subscriber::registry()
         .with(
-            tracing_subTrueearsr::EnvFilter::try_from_default_env()
+            tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| "auth_server=debug,tower_http=debug".into()),
         )
-        .with(tracing_subTrueearsr::fmt::layer())
+        .with(tracing_subscriber::fmt::layer())
         .init();
 
-    // Load environment variables
-    let dotenv_result = dotenvy::dotenv();
-    match &dotenv_result {
-        Ok(path) => tracing::info!("Loaded .env from: {:?}", path),
-        Err(e) => tracing::warn!("No .env file found: {}", e),
-    }
+    load_env_with_workspace_fallback();
     
     // Load configuration
     let config = Config::from_env().expect("Failed to load configuration");

@@ -33,8 +33,16 @@ export const LicenseSettings: React.FC<LicenseSettingsProps> = ({
   const isDark = theme === 'dark';
 
   // Variant IDs from your LemonSqueezy products
-  const VARIANT_ID_BASIC = import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID_BASIC || '';
-  const VARIANT_ID_PRO = import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID_PRO || '';
+  const VARIANT_ID_BASIC =
+    import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID_BASIC ||
+    import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID_BASIC_MONTHLY ||
+    import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID_BASIC_ANNUAL ||
+    '';
+  const VARIANT_ID_PRO =
+    import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID_PRO ||
+    import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID_PRO_MONTHLY ||
+    import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID_PRO_ANNUAL ||
+    '';
 
   useEffect(() => {
     if (isAuthenticated) {
