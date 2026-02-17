@@ -47,7 +47,10 @@ export const postProcessTranscription = async (
     } : null);
     if (windowInfo?.url) {
       console.log('[DictationController] Active URL:', windowInfo.url);
-    } else if (windowInfo && /chrome\.exe|msedge\.exe|firefox\.exe|brave\.exe|opera\.exe/i.test(windowInfo.app_name)) {
+    } else if (
+      windowInfo &&
+      /chrome(\.exe)?|google-chrome|msedge(\.exe)?|microsoft-edge|firefox(\.exe)?|brave(\.exe)?|brave-browser|opera(\.exe)?|vivaldi(\.exe)?|arc(\.exe)?|chromium(-browser)?/i.test(windowInfo.app_name)
+    ) {
       console.warn('[DictationController] Browser URL not available (website matching will fall back to title/regex).');
     }
 
