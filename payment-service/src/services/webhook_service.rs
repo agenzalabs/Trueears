@@ -93,10 +93,20 @@ pub async fn process_webhook_event(
 ) -> Result<WebhookOutcome, PaymentError> {
     let event_name = extract_event_name(payload)?;
     let event_id = extract_event_id(payload, &event_name);
+    tracing::info!(
+        event_name = %event_name,
+        event_id = ?event_id,
+        "Processing webhook event"
+    );
 
     if let Some(ref event_id) = event_id {
         if let Some(existing) = WebhookEvent::find_by_ls_event_id(pool, event_id).await? {
             if existing.processed {
+                tracing::info!(
+                    event_name = %event_name,
+                    event_id = %event_id,
+                    "Webhook already processed (idempotent duplicate)"
+                );
                 return Ok(WebhookOutcome::Duplicate);
             }
         }
@@ -131,9 +141,21 @@ pub async fn process_webhook_event(
     match process_result {
         Ok(outcome) => {
             WebhookEvent::mark_processed(pool, event_record.id).await?;
+            tracing::info!(
+                event_name = %event_name,
+                event_id = ?event_id,
+                ?outcome,
+                "Webhook event completed"
+            );
             Ok(outcome)
         }
         Err(err) => {
+            tracing::error!(
+                event_name = %event_name,
+                event_id = ?event_id,
+                error = %err,
+                "Webhook event failed"
+            );
             let _ = WebhookEvent::mark_failed(pool, event_record.id, &err.to_string()).await;
             Err(err)
         }

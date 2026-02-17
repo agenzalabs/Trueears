@@ -34,11 +34,35 @@ fn load_env_with_workspace_fallback() {
         Err(e) => tracing::debug!("Workspace env not loaded: {}", e),
     }
 
+    // Then load backend env as a shared fallback (includes DATABASE_URL in many setups).
+    match dotenvy::from_filename("../backend/.env") {
+        Ok(path) => tracing::info!("Loaded backend env fallback from {:?}", path),
+        Err(e) => tracing::debug!("Backend env fallback not loaded: {}", e),
+    }
+
     // Then load payment-service local env only for missing values.
     match dotenvy::from_filename(".env") {
         Ok(path) => tracing::info!("Loaded payment-service env fallback from {:?}", path),
         Err(e) => tracing::debug!("Payment-service env fallback not loaded: {}", e),
     }
+}
+
+fn db_target_summary(database_url: &str) -> String {
+    let after_scheme = if let Some((_, rest)) = database_url.split_once("://") {
+        rest
+    } else {
+        database_url
+    };
+    let after_auth = after_scheme
+        .rsplit_once('@')
+        .map_or(after_scheme, |(_, rest)| rest);
+    let host_port = after_auth.split('/').next().unwrap_or("unknown");
+    let db_name = after_auth
+        .split('/')
+        .nth(1)
+        .and_then(|p| p.split('?').next())
+        .unwrap_or("unknown");
+    format!("host={}, db={}", host_port, db_name)
 }
 
 fn secret_fingerprint(secret: &str) -> String {
@@ -87,6 +111,7 @@ async fn main() {
         }
     );
     tracing::info!("LemonSqueezy test mode: {}", config.lemonsqueezy_test_mode);
+    tracing::info!("Payment DB target: {}", db_target_summary(&config.database_url));
 
     // Create database pool
     let pool = db::create_pool(&config.database_url)
