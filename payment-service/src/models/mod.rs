@@ -1,14 +1,18 @@
 pub mod customer;
-pub mod subscription;
-pub mod order;
-pub mod webhook_event;
 pub mod lemonsqueezy;
+pub mod license_activation;
+pub mod order;
+pub mod subscription;
+pub mod webhook_event;
 
-pub use customer::{Customer, CreateCustomerRequest, CustomerResponse};
-pub use subscription::{Subscription, SubscriptionStatus, CreateSubscriptionRequest, SubscriptionResponse};
-pub use order::{Order, OrderStatus, CreateOrderRequest, OrderResponse};
-pub use webhook_event::{WebhookEvent, CreateWebhookEventRequest};
+pub use customer::{CreateCustomerRequest, Customer, CustomerResponse};
 pub use lemonsqueezy::{
-    CheckoutRequest, CheckoutResponse, LemonSqueezyWebhookPayload,
-    UpdateSubscriptionRequest, SubscriptionData, SubscriptionAttributes,
+    CheckoutRequest, CheckoutResponse, LemonSqueezyWebhookPayload, SubscriptionAttributes,
+    SubscriptionData, UpdateSubscriptionRequest,
 };
+pub use license_activation::LicenseActivation;
+pub use order::{CreateOrderRequest, Order, OrderResponse, OrderStatus};
+pub use subscription::{
+    CreateSubscriptionRequest, Subscription, SubscriptionResponse, SubscriptionStatus,
+};
+pub use webhook_event::{CreateWebhookEventRequest, WebhookEvent};
