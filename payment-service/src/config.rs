@@ -1,4 +1,5 @@
 use std::env;
+use tracing::warn;
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -44,6 +45,49 @@ impl Config {
         keys.iter().find_map(|k| env::var(k).ok())
     }
 
+    fn extract_host(url: &str) -> Option<&str> {
+        let after_scheme = if let Some((_, rest)) = url.split_once("://") {
+            rest
+        } else {
+            url
+        };
+        let after_auth = after_scheme.rsplit_once('@').map_or(after_scheme, |(_, rest)| rest);
+        let host_port = after_auth.split('/').next()?;
+        let host = host_port.split(':').next()?;
+        if host.is_empty() { None } else { Some(host) }
+    }
+
+    fn choose_database_url() -> Option<String> {
+        let payment_db = env::var("PAYMENT_DATABASE_URL").ok();
+        let shared_db = env::var("DATABASE_URL").ok();
+
+        if let (Some(p), Some(s)) = (&payment_db, &shared_db) {
+            let payment_host = Self::extract_host(p).unwrap_or("unknown");
+            let shared_host = Self::extract_host(s).unwrap_or("unknown");
+            if payment_host != shared_host {
+                warn!(
+                    "PAYMENT_DATABASE_URL host ({}) differs from DATABASE_URL host ({}). payment-service will use the configured selection rules.",
+                    payment_host,
+                    shared_host
+                );
+            }
+        }
+
+        // Prefer an explicit Neon URL when available.
+        if let Some(db) = &payment_db {
+            if db.contains(".neon.tech") {
+                return Some(db.clone());
+            }
+        }
+        if let Some(db) = &shared_db {
+            if db.contains(".neon.tech") {
+                return Some(db.clone());
+            }
+        }
+
+        payment_db.or(shared_db)
+    }
+
     pub fn from_env() -> Result<Self, ConfigError> {
         let api_host = env::var("PAYMENT_API_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
 
@@ -56,8 +100,22 @@ impl Config {
                 )
             })?;
 
-        let database_url = env::var("PAYMENT_DATABASE_URL")
-            .map_err(|_| ConfigError::MissingEnvVar("PAYMENT_DATABASE_URL".to_string()))?;
+        let database_url = Self::choose_database_url().ok_or_else(|| {
+            ConfigError::MissingEnvVar(
+                "PAYMENT_DATABASE_URL (or shared DATABASE_URL)".to_string(),
+            )
+        })?;
+
+        let payment_require_neon = env::var("PAYMENT_REQUIRE_NEON")
+            .unwrap_or_else(|_| "true".to_string())
+            .parse::<bool>()
+            .unwrap_or(true);
+
+        if payment_require_neon && !database_url.contains(".neon.tech") {
+            return Err(ConfigError::InvalidEnvVar(
+                "Payment DB must use Neon. Set PAYMENT_DATABASE_URL (or DATABASE_URL) to a Neon host ending in .neon.tech, e.g. ...-pooler....neon.tech?sslmode=require&channel_binding=require".to_string(),
+            ));
+        }
 
         let lemonsqueezy_api_key = env::var("LEMONSQUEEZY_API_KEY")
             .map_err(|_| ConfigError::MissingEnvVar("LEMONSQUEEZY_API_KEY".to_string()))?;
