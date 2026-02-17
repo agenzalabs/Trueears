@@ -8,11 +8,19 @@ mod services;
 mod utils;
 
 use axum::{
+    http::HeaderValue,
+    middleware::from_fn_with_state,
     routing::{get, post},
     Router,
 };
 use config::Config;
-use handlers::checkout::create_checkout;
+use handlers::{
+    checkout::create_checkout,
+    license::{activate_license, deactivate_license, get_license_status},
+    orders::get_my_orders,
+    webhooks::handle_lemonsqueezy_webhook,
+};
+use middleware::auth_middleware;
 use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -70,17 +78,40 @@ async fn main() {
     };
 
     // Configure CORS
-    let cors = CorsLayer::new()
-        .allow_origin(Any) // In production, restrict this to your app's origin
-        .allow_methods(Any)
-        .allow_headers(Any);
+    let cors = if config.is_production {
+        let origins = config
+            .payment_allowed_origins
+            .iter()
+            .filter_map(|origin| HeaderValue::from_str(origin).ok())
+            .collect::<Vec<_>>();
+        if origins.is_empty() {
+            CorsLayer::new().allow_methods(Any).allow_headers(Any)
+        } else {
+            CorsLayer::new()
+                .allow_origin(origins)
+                .allow_methods(Any)
+                .allow_headers(Any)
+        }
+    } else {
+        CorsLayer::new()
+            .allow_origin(Any)
+            .allow_methods(Any)
+            .allow_headers(Any)
+    };
+
+    let protected_routes = Router::new()
+        .route("/api/checkout", post(create_checkout))
+        .route("/api/license/status", get(get_license_status))
+        .route("/api/license/activate", post(activate_license))
+        .route("/api/license/deactivate", post(deactivate_license))
+        .route("/api/orders/me", get(get_my_orders))
+        .route_layer(from_fn_with_state(state.clone(), auth_middleware));
 
     // Build router
     let app = Router::new()
-        // Public routes
         .route("/health", get(health_check))
-        .route("/api/checkout", post(create_checkout))
-        // Protected routes will be added here
+        .route("/webhooks/lemonsqueezy", post(handle_lemonsqueezy_webhook))
+        .merge(protected_routes)
         .layer(cors)
         .with_state(state);
 
