@@ -22,6 +22,11 @@ pub async fn handle_lemonsqueezy_webhook(
     headers: HeaderMap,
     body: Bytes,
 ) -> Result<(StatusCode, Json<WebhookResponse>), PaymentError> {
+    tracing::info!(
+        body_len = body.len(),
+        "Received LemonSqueezy webhook request"
+    );
+
     let signature = headers
         .get("X-Signature")
         .and_then(|v| v.to_str().ok())
@@ -33,6 +38,7 @@ pub async fn handle_lemonsqueezy_webhook(
         .map_err(|e| PaymentError::InvalidRequest(format!("Invalid JSON payload: {}", e)))?;
 
     let outcome = process_webhook_event(&state.pool, &payload).await?;
+    tracing::info!(?outcome, "Webhook processed");
     match outcome {
         WebhookOutcome::Processed | WebhookOutcome::Ignored => {
             Ok((StatusCode::OK, Json(WebhookResponse { status: "ok" })))

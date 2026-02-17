@@ -6,7 +6,7 @@ Standalone payment and subscription service for Trueears, built with Axum (Rust)
 
 - **Language**: Rust 1.77+
 - **Framework**: Axum 0.7
-- **Database**: PostgreSQL 14+
+- **Database**: PostgreSQL (Neon recommended)
 - **Port**: 3002 (default)
 - **Payment Gateway**: LemonSqueezy (Merchant of Record)
 
@@ -25,7 +25,7 @@ Standalone payment and subscription service for Trueears, built with Axum (Rust)
 ## Prerequisites
 
 1. **Rust 1.77+** - Install from [rustup.rs](https://rustup.rs/)
-2. **PostgreSQL 14+** - Running locally or accessible via connection string
+2. **PostgreSQL 14+ / Neon Postgres** - Accessible via connection string
 3. **LemonSqueezy Account** - Sign up at [lemonsqueezy.com](https://lemonsqueezy.com/)
    - Create a store
    - Create products and variants (pricing plans)
@@ -42,7 +42,10 @@ cp .env.example .env
 ```
 
 Edit `.env` with your actual values:
-- `PAYMENT_DATABASE_URL` - PostgreSQL connection string
+- `PAYMENT_DATABASE_URL` - Neon/PostgreSQL connection string
+  - Recommended (Neon pooled): `postgresql://USER:PASSWORD@EP-ENDPOINT-pooler.REGION.aws.neon.tech/DB?sslmode=require&channel_binding=require`
+  - If `PAYMENT_DATABASE_URL` is not set, service falls back to shared `DATABASE_URL`
+- `PAYMENT_REQUIRE_NEON` - Defaults to `true` (service fails fast if DB host is not Neon)
 - `LEMONSQUEEZY_API_KEY` - From LemonSqueezy dashboard → API
 - `LEMONSQUEEZY_STORE_ID` - Your store ID
 - `LEMONSQUEEZY_WEBHOOK_SECRET` - Generated when creating webhook
@@ -181,8 +184,11 @@ Set `LEMONSQUEEZY_TEST_MODE=true` in `.env` to use LemonSqueezy's test mode. Thi
 ### Database Connection Fails
 
 - Verify PostgreSQL is running: `pg_isready`
-- Check `PAYMENT_DATABASE_URL` format: `postgres://user:pass@host:port/dbname`
+- Check `PAYMENT_DATABASE_URL` format: `postgresql://user:pass@host:port/dbname`
 - Ensure database exists: `createdb trueears_payments`
+- For Neon, use the pooled endpoint (`-pooler`) and include:
+  - `sslmode=require`
+  - `channel_binding=require`
 
 ### JWT Validation Fails
 
