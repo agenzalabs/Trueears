@@ -69,6 +69,20 @@ fn configure_linux_webview_media(window: &tauri::WebviewWindow) {
 #[cfg(not(target_os = "linux"))]
 fn configure_linux_webview_media(_window: &tauri::WebviewWindow) {}
 
+fn load_env_with_workspace_fallback() {
+    // Load shared workspace env first.
+    match dotenvy::from_filename("../.env") {
+        Ok(path) => log::info!("Loaded workspace env from {:?}", path),
+        Err(e) => log::debug!("Workspace env not loaded: {}", e),
+    }
+
+    // Then load backend-local env only for missing values.
+    match dotenvy::from_filename(".env") {
+        Ok(path) => log::info!("Loaded backend env fallback from {:?}", path),
+        Err(e) => log::debug!("Backend env fallback not loaded: {}", e),
+    }
+}
+
 fn is_sensitive_store_key(key: &str) -> bool {
     let k = key.to_ascii_uppercase();
     k.contains("KEY") || k.contains("TOKEN") || k.contains("SECRET") || k.contains("PASSWORD")
@@ -305,12 +319,7 @@ pub fn run() {
             use tauri::Manager;
             use tauri_plugin_store::StoreExt;
 
-            // Load .env file from project root
-            if let Err(e) = dotenvy::dotenv() {
-                log::warn!("No .env file found: {}", e);
-            } else {
-                log::info!("Loaded .env file");
-            }
+            load_env_with_workspace_fallback();
 
             // Migrate any legacy auth storage to the consolidated path
             auth::migrate_legacy_auth_file();
