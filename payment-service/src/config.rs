@@ -1,4 +1,3 @@
-use serde::Deserialize;
 use std::env;
 
 #[derive(Debug, Clone)]
@@ -16,10 +15,12 @@ pub struct Config {
     pub lemonsqueezy_webhook_secret: String,
 
     // Product variants
-    pub variant_id_basic_monthly: String,
-    pub variant_id_basic_annual: String,
-    pub variant_id_pro_monthly: String,
-    pub variant_id_pro_annual: String,
+    pub variant_id_basic: String,
+    pub variant_id_pro: String,
+    pub variant_id_basic_monthly: Option<String>,
+    pub variant_id_basic_annual: Option<String>,
+    pub variant_id_pro_monthly: Option<String>,
+    pub variant_id_pro_annual: Option<String>,
 
     // JWT
     pub jwt_secret: String,
@@ -27,6 +28,7 @@ pub struct Config {
     // Environment
     pub is_production: bool,
     pub lemonsqueezy_test_mode: bool,
+    pub payment_allowed_origins: Vec<String>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -38,14 +40,21 @@ pub enum ConfigError {
 }
 
 impl Config {
+    fn first_present_var(keys: &[&str]) -> Option<String> {
+        keys.iter().find_map(|k| env::var(k).ok())
+    }
+
     pub fn from_env() -> Result<Self, ConfigError> {
-        let api_host = env::var("PAYMENT_API_HOST")
-            .unwrap_or_else(|_| "127.0.0.1".to_string());
+        let api_host = env::var("PAYMENT_API_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
 
         let api_port = env::var("PAYMENT_API_PORT")
             .unwrap_or_else(|_| "3002".to_string())
             .parse::<u16>()
-            .map_err(|_| ConfigError::InvalidEnvVar("PAYMENT_API_PORT must be a valid port number".to_string()))?;
+            .map_err(|_| {
+                ConfigError::InvalidEnvVar(
+                    "PAYMENT_API_PORT must be a valid port number".to_string(),
+                )
+            })?;
 
         let database_url = env::var("PAYMENT_DATABASE_URL")
             .map_err(|_| ConfigError::MissingEnvVar("PAYMENT_DATABASE_URL".to_string()))?;
@@ -59,17 +68,31 @@ impl Config {
         let lemonsqueezy_webhook_secret = env::var("LEMONSQUEEZY_WEBHOOK_SECRET")
             .map_err(|_| ConfigError::MissingEnvVar("LEMONSQUEEZY_WEBHOOK_SECRET".to_string()))?;
 
-        let variant_id_basic_monthly = env::var("LEMONSQUEEZY_VARIANT_ID_BASIC_MONTHLY")
-            .map_err(|_| ConfigError::MissingEnvVar("LEMONSQUEEZY_VARIANT_ID_BASIC_MONTHLY".to_string()))?;
+        let variant_id_basic = Self::first_present_var(&[
+            "LEMONSQUEEZY_VARIANT_ID_BASIC",
+            "LEMONSQUEEZY_VARIANT_ID_BASIC_MONTHLY",
+        ])
+        .ok_or_else(|| {
+            ConfigError::MissingEnvVar(
+                "LEMONSQUEEZY_VARIANT_ID_BASIC (or LEMONSQUEEZY_VARIANT_ID_BASIC_MONTHLY)"
+                    .to_string(),
+            )
+        })?;
 
-        let variant_id_basic_annual = env::var("LEMONSQUEEZY_VARIANT_ID_BASIC_ANNUAL")
-            .map_err(|_| ConfigError::MissingEnvVar("LEMONSQUEEZY_VARIANT_ID_BASIC_ANNUAL".to_string()))?;
+        let variant_id_pro = Self::first_present_var(&[
+            "LEMONSQUEEZY_VARIANT_ID_PRO",
+            "LEMONSQUEEZY_VARIANT_ID_PRO_MONTHLY",
+        ])
+        .ok_or_else(|| {
+            ConfigError::MissingEnvVar(
+                "LEMONSQUEEZY_VARIANT_ID_PRO (or LEMONSQUEEZY_VARIANT_ID_PRO_MONTHLY)".to_string(),
+            )
+        })?;
 
-        let variant_id_pro_monthly = env::var("LEMONSQUEEZY_VARIANT_ID_PRO_MONTHLY")
-            .map_err(|_| ConfigError::MissingEnvVar("LEMONSQUEEZY_VARIANT_ID_PRO_MONTHLY".to_string()))?;
-
-        let variant_id_pro_annual = env::var("LEMONSQUEEZY_VARIANT_ID_PRO_ANNUAL")
-            .map_err(|_| ConfigError::MissingEnvVar("LEMONSQUEEZY_VARIANT_ID_PRO_ANNUAL".to_string()))?;
+        let variant_id_basic_monthly = env::var("LEMONSQUEEZY_VARIANT_ID_BASIC_MONTHLY").ok();
+        let variant_id_basic_annual = env::var("LEMONSQUEEZY_VARIANT_ID_BASIC_ANNUAL").ok();
+        let variant_id_pro_monthly = env::var("LEMONSQUEEZY_VARIANT_ID_PRO_MONTHLY").ok();
+        let variant_id_pro_annual = env::var("LEMONSQUEEZY_VARIANT_ID_PRO_ANNUAL").ok();
 
         let jwt_secret = env::var("JWT_SECRET")
             .map_err(|_| ConfigError::MissingEnvVar("JWT_SECRET".to_string()))?;
@@ -84,6 +107,15 @@ impl Config {
             .parse::<bool>()
             .unwrap_or(true);
 
+        let payment_allowed_origins = env::var("PAYMENT_ALLOWED_ORIGINS")
+            .unwrap_or_else(|_| {
+                "http://localhost:1420,http://127.0.0.1:1420,tauri://localhost".to_string()
+            })
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>();
+
         Ok(Config {
             api_host,
             api_port,
@@ -91,6 +123,8 @@ impl Config {
             lemonsqueezy_api_key,
             lemonsqueezy_store_id,
             lemonsqueezy_webhook_secret,
+            variant_id_basic,
+            variant_id_pro,
             variant_id_basic_monthly,
             variant_id_basic_annual,
             variant_id_pro_monthly,
@@ -98,6 +132,7 @@ impl Config {
             jwt_secret,
             is_production,
             lemonsqueezy_test_mode,
+            payment_allowed_origins,
         })
     }
 
@@ -109,6 +144,32 @@ impl Config {
     /// Returns the LemonSqueezy API base URL
     pub fn lemonsqueezy_api_base_url(&self) -> String {
         "https://api.lemonsqueezy.com/v1".to_string()
+    }
+
+    /// Returns all allowed variant IDs for checkout validation.
+    pub fn allowed_variant_ids(&self) -> Vec<&str> {
+        let mut variants = vec![self.variant_id_basic.as_str(), self.variant_id_pro.as_str()];
+
+        if let Some(v) = &self.variant_id_basic_monthly {
+            variants.push(v.as_str());
+        }
+        if let Some(v) = &self.variant_id_basic_annual {
+            variants.push(v.as_str());
+        }
+        if let Some(v) = &self.variant_id_pro_monthly {
+            variants.push(v.as_str());
+        }
+        if let Some(v) = &self.variant_id_pro_annual {
+            variants.push(v.as_str());
+        }
+
+        variants.sort_unstable();
+        variants.dedup();
+        variants
+    }
+
+    pub fn is_allowed_variant(&self, variant_id: &str) -> bool {
+        self.allowed_variant_ids().contains(&variant_id)
     }
 }
 
@@ -125,13 +186,16 @@ mod tests {
             lemonsqueezy_api_key: "test".to_string(),
             lemonsqueezy_store_id: "1".to_string(),
             lemonsqueezy_webhook_secret: "secret".to_string(),
-            variant_id_basic_monthly: "1".to_string(),
-            variant_id_basic_annual: "2".to_string(),
-            variant_id_pro_monthly: "3".to_string(),
-            variant_id_pro_annual: "4".to_string(),
+            variant_id_basic: "1".to_string(),
+            variant_id_pro: "3".to_string(),
+            variant_id_basic_monthly: Some("1".to_string()),
+            variant_id_basic_annual: Some("2".to_string()),
+            variant_id_pro_monthly: Some("3".to_string()),
+            variant_id_pro_annual: Some("4".to_string()),
             jwt_secret: "secret".to_string(),
             is_production: false,
             lemonsqueezy_test_mode: true,
+            payment_allowed_origins: vec!["http://localhost:1420".to_string()],
         };
 
         assert_eq!(config.api_base_url(), "http://127.0.0.1:3002");
@@ -139,5 +203,9 @@ mod tests {
             config.lemonsqueezy_api_base_url(),
             "https://api.lemonsqueezy.com/v1"
         );
+
+        assert!(config.is_allowed_variant("1"));
+        assert!(config.is_allowed_variant("3"));
+        assert!(!config.is_allowed_variant("999"));
     }
 }
