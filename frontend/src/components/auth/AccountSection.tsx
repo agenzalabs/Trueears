@@ -20,6 +20,7 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
     user,
     login,
     logout,
+    refreshAuthState,
 }) => {
     const isDark = theme === 'dark';
     const [isUpgrading, setIsUpgrading] = useState(false);
@@ -36,46 +37,80 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
         import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID_MONTHLY ||
         import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID_ANNUAL ||
         '';
+    const BASIC_VARIANT_ID =
+        import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID_BASIC ||
+        import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID_BASIC_MONTHLY ||
+        import.meta.env.VITE_LEMONSQUEEZY_VARIANT_ID_BASIC_ANNUAL ||
+        '';
 
     const resolvePlanState = useCallback(async () => {
         if (!isAuthenticated) {
             return { label: 'Free', activePro: false };
         }
 
-        const licenseStatus = await paymentService.checkLicenseStatus();
+        const [licenseStatus, orders] = await Promise.all([
+            paymentService.checkLicenseStatus(),
+            paymentService.getOrders().catch(() => []),
+        ]);
 
         const variantName = (licenseStatus.variant_name || '').toLowerCase();
-        const activePro = Boolean(
+        const activeProFromLicense = Boolean(
             licenseStatus.valid && (variantName.includes('pro') || variantName.includes('premium'))
         );
-        const activeBasic = Boolean(licenseStatus.valid && variantName.includes('basic'));
+        const activeBasicFromLicense = Boolean(licenseStatus.valid && variantName.includes('basic'));
+
+        const paidLikeStatuses = new Set(['paid', 'partial_refund', 'completed', 'complete']);
+        const paidOrders = orders.filter((order) =>
+            paidLikeStatuses.has((order.status || '').toLowerCase())
+        );
+        const hasPaidProOrder = paidOrders.some(
+            (order) => Boolean(PRO_VARIANT_ID) && order.variant_id === PRO_VARIANT_ID
+        );
+        const hasPaidBasicOrder = paidOrders.some(
+            (order) => Boolean(BASIC_VARIANT_ID) && order.variant_id === BASIC_VARIANT_ID
+        );
+        const hasUnknownPaidOrder = paidOrders.some((order) => !order.variant_id);
+
+        const activePro =
+            activeProFromLicense ||
+            hasPaidProOrder ||
+            // If Lemon order exists but variant metadata is absent, prefer paid entitlement.
+            (licenseStatus.valid && !activeBasicFromLicense && !activeProFromLicense && hasUnknownPaidOrder);
+        const activeBasic = !activePro && (activeBasicFromLicense || hasPaidBasicOrder);
+
         const label = activePro ? 'Pro' : activeBasic ? 'Basic' : 'Free';
 
         return { label, activePro };
-    }, [PRO_VARIANT_ID, isAuthenticated]);
+    }, [BASIC_VARIANT_ID, PRO_VARIANT_ID, isAuthenticated]);
 
     const refreshPlanState = useCallback(async (quiet = false) => {
         if (!quiet) {
             setIsRefreshingPlan(true);
         }
         try {
+            if (isAuthenticated) {
+                await refreshAuthState();
+            }
             const next = await resolvePlanState();
             setPlanLabel(next.label);
             setHasActivePro(next.activePro);
+            setUpgradeError(null);
             return next;
         } catch (error) {
             console.error('[AccountSection] Failed to refresh plan state:', error);
+            setUpgradeError(error instanceof Error ? error.message : 'Failed to refresh plan status.');
             if (!isAuthenticated) {
                 setPlanLabel('Free');
                 setHasActivePro(false);
+                return { label: 'Free', activePro: false };
             }
-            return { label: 'Free', activePro: false };
+            return { label: planLabel, activePro: hasActivePro };
         } finally {
             if (!quiet) {
                 setIsRefreshingPlan(false);
             }
         }
-    }, [isAuthenticated, resolvePlanState]);
+    }, [hasActivePro, isAuthenticated, planLabel, refreshAuthState, resolvePlanState]);
 
     useEffect(() => {
         void refreshPlanState(true);

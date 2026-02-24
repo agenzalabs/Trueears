@@ -132,6 +132,12 @@ class PaymentService {
         if (response.status === 404) {
           return { valid: false };
         }
+        if (response.status === 401) {
+          const error = await response.json().catch(() => ({ error: 'Unauthorized' }));
+          throw new Error(
+            String(error.error || 'Authentication token is invalid for payment service')
+          );
+        }
         const error = await response.json().catch(() => ({ error: 'Unknown error' }));
         throw new Error(error.error || `HTTP ${response.status}`);
       }
@@ -139,7 +145,7 @@ class PaymentService {
       return await response.json();
     } catch (error) {
       console.error('[PaymentService] Failed to check license status:', error);
-      return { valid: false };
+      throw error;
     }
   }
 

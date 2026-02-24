@@ -45,6 +45,12 @@ pub async fn get_license_status(
     State(state): State<AppState>,
     Extension(user): Extension<AuthenticatedUser>,
 ) -> Result<Json<LicenseStatusResponse>, PaymentError> {
+    tracing::info!(
+        user_id = %user.user_id,
+        user_email = %user.email,
+        "Handling license status request"
+    );
+
     let mut record = fetch_best_order_record(&state, user.user_id).await?;
     if record.is_none() {
         let _ = sync_orders_for_user(&state.pool, &state.config, user.user_id, &user.email).await;
@@ -62,6 +68,10 @@ pub async fn get_license_status(
         ls_variant_id,
     )) = record
     else {
+        tracing::info!(
+            user_id = %user.user_id,
+            "No order-based entitlement found after fallback sync"
+        );
         return Ok(Json(LicenseStatusResponse {
             valid: false,
             license_key: None,
@@ -84,6 +94,15 @@ pub async fn get_license_status(
         Some(v) if v == state.config.variant_id_basic => Some("Basic License".to_string()),
         _ => None,
     };
+
+    tracing::info!(
+        user_id = %user.user_id,
+        order_status = %order_status,
+        ls_variant_id = ?ls_variant_id,
+        resolved_variant = ?variant_name,
+        valid,
+        "Resolved license status"
+    );
 
     Ok(Json(LicenseStatusResponse {
         valid,
@@ -139,6 +158,11 @@ async fn fetch_best_order_record(
         INNER JOIN customers c ON c.id = o.customer_id
         WHERE c.user_id = $1
         ORDER BY
+            CASE WHEN o.status::text IN ('paid', 'partial_refund') THEN 1 ELSE 0 END DESC,
+            CASE
+                WHEN o.license_status IS NULL OR o.license_status NOT IN ('inactive', 'disabled') THEN 1
+                ELSE 0
+            END DESC,
             CASE WHEN o.ls_variant_id::text = $2 THEN 1 ELSE 0 END DESC,
             o.created_at DESC
         LIMIT 1

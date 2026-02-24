@@ -22,11 +22,22 @@ pub async fn get_my_orders(
     State(state): State<AppState>,
     Extension(user): Extension<AuthenticatedUser>,
 ) -> Result<Json<Vec<OrderDto>>, PaymentError> {
+    tracing::info!(
+        user_id = %user.user_id,
+        user_email = %user.email,
+        "Handling get my orders request"
+    );
+
     let mut rows = query_orders_for_user(&state, user.user_id).await?;
     if rows.is_empty() {
+        tracing::info!(
+            user_id = %user.user_id,
+            "No local orders found; triggering Lemon fallback sync"
+        );
         let _ = sync_orders_for_user(&state.pool, &state.config, user.user_id, &user.email).await;
         rows = query_orders_for_user(&state, user.user_id).await?;
     }
+    tracing::info!(user_id = %user.user_id, orders_count = rows.len(), "Returning user orders");
 
     let orders = rows
         .into_iter()
