@@ -214,7 +214,8 @@ async fn get_auth_state() -> Result<auth::AuthState, String> {
 async fn logout() -> Result<(), String> {
     log::info!("logout command called");
 
-    let api_url = std::env::var("API_URL").unwrap_or_else(|_| "https://trueears-backend.vercel.app".to_string());
+    let api_url = std::env::var("API_URL")
+        .expect("API_URL environment variable must be set. Check your .env file.");
 
     auth::logout(&api_url).await
 }

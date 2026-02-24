@@ -1,10 +1,10 @@
 # Trueears
 
-A minimalist, context-aware AI voice dictation application built with Tauri, React, and Rust. Uses Groq's Whisper models for fast speech-to-text and LLM-powered post-processing to format your words intelligently based on the active application.
+A minimalist, context-aware AI voice dictation application built with Tauri, React, and Rust. Uses Whisper models for fast speech-to-text and LLM-powered post-processing to format your words intelligently based on the active application.
 
 [![Bundle Size](https://img.shields.io/badge/bundle-~15MB-green)](docs/guides/deployment.md)
 [![Tauri](https://img.shields.io/badge/tauri-2.x-blue)](https://tauri.app)
-[![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 
 ## Features
 
@@ -87,10 +87,26 @@ Trueears/
 
 See [Architecture Overview](docs/architecture/overview.md) for detailed component breakdown.
 
+## Build from Source
+
+```bash
+# Prerequisites: Node.js v18+, Rust 1.77+, Microsoft Visual C++ Build Tools
+
+git clone https://github.com/devv-shayan/Trueears.git
+cd Trueears
+cp .env.example .env     # Configure your API_URL and GOOGLE_CLIENT_ID
+npm install
+npm run dev
+```
+
 ## Contributing
 
 Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines and [Development Guide](docs/guides/development.md) for setup instructions.
 
+## Security
+
+Found a vulnerability? Please report it responsibly — see [SECURITY.md](SECURITY.md).
+
 ## License
 
-MIT
+AGPL-3.0 — see [LICENSE](LICENSE) for details.

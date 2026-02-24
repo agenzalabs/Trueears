@@ -49,8 +49,7 @@ impl Config {
                 .unwrap_or_else(|_| "3001".to_string())
                 .parse()
                 .unwrap_or(3001),
-            api_url: env::var("API_URL")
-                .unwrap_or_else(|_| "https://trueears-backend.vercel.app".to_string()),
+            api_url: env::var("API_URL")?,
             is_production,
         })
     }
