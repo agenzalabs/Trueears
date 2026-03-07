@@ -3,8 +3,7 @@ import { RecorderOverlay } from './components/RecorderOverlay';
 
 const App: React.FC = () => {
   useEffect(() => {
-    const isLinux = navigator.userAgent.toLowerCase().includes('linux');
-    const background = isLinux ? '#0b0f14' : 'transparent';
+    const background = 'transparent';
 
     document.documentElement.style.background = background;
     document.body.style.background = background;
