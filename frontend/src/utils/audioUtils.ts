@@ -34,3 +34,49 @@ export const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
   }
   return btoa(binary);
 };
+
+export const mergeFloat32Chunks = (chunks: Float32Array[]): Float32Array => {
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const merged = new Float32Array(totalLength);
+  let offset = 0;
+
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  return merged;
+};
+
+export const encodeMonoWav = (samples: Float32Array, sampleRate: number): Blob => {
+  const pcmBuffer = float32To16BitPCM(samples);
+  const wavHeader = new ArrayBuffer(44);
+  const view = new DataView(wavHeader);
+  const dataLength = pcmBuffer.byteLength;
+  const channels = 1;
+  const bitsPerSample = 16;
+  const byteRate = sampleRate * channels * (bitsPerSample / 8);
+  const blockAlign = channels * (bitsPerSample / 8);
+
+  const writeString = (offset: number, value: string) => {
+    for (let i = 0; i < value.length; i++) {
+      view.setUint8(offset + i, value.charCodeAt(i));
+    }
+  };
+
+  writeString(0, 'RIFF');
+  view.setUint32(4, 36 + dataLength, true);
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, channels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
+  writeString(36, 'data');
+  view.setUint32(40, dataLength, true);
+
+  return new Blob([wavHeader, pcmBuffer], { type: 'audio/wav' });
+};
