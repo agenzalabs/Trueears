@@ -3,10 +3,12 @@ import { RecorderOverlay } from './components/RecorderOverlay';
 
 const App: React.FC = () => {
   useEffect(() => {
-    // Force transparent background for the overlay window
-    document.documentElement.style.background = 'transparent';
-    document.body.style.background = 'transparent';
-    document.getElementById('root')!.style.background = 'transparent';
+    const isLinux = navigator.userAgent.toLowerCase().includes('linux');
+    const background = isLinux ? '#0b0f14' : 'transparent';
+
+    document.documentElement.style.background = background;
+    document.body.style.background = background;
+    document.getElementById('root')!.style.background = background;
   }, []);
 
   return (
