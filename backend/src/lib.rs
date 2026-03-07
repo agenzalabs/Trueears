@@ -1,12 +1,16 @@
 mod auth;
 mod automation;
+mod installed_apps;
+#[cfg(target_os = "linux")]
+mod linux_portal_shortcuts;
+#[cfg(target_os = "linux")]
+mod linux_remote_desktop;
+mod log_mode;
 mod shortcuts;
 mod window;
-mod installed_apps;
-mod log_mode;
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use window::ActiveWindowInfo;
 
 #[derive(serde::Serialize)]
@@ -68,6 +72,31 @@ fn configure_linux_webview_media(window: &tauri::WebviewWindow) {
 
 #[cfg(not(target_os = "linux"))]
 fn configure_linux_webview_media(_window: &tauri::WebviewWindow) {}
+
+#[cfg(target_os = "linux")]
+fn is_linux_wayland_session() -> bool {
+    matches!(
+        std::env::var("XDG_SESSION_TYPE"),
+        Ok(value) if value.eq_ignore_ascii_case("wayland")
+    ) || std::env::var_os("WAYLAND_DISPLAY").is_some()
+}
+
+#[cfg(not(target_os = "linux"))]
+fn is_linux_wayland_session() -> bool {
+    false
+}
+
+#[cfg(target_os = "linux")]
+fn configure_wayland_overlay_panel(window: &tauri::WebviewWindow) {
+    let _ = window.set_size(tauri::PhysicalSize::new(560_u32, 220_u32));
+    let _ = window.center();
+    // Keep the Linux overlay visible without taking text focus away from the
+    // currently selected field. Wayland input insertion targets the focused app.
+    let _ = window.set_focusable(false);
+}
+
+#[cfg(not(target_os = "linux"))]
+fn configure_wayland_overlay_panel(_window: &tauri::WebviewWindow) {}
 
 fn load_env_with_workspace_fallback() {
     // Load shared workspace env first, overriding stale exported shell values.
@@ -145,9 +174,18 @@ async fn set_store_value(app: tauri::AppHandle, key: String, value: String) -> R
 }
 
 #[tauri::command]
-async fn transcription_complete(text: String) -> Result<(), String> {
+async fn transcription_complete(app: tauri::AppHandle, text: String) -> Result<(), String> {
     log::info!("transcription_complete command called");
-    automation::paste_text(&text).await?;
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.hide();
+        tokio::time::sleep(tokio::time::Duration::from_millis(90)).await;
+    }
+
+    let outcome = automation::paste_text(&app, &text).await?;
+
+    if let automation::PasteOutcome::ClipboardFallback { message } = outcome {
+        let _ = app.emit("show-warning", message);
+    }
 
     // Wait a bit before hiding the window
     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
@@ -350,50 +388,52 @@ pub fn run() {
             if let Some(window) = app.get_webview_window("main") {
                 configure_linux_webview_media(&window);
 
-                let monitors = window.available_monitors().unwrap_or_default();
-                if !monitors.is_empty() {
-                    let mut min_x = i32::MAX;
-                    let mut min_y = i32::MAX;
-                    let mut max_x = i32::MIN;
-                    let mut max_y = i32::MIN;
+                if is_linux_wayland_session() {
+                    log::info!("Configuring main window for Linux Wayland panel overlay");
+                    configure_wayland_overlay_panel(&window);
+                } else {
+                    let monitors = window.available_monitors().unwrap_or_default();
+                    if !monitors.is_empty() {
+                        let mut min_x = i32::MAX;
+                        let mut min_y = i32::MAX;
+                        let mut max_x = i32::MIN;
+                        let mut max_y = i32::MIN;
 
-                    for monitor in &monitors {
-                        let pos = monitor.position();
-                        let size = monitor.size();
-                        min_x = min_x.min(pos.x);
-                        min_y = min_y.min(pos.y);
-                        max_x = max_x.max(pos.x + size.width as i32);
-                        max_y = max_y.max(pos.y + size.height as i32);
+                        for monitor in &monitors {
+                            let pos = monitor.position();
+                            let size = monitor.size();
+                            min_x = min_x.min(pos.x);
+                            min_y = min_y.min(pos.y);
+                            max_x = max_x.max(pos.x + size.width as i32);
+                            max_y = max_y.max(pos.y + size.height as i32);
+                        }
+
+                        let max_scale_factor = monitors
+                            .iter()
+                            .map(|m| m.scale_factor())
+                            .fold(1.0_f64, |a, b| a.max(b));
+
+                        let padding = (200.0 * max_scale_factor) as i32;
+                        min_x -= padding;
+                        min_y -= padding;
+                        max_x += padding;
+                        max_y += padding;
+
+                        let total_width = (max_x - min_x) as u32;
+                        let total_height = (max_y - min_y) as u32;
+
+                        log::info!(
+                            "Setting main window to span all monitors: pos=({}, {}), size={}x{}, scale={}",
+                            min_x,
+                            min_y,
+                            total_width,
+                            total_height,
+                            max_scale_factor
+                        );
+
+                        let _ = window.set_position(tauri::PhysicalPosition::new(min_x, min_y));
+                        let _ = window.set_size(tauri::PhysicalSize::new(total_width, total_height));
                     }
-
-                    // Get maximum scale factor across all monitors to account for DPI scaling
-                    let max_scale_factor = monitors
-                        .iter()
-                        .map(|m| m.scale_factor())
-                        .fold(1.0_f64, |a, b| a.max(b));
-
-                    // Add generous padding to ensure full coverage on all devices
-                    // 200px base padding scaled by DPI should cover any edge cases
-                    let padding = (200.0 * max_scale_factor) as i32;
-                    min_x -= padding;
-                    min_y -= padding;
-                    max_x += padding;
-                    max_y += padding;
-
-                    let total_width = (max_x - min_x) as u32;
-                    let total_height = (max_y - min_y) as u32;
-
-                    log::info!(
-                        "Setting main window to span all monitors: pos=({}, {}), size={}x{}, scale={}",
-                        min_x,
-                        min_y,
-                        total_width,
-                        total_height,
-                        max_scale_factor
-                    );
-
-                    let _ = window.set_position(tauri::PhysicalPosition::new(min_x, min_y));
-                    let _ = window.set_size(tauri::PhysicalSize::new(total_width, total_height));
                 }
             }
 
