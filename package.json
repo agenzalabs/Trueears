@@ -11,7 +11,7 @@
     "vite:dev": "cd frontend && vite",
     "vite:build": "node scripts/sync-version.js && cd frontend && vite build",
     "dev": "cd backend && tauri dev",
-    "dev:linux": "env -i HOME=\"$HOME\" USER=\"$USER\" LOGNAME=\"$LOGNAME\" PATH=\"$PATH\" SHELL=\"$SHELL\" LANG=\"$LANG\" LC_ALL=\"$LC_ALL\" DISPLAY=\"$DISPLAY\" WAYLAND_DISPLAY=\"$WAYLAND_DISPLAY\" XDG_RUNTIME_DIR=\"$XDG_RUNTIME_DIR\" XDG_SESSION_TYPE=\"$XDG_SESSION_TYPE\" XDG_CURRENT_DESKTOP=\"$XDG_CURRENT_DESKTOP\" DBUS_SESSION_BUS_ADDRESS=\"$DBUS_SESSION_BUS_ADDRESS\" XDG_DATA_DIRS=\"${XDG_DATA_DIRS_VSCODE_SNAP_ORIG:-$XDG_DATA_DIRS}\" WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1 TRUEEARS_OPEN_SETTINGS_ON_START=1 sh -lc 'cd backend && tauri dev'",
+    "dev:linux": "./scripts/dev-linux.sh",
     "build": "node scripts/sync-version.js && cd backend && tauri build",
     "preview": "cd frontend && vite preview",
     "tauri": "cd backend && tauri"
