@@ -299,6 +299,16 @@ pub fn get_active_window_info() -> Option<ActiveWindowInfo> {
     })
 }
 
+#[cfg(target_os = "linux")]
+pub fn get_active_window_id_for_linux() -> Option<String> {
+    get_active_window_id()
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn get_active_window_id_for_linux() -> Option<String> {
+    None
+}
+
 #[cfg(all(not(target_os = "windows"), not(target_os = "linux")))]
 pub fn get_active_window_info() -> Option<ActiveWindowInfo> {
     Some(ActiveWindowInfo {
