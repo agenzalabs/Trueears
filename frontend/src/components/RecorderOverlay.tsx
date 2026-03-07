@@ -17,10 +17,11 @@ import { debug } from '../utils/debug';
 let listenersInitialized = false;
 
 export const RecorderOverlay: React.FC = () => {
+  const isLinux = navigator.userAgent.toLowerCase().includes('linux');
   const [isVisible, setIsVisible] = useState(false);
   const [uiMode, setUiMode] = useState<'none' | 'setup' | 'warning'>('none');
   const [warningMessage, setWarningMessage] = useState('');
-  const [windowPadding, setWindowPadding] = useState(250); // Default padding, will be calculated
+  const [windowPadding, setWindowPadding] = useState(isLinux ? 12 : 250);
   const [onboardingTriggerActive, setOnboardingTriggerActive] = useState(false);
   const [isConfigTransitioning, setIsConfigTransitioning] = useState(false);
   const [isConfigAppearing, setIsConfigAppearing] = useState(false);
@@ -79,6 +80,11 @@ export const RecorderOverlay: React.FC = () => {
   // -- Effect: Calculate window padding from window position --
   useEffect(() => {
     const calculatePadding = async () => {
+      if (isLinux) {
+        setWindowPadding(12);
+        return;
+      }
+
       try {
         const { getCurrentWindow } = await import('@tauri-apps/api/window');
         const window = getCurrentWindow();
@@ -92,7 +98,7 @@ export const RecorderOverlay: React.FC = () => {
       }
     };
     calculatePadding();
-  }, []);
+  }, [isLinux]);
 
   // -- Effect: Debug Tauri availability --
   useEffect(() => {
@@ -278,6 +284,23 @@ export const RecorderOverlay: React.FC = () => {
     await tauriAPI.openSettingsWindow();
   };
 
+  const ensureOverlayWindowVisible = useCallback(async () => {
+    if (!isLinux) {
+      return;
+    }
+
+    try {
+      const { getCurrentWindow, PhysicalSize } = await import('@tauri-apps/api/window');
+      const window = getCurrentWindow();
+      await window.setSize(new PhysicalSize(560, 220));
+      await window.center();
+      await window.show();
+      debug.log('[RecorderOverlay] Ensured overlay window is visible on Linux');
+    } catch (error) {
+      console.error('[RecorderOverlay] Failed to ensure Linux overlay visibility:', error);
+    }
+  }, [isLinux]);
+
   // -- Action: Start Recording --
   const handleStartRecording = async (manualKey?: string, windowInfo?: ActiveWindowInfo | null, selectedText?: string | null) => {
     debug.log('[RecorderOverlay] handleStartRecording called with window info:', windowInfo, 'selected text:', selectedText ? `${selectedText.length} chars` : 'none');
@@ -291,6 +314,7 @@ export const RecorderOverlay: React.FC = () => {
       setIsVisible(true); // Ensure visible for setup
       // Enable mouse events for setup screen
       tauriAPI.setIgnoreMouseEvents(false);
+      await ensureOverlayWindowVisible();
       return;
     }
 
@@ -300,6 +324,7 @@ export const RecorderOverlay: React.FC = () => {
     setIsVisible(true);
     setIsStartingRecording(true);
     tauriAPI.setIgnoreMouseEvents(false);
+    await ensureOverlayWindowVisible();
 
     try {
       debug.log('[RecorderOverlay] Starting dictation...');

@@ -10,6 +10,8 @@ dependencies = [
  "base64 0.22.1",
  "dotenvy",
  "enigo",
+ "gio",
+ "glib",
  "image",
  "keyring",
  "lnk",
