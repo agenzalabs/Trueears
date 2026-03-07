@@ -139,6 +139,7 @@ export const RecorderOverlay: React.FC = () => {
     },
   } as const;
   const currentMeta = statusMeta[status] || statusMeta.idle;
+  const isRecordingCapsule = status === 'recording' && !isConfigTransitioning && !isConfigAppearing;
   const statusSizingClass =
     status === 'setup'
       ? 'w-[24rem] h-15 rounded-[1.35rem]'
@@ -876,53 +877,59 @@ export const RecorderOverlay: React.FC = () => {
             className={`
           pointer-events-auto
           flex items-center justify-center
-          backdrop-blur-xl
+          ${isRecordingCapsule ? '' : 'backdrop-blur-xl'}
           overflow-hidden
           ${statusSizingClass}
         `}
             style={{
-              backgroundColor: isConfigTransitioning
-                ? isToastVisible
-                  ? toastType === 'success' ? 'rgba(16, 185, 129, 0.9)'
-                    : toastType === 'error' ? 'rgba(244, 63, 94, 0.9)'
-                      : 'rgba(59, 130, 246, 0.9)'
-                  : 'rgba(10, 12, 18, 0.96)'
-                : 'rgba(10, 12, 18, 0.92)',
+              backgroundColor: isRecordingCapsule
+                ? 'transparent'
+                : isConfigTransitioning
+                  ? isToastVisible
+                    ? toastType === 'success' ? 'rgba(16, 185, 129, 0.9)'
+                      : toastType === 'error' ? 'rgba(244, 63, 94, 0.9)'
+                        : 'rgba(59, 130, 246, 0.9)'
+                    : 'rgba(10, 12, 18, 0.96)'
+                  : 'rgba(10, 12, 18, 0.92)',
               border: `1px solid ${currentMeta.border}`,
-              boxShadow: `
-                inset 0 1px 0 rgba(255,255,255,0.04),
-                0 0 32px ${currentMeta.glow},
-                0 12px 38px rgba(0,0,0,0.42)
-              `,
+              boxShadow: isRecordingCapsule
+                ? `0 0 28px ${currentMeta.glow}`
+                : `
+                    inset 0 1px 0 rgba(255,255,255,0.04),
+                    0 0 32px ${currentMeta.glow},
+                    0 12px 38px rgba(0,0,0,0.42)
+                  `,
               transition: 'all 600ms cubic-bezier(0.4, 0, 0.2, 1)',
               animation: status === 'recording' ? 'softPulse 2.8s ease-in-out infinite' : undefined,
             }}
           >
             <div className="relative w-full h-full flex items-center justify-center">
-              <div className="absolute inset-0 rounded-[inherit] overflow-hidden pointer-events-none">
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background: `
-                      linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0) 28%),
-                      linear-gradient(135deg, rgba(11, 14, 24, 0.98) 0%, rgba(8, 11, 19, 0.96) 100%)
-                    `,
-                  }}
-                />
-                <div
-                  className="absolute inset-[1px] rounded-[inherit]"
-                  style={{
-                    background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 18%), linear-gradient(135deg, rgba(12,16,28,0.68), rgba(8,10,18,0.94))',
-                  }}
-                />
-                <div
-                  className="absolute inset-x-0 top-0 h-px"
-                  style={{
-                    background: `linear-gradient(90deg, transparent, ${currentMeta.accent}, transparent)`,
-                    opacity: 0.7,
-                  }}
-                />
-              </div>
+              {!isRecordingCapsule && (
+                <div className="absolute inset-0 rounded-[inherit] overflow-hidden pointer-events-none">
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      background: `
+                        linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0) 28%),
+                        linear-gradient(135deg, rgba(11, 14, 24, 0.98) 0%, rgba(8, 11, 19, 0.96) 100%)
+                      `,
+                    }}
+                  />
+                  <div
+                    className="absolute inset-[1px] rounded-[inherit]"
+                    style={{
+                      background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 18%), linear-gradient(135deg, rgba(12,16,28,0.68), rgba(8,10,18,0.94))',
+                    }}
+                  />
+                  <div
+                    className="absolute inset-x-0 top-0 h-px"
+                    style={{
+                      background: `linear-gradient(90deg, transparent, ${currentMeta.accent}, transparent)`,
+                      opacity: 0.7,
+                    }}
+                  />
+                </div>
+              )}
 
               {status === 'recording' && !isConfigTransitioning && !isConfigAppearing && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center gap-3 px-4 pointer-events-none">
