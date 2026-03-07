@@ -259,3 +259,49 @@ pub fn unregister_escape_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::er
     log::info!("Escape shortcut dynamically unregistered");
     Ok(())
 }
+
+/// Dynamically register the Escape shortcut.
+/// Called when the Trueears overlay becomes visible to allow global Escape to cancel recording.
+pub fn register_escape_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    let escape_shortcut = get_escape_shortcut();
+
+    // Check if already registered to avoid duplicate registration
+    if app.global_shortcut().is_registered(escape_shortcut) {
+        log::debug!("Escape shortcut already registered, skipping");
+        return Ok(());
+    }
+
+    app.global_shortcut().on_shortcut(escape_shortcut, {
+        let app_handle = app.clone();
+        move |_app, _shortcut, event| {
+            if event.state == ShortcutState::Pressed {
+                if let Some(window) = app_handle.get_webview_window("main") {
+                    // Only emit if window is visible
+                    if let Ok(true) = window.is_visible() {
+                        log::info!("Escape pressed while window visible - emitting shortcut-cancelled");
+                        let _ = window.emit("shortcut-cancelled", ());
+                    }
+                }
+            }
+        }
+    })?;
+
+    log::info!("Escape shortcut dynamically registered");
+    Ok(())
+}
+
+/// Dynamically unregister the Escape shortcut.
+/// Called when the Trueears overlay is hidden to allow other apps to use Escape normally.
+pub fn unregister_escape_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    let escape_shortcut = get_escape_shortcut();
+
+    // Only unregister if it's currently registered
+    if !app.global_shortcut().is_registered(escape_shortcut) {
+        log::debug!("Escape shortcut not registered, skipping unregister");
+        return Ok(());
+    }
+
+    app.global_shortcut().unregister(escape_shortcut)?;
+    log::info!("Escape shortcut dynamically unregistered");
+    Ok(())
+}

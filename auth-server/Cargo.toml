@@ -33,4 +33,4 @@ base64 = "0.21"
 rand = "0.8"
 thiserror = "1.0"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subTrueearsr = { version = "0.3", features = ["env-filter"] }
