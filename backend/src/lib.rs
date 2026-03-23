@@ -50,7 +50,9 @@ fn configure_linux_webview_media(window: &tauri::WebviewWindow) {
 
         let permission_window_label = label_for_setup.clone();
         webview.connect_permission_request(move |_view, request: &PermissionRequest| {
-            if request.is::<UserMediaPermissionRequest>() || request.is::<DeviceInfoPermissionRequest>() {
+            if request.is::<UserMediaPermissionRequest>()
+                || request.is::<DeviceInfoPermissionRequest>()
+            {
                 log::info!(
                     "Allowing Linux media permission request for '{}'",
                     permission_window_label
@@ -160,7 +162,11 @@ async fn set_store_value(app: tauri::AppHandle, key: String, value: String) -> R
     store.save().map_err(|e| e.to_string())?;
 
     if is_sensitive_store_key(&key) {
-        log::info!("set_store_value: key={}, value=<redacted len={}>", key, value.len());
+        log::info!(
+            "set_store_value: key={}, value=<redacted len={}>",
+            key,
+            value.len()
+        );
     } else {
         log::info!("set_store_value: key={}, value={}", key, value);
     }
@@ -223,14 +229,12 @@ async fn set_onboarding_trigger_active(app: tauri::AppHandle, active: bool) -> R
 
 #[tauri::command]
 fn register_escape_shortcut(app: tauri::AppHandle) -> Result<(), String> {
-    shortcuts::register_escape_shortcut(&app)
-        .map_err(|e| e.to_string())
+    shortcuts::register_escape_shortcut(&app).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn unregister_escape_shortcut(app: tauri::AppHandle) -> Result<(), String> {
-    shortcuts::unregister_escape_shortcut(&app)
-        .map_err(|e| e.to_string())
+    shortcuts::unregister_escape_shortcut(&app).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -330,7 +334,8 @@ async fn get_auth_state() -> Result<auth::AuthState, String> {
 async fn logout() -> Result<(), String> {
     log::info!("logout command called");
 
-    let api_url = std::env::var("API_URL").unwrap_or_else(|_| "https://trueears-backend.vercel.app".to_string());
+    let api_url = std::env::var("API_URL")
+        .unwrap_or_else(|_| "https://trueears-backend.vercel.app".to_string());
 
     auth::logout(&api_url).await
 }

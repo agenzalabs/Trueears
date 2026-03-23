@@ -54,7 +54,12 @@ pub fn paste_via_remote_desktop(app: &AppHandle) -> Result<bool, String> {
     let session_path = context
         .with_thread_default(|| -> Result<String, String> {
             let session_path = create_session(&connection, &context)?;
-            select_keyboard_device(&connection, &context, &session_path, restore_token.as_deref())?;
+            select_keyboard_device(
+                &connection,
+                &context,
+                &session_path,
+                restore_token.as_deref(),
+            )?;
             start_session(app, &connection, &context, &session_path)?;
             Ok(session_path)
         })
@@ -244,13 +249,23 @@ fn start_session(
 
 #[cfg(target_os = "linux")]
 fn send_ctrl_v(connection: &DBusConnection, session_path: &str) -> Result<(), String> {
-    notify_keysym(connection, session_path, KEYSYM_CONTROL_L, KEY_STATE_PRESSED)?;
+    notify_keysym(
+        connection,
+        session_path,
+        KEYSYM_CONTROL_L,
+        KEY_STATE_PRESSED,
+    )?;
     thread::sleep(Duration::from_millis(12));
     notify_keysym(connection, session_path, KEYSYM_V, KEY_STATE_PRESSED)?;
     thread::sleep(Duration::from_millis(12));
     notify_keysym(connection, session_path, KEYSYM_V, KEY_STATE_RELEASED)?;
     thread::sleep(Duration::from_millis(12));
-    notify_keysym(connection, session_path, KEYSYM_CONTROL_L, KEY_STATE_RELEASED)?;
+    notify_keysym(
+        connection,
+        session_path,
+        KEYSYM_CONTROL_L,
+        KEY_STATE_RELEASED,
+    )?;
     Ok(())
 }
 

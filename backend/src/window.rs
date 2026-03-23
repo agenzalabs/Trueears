@@ -26,7 +26,10 @@ pub fn get_cursor_position() -> Option<(i32, i32)> {
 #[cfg(target_os = "linux")]
 pub fn get_cursor_position() -> Option<(i32, i32)> {
     if let Some(output) = run_command("xdotool", &["getmouselocation", "--shell"]) {
-        if let (Some(x), Some(y)) = (parse_shell_value(&output, "X"), parse_shell_value(&output, "Y")) {
+        if let (Some(x), Some(y)) = (
+            parse_shell_value(&output, "X"),
+            parse_shell_value(&output, "Y"),
+        ) {
             return Some((x, y));
         }
     }
@@ -77,15 +80,18 @@ pub fn get_active_window_info() -> Option<ActiveWindowInfo> {
     /// Best-effort: try to read the active browser URL via Windows UI Automation.
     /// If not available, returns None (caller may fall back to title-based matching).
     fn try_get_active_browser_url(hwnd: HWND) -> Option<String> {
-        use windows::Win32::System::Com::{
-            CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED,
-        };
         use std::mem::ManuallyDrop;
-        use windows::Win32::System::Variant::{VARIANT, VARIANT_0, VARIANT_0_0, VARIANT_0_0_0, VT_I4};
+        use windows::Win32::System::Com::{
+            CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_INPROC_SERVER,
+            COINIT_APARTMENTTHREADED,
+        };
+        use windows::Win32::System::Variant::{
+            VARIANT, VARIANT_0, VARIANT_0_0, VARIANT_0_0_0, VT_I4,
+        };
         use windows::Win32::UI::Accessibility::{
             CUIAutomation, IUIAutomation, IUIAutomationElement, IUIAutomationElementArray,
-            IUIAutomationValuePattern, TreeScope_Subtree, UIA_ControlTypePropertyId, UIA_EditControlTypeId,
-            UIA_ValuePatternId,
+            IUIAutomationValuePattern, TreeScope_Subtree, UIA_ControlTypePropertyId,
+            UIA_EditControlTypeId, UIA_ValuePatternId,
         };
 
         fn variant_i32(value: i32) -> VARIANT {
@@ -110,7 +116,8 @@ pub fn get_active_window_info() -> Option<ActiveWindowInfo> {
 
             let result = (|| -> Option<String> {
                 // Create UIAutomation instance
-                let automation: IUIAutomation = CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER).ok()?;
+                let automation: IUIAutomation =
+                    CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER).ok()?;
 
                 // Root element for the window
                 let root: IUIAutomationElement = automation.ElementFromHandle(hwnd).ok()?;
@@ -121,13 +128,16 @@ pub fn get_active_window_info() -> Option<ActiveWindowInfo> {
                     .CreatePropertyCondition(UIA_ControlTypePropertyId, edit_control_type)
                     .ok()?;
 
-                let edits: IUIAutomationElementArray = root.FindAll(TreeScope_Subtree, &condition).ok()?;
+                let edits: IUIAutomationElementArray =
+                    root.FindAll(TreeScope_Subtree, &condition).ok()?;
                 let len = edits.Length().ok()? as i32;
 
                 for i in 0..len {
                     let el = edits.GetElement(i).ok()?;
                     // Try to read value via ValuePattern
-                    let pat = el.GetCurrentPatternAs::<IUIAutomationValuePattern>(UIA_ValuePatternId).ok();
+                    let pat = el
+                        .GetCurrentPatternAs::<IUIAutomationValuePattern>(UIA_ValuePatternId)
+                        .ok();
                     let value = match pat {
                         Some(p) => p.CurrentValue().ok(),
                         None => None,
@@ -207,12 +217,14 @@ pub fn get_active_window_info() -> Option<ActiveWindowInfo> {
         let process_handle = match OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, process_id)
         {
             Ok(handle) => handle,
-            Err(_) => return Some(ActiveWindowInfo {
-                app_name: "Unknown".to_string(),
-                window_title: window_title.clone(),
-                executable_path: "".to_string(),
-                url: None,
-            }),
+            Err(_) => {
+                return Some(ActiveWindowInfo {
+                    app_name: "Unknown".to_string(),
+                    window_title: window_title.clone(),
+                    executable_path: "".to_string(),
+                    url: None,
+                })
+            }
         };
 
         // Get executable path
@@ -321,7 +333,10 @@ pub fn get_active_window_info() -> Option<ActiveWindowInfo> {
 
 #[cfg(target_os = "linux")]
 fn run_command(command: &str, args: &[&str]) -> Option<String> {
-    let output = std::process::Command::new(command).args(args).output().ok()?;
+    let output = std::process::Command::new(command)
+        .args(args)
+        .output()
+        .ok()?;
     if !output.status.success() {
         return None;
     }
@@ -397,14 +412,8 @@ fn get_executable_path_from_pid(pid: u32) -> Option<String> {
 
 #[cfg(target_os = "linux")]
 fn get_window_class_name(window_id: &str) -> Option<String> {
-    run_command("xdotool", &["getwindowclassname", window_id]).map(|value| {
-        value
-            .lines()
-            .next()
-            .unwrap_or("Unknown")
-            .trim()
-            .to_string()
-    })
+    run_command("xdotool", &["getwindowclassname", window_id])
+        .map(|value| value.lines().next().unwrap_or("Unknown").trim().to_string())
 }
 
 #[cfg(target_os = "linux")]

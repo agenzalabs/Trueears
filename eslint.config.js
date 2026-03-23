@@ -36,6 +36,9 @@ export default [
         Headers: 'readonly',
         Request: 'readonly',
         Response: 'readonly',
+        Navigator: 'readonly',
+        Permissions: 'readonly',
+        PermissionName: 'readonly',
         // Audio/Media
         AudioContext: 'readonly',
         MediaRecorder: 'readonly',
