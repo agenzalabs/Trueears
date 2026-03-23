@@ -1,0 +1,40 @@
+Trueears — License Agreement (Terms + Privacy)
+Effective Date: January 16, 2026
+
+PLEASE READ CAREFULLY.
+By installing or using Trueears (the “App”), you agree to this License Agreement.
+If you do not agree, click “Cancel” and do not install or use the App.
+
+1) License
+You may install and use the App for personal or internal business use.
+You may not reverse engineer or redistribute the App except as permitted by law.
+
+2) Your Responsibilities
+You are responsible for:
+- Using the App lawfully
+- Providing and safeguarding any third‑party API keys you configure
+
+3) Third‑Party Services
+The App can send audio/text to third‑party providers you configure (e.g., speech‑to‑text or AI).
+Your use of those services is governed by their own terms and privacy policies.
+
+4) Privacy Summary
+The App may access:
+- Microphone audio (for dictation)
+- Clipboard text (when you trigger “select‑to‑transform”)
+- Active window/app context (to target pasting)
+- Installed application list (to enable app‑specific behavior)
+
+The App does not intentionally collect analytics/telemetry, and it does not send your API keys to our servers.
+
+5) No Warranty
+THE APP IS PROVIDED “AS IS” WITHOUT WARRANTIES OF ANY KIND.
+
+6) Limitation of Liability
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, WE ARE NOT LIABLE FOR INDIRECT, INCIDENTAL, SPECIAL,
+CONSEQUENTIAL, OR PUNITIVE DAMAGES ARISING FROM YOUR USE OF THE APP.
+
+7) Updates
+If we make material changes to these Terms/Privacy, the App may require you to re‑accept them.
+
+Full Terms of Service and Privacy Policy are available inside the App under Settings → Legal & Privacy.

@@ -85,7 +85,7 @@ export const StepLanguage: React.FC<StepProps> & { Visual: React.FC } = ({ onNex
           <span className="text-emerald-400">Language</span>
         </h1>
         <p className="text-gray-500 text-sm font-medium max-w-xs leading-relaxed">
-          Scribe supports 100+ languages. Select your primary language or enable auto-detection.
+          Trueears supports 100+ languages. Select your primary language or enable auto-detection.
         </p>
 
         <div className="mt-8">

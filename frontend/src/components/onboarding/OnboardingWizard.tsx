@@ -5,16 +5,21 @@ import { StepPermissions } from './StepPermissions';
 import { StepMicCheck } from './StepMicCheck';
 import { StepTrigger } from './StepTrigger';
 import { StepTutorial } from './StepTutorial';
+import { StepSignIn } from './StepSignIn';
 import { StepSuccess } from './StepSuccess';
 import { useSettings } from '../../hooks/useSettings';
 
-type Step = 'connect' | 'language' | 'permissions' | 'mic-check' | 'trigger' | 'tutorial' | 'success';
+type Step = 'signin' | 'connect' | 'language' | 'permissions' | 'mic-check' | 'trigger' | 'tutorial' | 'success';
 
-export const OnboardingWizard: React.FC = () => {
-  const [currentStep, setCurrentStep] = useState<Step>('connect');
+export interface OnboardingWizardProps {
+  initialStep?: Step;
+}
+
+export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ initialStep = 'signin' }) => {
+  const [currentStep, setCurrentStep] = useState<Step>(initialStep);
   const { markOnboardingComplete } = useSettings();
 
-  const steps: Step[] = ['connect', 'language', 'permissions', 'mic-check', 'trigger', 'tutorial', 'success'];
+  const steps: Step[] = ['signin', 'connect', 'language', 'permissions', 'mic-check', 'trigger', 'tutorial', 'success'];
   const currentIndex = steps.indexOf(currentStep);
 
   const handleNext = () => {
@@ -38,6 +43,7 @@ export const OnboardingWizard: React.FC = () => {
 
   // Progress bar logic (Success step hides progress bar)
   const progressSteps = [
+    { id: 'signin', label: 'Account' },
     { id: 'connect', label: 'Connect' },
     { id: 'language', label: 'Language' },
     { id: 'permissions', label: 'Permissions' },
@@ -47,13 +53,14 @@ export const OnboardingWizard: React.FC = () => {
   ];
 
   const getActiveProgressIndex = () => {
-    if (currentStep === 'connect') return 0;
-    if (currentStep === 'language') return 1;
-    if (currentStep === 'permissions') return 2;
-    if (currentStep === 'mic-check') return 3;
-    if (currentStep === 'trigger') return 4;
-    if (currentStep === 'tutorial') return 5;
-    return 6; // Success
+    if (currentStep === 'signin') return 0;
+    if (currentStep === 'connect') return 1;
+    if (currentStep === 'language') return 2;
+    if (currentStep === 'permissions') return 3;
+    if (currentStep === 'mic-check') return 4;
+    if (currentStep === 'trigger') return 5;
+    if (currentStep === 'tutorial') return 6;
+    return 7; // Success
   };
 
   const activeProgressIndex = getActiveProgressIndex();
@@ -62,20 +69,20 @@ export const OnboardingWizard: React.FC = () => {
     <div className="flex items-center justify-center min-h-screen bg-white text-gray-800 font-sans overflow-hidden p-8">
       {/* Main Modal Container */}
       <div className="relative w-[960px] h-[640px] bg-[#f8fafc] border border-gray-200 rounded-3xl shadow-[0_0_120px_-30px_rgba(16,185,129,0.05)] flex overflow-hidden">
-        
+
         {currentStep === 'success' ? (
           <StepSuccess onNext={handleFinish} />
         ) : (
           <>
             {/* Left Panel - Interactive */}
             <div className="w-[42%] p-12 flex flex-col border-r border-gray-100 bg-white relative z-10">
-              
+
               {/* Progress Header */}
               <div className="flex items-center w-full justify-between mb-12">
                 {progressSteps.map((step, idx) => {
                   const isActive = idx === activeProgressIndex;
                   const isCompleted = idx < activeProgressIndex;
-                  
+
                   return (
                     <React.Fragment key={step.id}>
                       <div className={`flex items-center gap-2 transition-colors duration-300 ${isActive ? 'text-gray-900' : isCompleted ? 'text-emerald-600' : 'text-gray-400'}`}>
@@ -100,27 +107,29 @@ export const OnboardingWizard: React.FC = () => {
                 {currentStep === 'mic-check' && <StepMicCheck onNext={handleNext} onPrev={handlePrev} />}
                 {currentStep === 'trigger' && <StepTrigger onNext={handleNext} onPrev={handlePrev} />}
                 {currentStep === 'tutorial' && <StepTutorial onNext={handleNext} onPrev={handlePrev} />}
+                {currentStep === 'signin' && <StepSignIn onNext={handleNext} onPrev={handlePrev} />}
               </div>
 
             </div>
 
             {/* Right Panel - Visuals */}
             <div className="w-[58%] bg-[#f8fafc] relative overflow-hidden flex items-center justify-center">
-              <div className="absolute inset-0 opacity-40 pointer-events-none" 
-                   style={{ 
-                     backgroundImage: 'radial-gradient(rgba(52, 211, 153, 0.15) 1px, transparent 1px)',
-                     backgroundSize: '40px 40px',
-                     maskImage: 'radial-gradient(circle at center, black 30%, transparent 80%)'
-                   }} 
+              <div className="absolute inset-0 opacity-40 pointer-events-none"
+                style={{
+                  backgroundImage: 'radial-gradient(rgba(52, 211, 153, 0.15) 1px, transparent 1px)',
+                  backgroundSize: '40px 40px',
+                  maskImage: 'radial-gradient(circle at center, black 30%, transparent 80%)'
+                }}
               />
-              
+
               <div className="relative w-full h-full flex items-center justify-center p-12">
-                 {currentStep === 'connect' && <StepConnect.Visual />}
-                 {currentStep === 'language' && <StepLanguage.Visual />}
-                 {currentStep === 'permissions' && <StepPermissions.Visual />}
-                 {currentStep === 'mic-check' && <StepMicCheck.Visual />}
-                 {currentStep === 'trigger' && <StepTrigger.Visual />}
-                 {currentStep === 'tutorial' && <StepTutorial.Visual />}
+                {currentStep === 'connect' && <StepConnect.Visual />}
+                {currentStep === 'language' && <StepLanguage.Visual />}
+                {currentStep === 'permissions' && <StepPermissions.Visual />}
+                {currentStep === 'mic-check' && <StepMicCheck.Visual />}
+                {currentStep === 'trigger' && <StepTrigger.Visual />}
+                {currentStep === 'tutorial' && <StepTutorial.Visual />}
+                {currentStep === 'signin' && <StepSignIn.Visual />}
               </div>
             </div>
           </>

@@ -1,7 +1,7 @@
 {
-  "productName": "Scribe",
-  "version": "0.2.0",
-  "identifier": "com.scribe",
+  "productName": "Trueears",
+  "version": "0.3.0",
+  "identifier": "com.Trueears",
   "build": {
     "frontendDist": "../frontend/dist",
     "devUrl": "http://localhost:3000",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Scribe",
+        "title": "Trueears",
         "width": 3840,
         "height": 2160,
         "decorations": false,
@@ -35,14 +35,23 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": [
+      "nsis",
+      "deb",
+      "appimage"
+    ],
+    "licenseFile": "./assets/legal/terms-and-privacy.txt",
     "icon": [
-      "../build/icon.ico"
+      "../build/icon.ico",
+      "icons/icon.png"
     ],
     "windows": {
       "nsis": {
         "installerIcon": "../build/icon.ico",
         "installMode": "currentUser"
+      },
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
       }
     }
   },

@@ -2,17 +2,126 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
 
 jobs:
-  release:
+  # First, check if a release is needed (version not already tagged)
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      tag: ${{ steps.get_version.outputs.tag }}
+      previous_tag: ${{ steps.changelog.outputs.previous_tag }}
+      should_release: ${{ steps.check_tag.outputs.should_release }}
+      release_body: ${{ steps.changelog.outputs.release_body }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from package.json
+        id: get_version
+        run: |
+          VERSION=$(node -p "JSON.parse(require('fs').readFileSync('package.json', 'utf8')).version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+          echo "Detected version: $VERSION"
+
+      - name: Check if tag already exists
+        id: check_tag
+        run: |
+          TAG="v${{ steps.get_version.outputs.version }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists — skipping release"
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          else
+            echo "Tag $TAG does not exist — proceeding with release"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate changelog
+        if: steps.check_tag.outputs.should_release == 'true'
+        id: changelog
+        run: |
+          TAG="${{ steps.get_version.outputs.tag }}"
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+
+          if [ -n "$PREV_TAG" ]; then
+            RANGE="${PREV_TAG}..HEAD"
+            echo "Generating changelog from $PREV_TAG to HEAD"
+            COMPARE_URL="https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${TAG}"
+          else
+            RANGE="HEAD"
+            echo "No previous tag found — using full history"
+            COMPARE_URL=""
+          fi
+
+          echo "previous_tag=$PREV_TAG" >> $GITHUB_OUTPUT
+
+          # Collect commits by category using conventional commit prefixes
+          FEATURES=$(git log "$RANGE" --no-merges --format="- %s" --grep="^feat([(:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
+          FIXES=$(git log "$RANGE" --no-merges --format="- %s" --grep="^fix([(:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
+          REFACTORS=$(git log "$RANGE" --no-merges --format="- %s" --grep="^refactor([(:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
+          CHORES=$(git log "$RANGE" --no-merges --format="- %s" --grep="^(chore|docs|ci|build)([(:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
+          # Catch commits that don't follow conventional commits
+          OTHER=$(git log "$RANGE" --no-merges --format="- %s" --invert-grep --grep="^(feat|fix|refactor|chore|docs|ci|build)([(:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
+
+          # Build the changelog body
+          BODY=""
+
+          if [ -n "$FEATURES" ]; then
+            BODY="${BODY}### New Features\n${FEATURES}\n\n"
+          fi
+          if [ -n "$FIXES" ]; then
+            BODY="${BODY}### Bug Fixes\n${FIXES}\n\n"
+          fi
+          if [ -n "$REFACTORS" ]; then
+            BODY="${BODY}### Refactoring\n${REFACTORS}\n\n"
+          fi
+          if [ -n "$OTHER" ]; then
+            BODY="${BODY}### Other Changes\n${OTHER}\n\n"
+          fi
+          if [ -n "$CHORES" ]; then
+            BODY="${BODY}### Maintenance\n${CHORES}\n\n"
+          fi
+
+          if [ -z "$BODY" ]; then
+            BODY="No notable changes since last release.\n"
+          fi
+
+          # Build the final GitHub release body and write it as a multiline output.
+          {
+            echo "release_body<<RELEASE_BODY_EOF"
+            printf '## Trueears %s\n\n' "$TAG"
+            printf 'Auto-generated release from merge to `main`.\n\n'
+            printf '### Installation\n\n'
+            printf '%s\n' '- **Windows (.exe)**: NSIS installer'
+            printf '%s\n' '- **Linux (.deb)**: Debian/Ubuntu package'
+            printf '%s\n' '- **Linux (.AppImage)**: Portable, works on most distros'
+            printf '\n### Changelog\n\n'
+            printf '%b' "$BODY"
+            if [ -n "$COMPARE_URL" ]; then
+              printf '\n[Full Changelog](%s)\n' "$COMPARE_URL"
+            fi
+            echo "RELEASE_BODY_EOF"
+          } >> $GITHUB_OUTPUT
+
+  # Build and release for each platform
+  build-and-release:
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
     permissions:
       contents: write
     strategy:
       fail-fast: false
       matrix:
-        platform: [windows-latest]
+        include:
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+          - platform: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
 
     runs-on: ${{ matrix.platform }}
 
@@ -34,7 +143,24 @@ jobs:
         with:
           workspaces: './backend -> target'
 
-      - name: Install dependencies
+      # Linux-specific system dependencies for Tauri
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libgtk-3-dev \
+            libglib2.0-dev \
+            libgio2.0-cil-dev \
+            libayatana-appindicator3-dev \
+            libxdo-dev \
+            libssl-dev
+
+      - name: Install npm dependencies
         run: npm ci
 
       - name: Build the app
@@ -42,39 +168,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Scribe v__VERSION__'
-          releaseBody: |
-            ## What's New in v0.2.0
-
-            ### ✨ New Features
-            - **Light/Dark Theme Support** - App now adapts to your system theme preference
-            - **Multi-Language Transcription** - Added support for transcribing in multiple languages
-            - **Comprehensive Onboarding Wizard** - New first-run experience to help you get started
-            - **Shell Integration** - Enhanced integration with system shell
-
-            ### 🐛 Bug Fixes
-            - Fixed recorder overlay window visibility and UI positioning
-            - Fixed mic stream leaks when switching audio devices
-            - Cleared clipboard after paste to prevent data leaks
-            - Prevented shortcut interference during onboarding trigger step
-            - Improved settings window startup and visibility
-
-            ### 🔧 Improvements
-            - Main window now spans across all monitors for better multi-monitor support
-            - Simplified to Groq-only transcription provider for better reliability
-            - Added pointer cursors to onboarding buttons for better UX
-            - Enhanced UI components throughout the app
-
-            ---
-
-            ## Installation
-
-            Download the installer for your platform:
-            - **Windows (.msi)**: Recommended for most users
-            - **Windows (.exe)**: NSIS installer alternative
-
-            **[Full Changelog](https://github.com/devv-shayan/Scribe/blob/main/CHANGELOG.md)**
+          args: --target ${{ matrix.target }}
+          tagName: ${{ needs.check-version.outputs.tag }}
+          releaseName: 'Trueears ${{ needs.check-version.outputs.tag }}'
+          releaseBody: ${{ needs.check-version.outputs.release_body }}
           releaseDraft: false
           prerelease: false
           projectPath: './backend'

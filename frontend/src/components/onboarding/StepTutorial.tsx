@@ -7,10 +7,14 @@ interface StepProps {
 }
 
 // Event for syncing (Quick solution for decoupled layout)
-const TUTORIAL_EVENT = 'scribe-tutorial-change';
+const TUTORIAL_EVENT = 'Trueears-tutorial-change';
 
 const TutorialVisual: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
+  const [emailContent, setEmailContent] = useState("Hi Greg,\n\nJust wanted to confirm the deployment went smoothly. Let me know if you need anything else.\n\nBest,\nAlex");
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [noteContent, setNoteContent] = useState("• AI Integration\n• Voice UI\n• Native Rust Backend");
+  const [noteTouched, setNoteTouched] = useState(false);
 
   useEffect(() => {
     const handleTabChange = (e: CustomEvent) => setActiveTab(e.detail);
@@ -79,11 +83,17 @@ const TutorialVisual: React.FC = () => {
           <div className="p-6 font-sans text-gray-800 flex flex-col h-full">
             <div className="border-b pb-2 mb-2 text-xs text-gray-500">To: <span className="font-bold text-black">Greg</span></div>
             <div className="border-b pb-2 mb-4 text-xs text-gray-500">Subject: <span className="font-bold text-black">Quick Update</span></div>
-            <textarea 
-              className="w-full h-full resize-none outline-none text-xs leading-relaxed text-gray-800 placeholder-gray-300"
+            <textarea
+              className={`w-full h-full resize-none outline-none text-xs leading-relaxed ${emailTouched ? 'text-gray-800' : 'text-gray-400'}`}
               placeholder="Type or dictate your email here..."
-              defaultValue={"Hey Greg,\n\nI just confirmed the deployment."}
-              autoFocus={activeTab === 1}
+              value={emailContent}
+              onChange={(e) => setEmailContent(e.target.value)}
+              onFocus={() => {
+                if (!emailTouched) {
+                  setEmailContent('');
+                  setEmailTouched(true);
+                }
+              }}
             />
           </div>
         </div>
@@ -95,11 +105,18 @@ const TutorialVisual: React.FC = () => {
             <div className="w-2 h-2 rounded-full bg-gray-200" />
           </div>
           <div className="p-8 font-sans text-gray-600 h-full flex flex-col">
-                              <div className="text-2xl font-bold text-gray-800 mb-4">Smart Formatting</div>            <textarea 
-              className="w-full h-full resize-none outline-none bg-transparent text-sm text-gray-600 placeholder-gray-400 leading-relaxed"
+            <div className="text-2xl font-bold text-gray-800 mb-4">Smart Formatting</div>
+            <textarea
+              className={`w-full h-full resize-none outline-none bg-transparent text-sm leading-relaxed ${noteTouched ? 'text-gray-600' : 'text-gray-400'}`}
               placeholder="Dictate a note..."
-              defaultValue={"- AI Integration\n- Voice UI\n- Native Rust Backend"}
-              autoFocus={activeTab === 2}
+              value={noteContent}
+              onChange={(e) => setNoteContent(e.target.value)}
+              onFocus={() => {
+                if (!noteTouched) {
+                  setNoteContent('');
+                  setNoteTouched(true);
+                }
+              }}
             />
           </div>
         </div>
@@ -140,7 +157,7 @@ export const StepTutorial: React.FC<StepProps> & { Visual: React.FC } = ({ onNex
     return () => {
       window.removeEventListener(TUTORIAL_EVENT as any, handleTabChange);
       // Reset title on unmount
-      tauriAPI.setWindowTitle("Scribe Settings");
+      tauriAPI.setWindowTitle("Trueears Settings");
     };
   }, []);
 
@@ -151,13 +168,13 @@ export const StepTutorial: React.FC<StepProps> & { Visual: React.FC } = ({ onNex
     
     // Set store value for RecorderOverlay override
     const modeMap = ['tutorial-slack', 'tutorial-gmail', 'tutorial-notion'];
-    tauriAPI.setStoreValue('SCRIBE_TUTORIAL_MODE', modeMap[activeTab]);
+    tauriAPI.setStoreValue('Trueears_TUTORIAL_MODE', modeMap[activeTab]);
   }, [activeTab]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-        tauriAPI.setStoreValue('SCRIBE_TUTORIAL_MODE', '');
+        tauriAPI.setStoreValue('Trueears_TUTORIAL_MODE', '');
     };
   }, []);
 

@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trueears Payment Test UI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 1000px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 16px;
+        }
+
+        .status {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+        }
+
+        .status.success {
+            background: #f0fdf4;
+            border-left-color: #10b981;
+        }
+
+        .status.error {
+            background: #fef2f2;
+            border-left-color: #ef4444;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section h2::before {
+            content: "→";
+            color: #667eea;
+            font-size: 28px;
+        }
+
+        .config {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .config-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .config-item:last-child {
+            border-bottom: none;
+        }
+
+        .config-label {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .config-value {
+            color: #333;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+        }
+
+        .config-value input {
+            font-family: 'Monaco', 'Courier New', monospace;
+            padding: 5px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            width: 300px;
+        }
+
+        .products {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .product-card {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            border-color: #667eea;
+        }
+
+        .product-card.featured {
+            border-color: #764ba2;
+            background: linear-gradient(135deg, #667eea10 0%, #764ba210 100%);
+        }
+
+        .product-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .product-price {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .product-type {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .product-features {
+            list-style: none;
+            margin-bottom: 20px;
+        }
+
+        .product-features li {
+            padding: 8px 0;
+            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .product-features li::before {
+            content: "✓";
+            color: #10b981;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: scale(1.02);
+        }
+
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .featured button {
+            background: #764ba2;
+        }
+
+        .featured button:hover {
+            background: #653a8a;
+        }
+
+        .license-section {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 20px;
+        }
+
+        .license-input-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .license-input-group input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: 'Monaco', 'Courier New', monospace;
+        }
+
+        .license-input-group button {
+            width: auto;
+            padding: 12px 24px;
+        }
+
+        .logs {
+            background: #1f2937;
+            color: #10b981;
+            padding: 20px;
+            border-radius: 12px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            word-wrap: break-word;
+        }
+
+        .log-entry.error {
+            color: #ef4444;
+        }
+
+        .log-entry.success {
+            color: #10b981;
+        }
+
+        .log-entry.info {
+            color: #60a5fa;
+        }
+
+        .test-card {
+            background: #fef3c7;
+            border: 2px solid #fbbf24;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .test-card h3 {
+            color: #92400e;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .test-card code {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Trueears Payment Test UI</h1>
+        <p class="subtitle">Test your LemonSqueezy payment integration</p>
+
+        <div id="statusMessage" class="status" style="display: none;"></div>
+
+        <!-- Configuration Section -->
+        <div class="section">
+            <h2>Configuration</h2>
+            <div class="config">
+                <div class="config-item">
+                    <span class="config-label">Payment Service URL:</span>
+                    <span class="config-value">
+                        <input type="text" id="serviceUrl" value="http://localhost:3002">
+                    </span>
+                </div>
+                <div class="config-item">
+                    <span class="config-label">Service Status:</span>
+                    <span class="config-value" id="serviceStatus">Checking...</span>
+                </div>
+                <div class="config-item">
+                    <span class="config-label">Basic Variant ID:</span>
+                    <span class="config-value">
+                        <input type="text" id="basicVariantId" placeholder="Enter Basic variant ID">
+                    </span>
+                </div>
+                <div class="config-item">
+                    <span class="config-label">Pro Variant ID:</span>
+                    <span class="config-value">
+                        <input type="text" id="proVariantId" placeholder="Enter Pro variant ID">
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Card Info -->
+        <div class="test-card">
+            <h3></h3>🧪 Test Mode - Use These Details</h3>
+            <p><strong>Card:</p></strong> <code>4242 4242 4242 4242</code></p>
+            <p><strong>Expiry:</strong> <code>12/34</code> | <strong>CVC:</strong> <code>123</code> | <strong>ZIP:</strong> <code>12345</code></p>
+        </div>
+
+        <!-- Products Section -->
+        <div class="section">
+            <h2>Select a Plan</h2>
+            <div class="products">
+                <!-- Basic License -->
+                <div class="product-card" onclick="purchaseProduct('basic')">
+                    <div class="product-name">Basic License</div>
+                    <div class="product-price">$49</div>
+                    <div class="product-type">One-time payment • Lifetime access</div>
+                    <ul class="product-features">
+                        <li>Unlimited transcriptions</li>
+                        <li>Context-aware formatting</li>
+                        <li>App profiles</li>
+                        <li>Custom system prompts</li>
+                        <li>1 year of updates</li>
+                        <li>3 device activations</li>
+                    </ul>
+                    <button onclick="purchaseProduct('basic'); event.stopPropagation();">Purchase Basic</button>
+                </div>
+
+                <!-- Pro License -->
+                <div class="product-card featured" onclick="purchaseProduct('pro')">
+                    <div class="product-name">Pro License ⭐</div>
+                    <div class="product-price">$99</div>
+                    <div class="product-type">One-time payment • Lifetime access</div>
+                    <ul class="product-features">
+                        <li>Everything in Basic</li>
+                        <li>LLM post-processing</li>
+                        <li>Select-to-transform</li>
+                        <li>Advanced voice commands</li>
+                        <li>Lifetime updates</li>
+                        <li>5 device activations</li>
+                    </ul>
+                    <button onclick="purchaseProduct('pro'); event.stopPropagation();">Purchase Pro</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- License Activation Section -->
+        <div class="section">
+            <h2>Activate License</h2>
+            <div class="license-section">
+                <p style="color: #666; margin-bottom: 15px;">
+                    After purchasing, you'll receive a license key via email. Enter it below to activate.
+                </p>
+                <div class="license-input-group">
+                    <input type="text" id="licenseKey" placeholder="Enter your license key (e.g., XXXX-XXXX-XXXX-XXXX)">
+                    <button onclick="activateLicense()">Activate</button>
+                </div>
+                <div style="margin-top: 15px; color: #666; font-size: 14px;">
+                    <strong>Note:</strong> License activation API is not yet implemented (Phase 7-8).
+                    This will verify the key and store device activation.
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs Section -->
+        <div class="section">
+            <h2>Activity Log</h2>
+            <div class="logs" id="logs">
+                <div class="log-entry info">[INFO] Test UI loaded successfully</div>
+                <div class="log-entry info">[INFO] Checking payment service status...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const serviceUrlInput = document.getElementById('serviceUrl');
+        const basicVariantIdInput = document.getElementById('basicVariantId');
+        const proVariantIdInput = document.getElementById('proVariantId');
+        const serviceStatus = document.getElementById('serviceStatus');
+        const logs = document.getElementById('logs');
+        const statusMessage = document.getElementById('statusMessage');
+
+        // Log function
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] [${type.toUpperCase()}] ${message}`;
+            logs.appendChild(entry);
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        // Show status message
+        function showStatus(message, isError = false) {
+            statusMessage.textContent = message;
+            statusMessage.className = isError ? 'status error' : 'status success';
+            statusMessage.style.display = 'block';
+            setTimeout(() => {
+                statusMessage.style.display = 'none';
+            }, 5000);
+        }
+
+        // Check service health
+        async function checkServiceHealth() {
+            const url = serviceUrlInput.value;
+            try {
+                log(`Checking service at ${url}/health`);
+                const response = await fetch(`${url}/health`);
+                if (response.ok) {
+                    const text = await response.text();
+                    serviceStatus.textContent = `✓ Online (${text})`;
+                    serviceStatus.style.color = '#10b981';
+                    log('Payment service is online and ready', 'success');
+                    return true;
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                serviceStatus.textContent = `✗ Offline (${error.message})`;
+                serviceStatus.style.color = '#ef4444';
+                log(`Service health check failed: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        // Purchase product
+        async function purchaseProduct(tier) {
+            const variantId = tier === 'basic'
+                ? basicVariantIdInput.value
+                : proVariantIdInput.value;
+
+            if (!variantId) {
+                showStatus(`Please enter the ${tier === 'basic' ? 'Basic' : 'Pro'} Variant ID in the configuration section`, true);
+                log(`Purchase failed: Missing variant ID for ${tier}`, 'error');
+                return;
+            }
+
+            log(`Initiating purchase for ${tier} license (Variant: ${variantId})`);
+
+            const url = serviceUrlInput.value;
+
+            // Check if service is online
+            const isOnline = await checkServiceHealth();
+            if (!isOnline) {
+                showStatus('Payment service is offline. Please start the service first.', true);
+                return;
+            }
+
+            try {
+                log(`Creating checkout session...`);
+                showStatus('Creating checkout session...', false);
+
+                const response = await fetch(`${url}/api/checkout`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // In real app, you'd include: 'Authorization': 'Bearer YOUR_JWT_TOKEN'
+                    },
+                    body: JSON.stringify({
+                        variant_id: variantId
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`Checkout URL created: ${data.checkout_url}`, 'success');
+                    showStatus('Opening checkout in new window...', false);
+
+                    // Open checkout in new window
+                    window.open(data.checkout_url, '_blank');
+
+                    log('Checkout opened. Complete payment in the new window.', 'success');
+                    showStatus('Checkout opened! Complete your purchase in the new window. Check your email for the license key.', false);
+                } else {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+            } catch (error) {
+                log(`Purchase failed: ${error.message}`, 'error');
+                showStatus(`Failed to create checkout: ${error.message}`, true);
+            }
+        }
+
+        // Activate license
+        async function activateLicense() {
+            const licenseKey = document.getElementById('licenseKey').value.trim();
+
+            if (!licenseKey) {
+                showStatus('Please enter a license key', true);
+                log('Activation failed: No license key provided', 'error');
+                return;
+            }
+
+            log(`Attempting to activate license: ${licenseKey.substring(0, 8)}...`);
+
+            const url = serviceUrlInput.value;
+
+            try {
+                log('Calling activation API...');
+                showStatus('Activating license...', false);
+
+                const response = await fetch(`${url}/api/license/activate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // In real app: 'Authorization': 'Bearer YOUR_JWT_TOKEN'
+                    },
+                    body: JSON.stringify({
+                        license_key: licenseKey,
+                        device_name: 'Test UI - ' + navigator.platform
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`License activated successfully! (${data.activations_used}/${data.activations_limit} activations used)`, 'success');
+                    showStatus(`License activated! ${data.activations_used}/${data.activations_limit} device activations used.`, false);
+                    document.getElementById('licenseKey').value = '';
+                } else if (response.status === 404) {
+                    throw new Error('License activation endpoint not implemented yet (Phase 7-8)');
+                } else {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+            } catch (error) {
+                log(`License activation failed: ${error.message}`, 'error');
+                showStatus(`Activation failed: ${error.message}`, true);
+            }
+        }
+
+        // Load saved values from localStorage
+        function loadSavedConfig() {
+            const savedBasic = localStorage.getItem('trueears_basic_variant');
+            const savedPro = localStorage.getItem('trueears_pro_variant');
+            const savedUrl = localStorage.getItem('trueears_service_url');
+
+            if (savedBasic) basicVariantIdInput.value = savedBasic;
+            if (savedPro) proVariantIdInput.value = savedPro;
+            if (savedUrl) serviceUrlInput.value = savedUrl;
+        }
+
+        // Save config to localStorage
+        function saveConfig() {
+            localStorage.setItem('trueears_basic_variant', basicVariantIdInput.value);
+            localStorage.setItem('trueears_pro_variant', proVariantIdInput.value);
+            localStorage.setItem('trueears_service_url', serviceUrlInput.value);
+        }
+
+        // Auto-save on input change
+        basicVariantIdInput.addEventListener('input', saveConfig);
+        proVariantIdInput.addEventListener('input', saveConfig);
+        serviceUrlInput.addEventListener('input', saveConfig);
+
+        // Initial health check
+        loadSavedConfig();
+        checkServiceHealth();
+
+        // Periodic health check every 10 seconds
+        setInterval(checkServiceHealth, 10000);
+
+        log('Test UI initialized. Ready for testing!', 'success');
+        log('Tip: Enter your variant IDs from LemonSqueezy in the configuration section', 'info');
+    </script>
+</body>
+</html>

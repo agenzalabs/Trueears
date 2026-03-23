@@ -1,16 +1,17 @@
 {
-  "name": "scribe",
-  "productName": "Scribe",
+  "name": "Trueears",
+  "productName": "Trueears",
   "description": "Minimalist AI dictation",
   "author": "Shayan Khan",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "sync-version": "node scripts/sync-version.js",
     "vite:dev": "cd frontend && vite",
     "vite:build": "node scripts/sync-version.js && cd frontend && vite build",
     "dev": "cd backend && tauri dev",
+    "dev:linux": "./scripts/dev-linux.sh",
     "build": "node scripts/sync-version.js && cd backend && tauri build",
     "preview": "cd frontend && vite preview",
     "tauri": "cd backend && tauri"
@@ -19,6 +20,7 @@
     "@tailwindcss/postcss": "^4.1.17",
     "@tauri-apps/api": "^2.9.0",
     "@tauri-apps/plugin-global-shortcut": "^2.2.0",
+    "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-shell": "^2.3.3",
     "@tauri-apps/plugin-store": "^2.2.0",
     "clsx": "^2.1.1",
@@ -30,9 +32,16 @@
     "tailwindcss": "^4.1.17"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@tauri-apps/cli": "^2.2.7",
     "@types/node": "^22.14.0",
+    "@typescript-eslint/eslint-plugin": "^8.52.0",
+    "@typescript-eslint/parser": "^8.52.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "eslint": "^9.39.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "prettier": "^3.7.4",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

@@ -7,7 +7,7 @@ interface StepProps {
 }
 
 // Shared state for visualization communication (simple solution for same-tree components)
-const TRIGGER_EVENT = 'scribe-trigger-test';
+const TRIGGER_EVENT = 'Trueears-trigger-test';
 
 const TriggerVisual: React.FC = () => {
   const [activeKeys, setActiveKeys] = useState<Set<string>>(new Set());
@@ -126,14 +126,18 @@ export const StepTrigger: React.FC<StepProps> & { Visual: React.FC } = ({ onNext
 
     // Strategy 2: Listen for Tauri Global Shortcut
     let unlistenTauri: (() => void) | undefined;
+    let unlistenOnboarding: (() => void) | undefined;
+
+    const handleShortcutDetected = () => {
+      console.log('[StepTrigger] Shortcut detected via Tauri event');
+      setSuccess(true);
+      window.dispatchEvent(new CustomEvent(TRIGGER_EVENT));
+    };
+
     const setupTauriListener = async () => {
       try {
-        unlistenTauri = await tauriAPI.onToggleRecording(() => {
-          console.log('[StepTrigger] Tauri Global Shortcut Detected!');
-          setSuccess(true);
-          // Dispatch custom event for TriggerVisual to highlight all keys
-          window.dispatchEvent(new CustomEvent(TRIGGER_EVENT));
-        });
+        unlistenTauri = await tauriAPI.onToggleRecording(handleShortcutDetected);
+        unlistenOnboarding = await tauriAPI.onOnboardingTrigger(handleShortcutDetected);
       } catch (err) {
         console.error('[StepTrigger] Failed to setup Tauri listener:', err);
       }
@@ -147,6 +151,7 @@ export const StepTrigger: React.FC<StepProps> & { Visual: React.FC } = ({ onNext
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       if (unlistenTauri) unlistenTauri();
+      if (unlistenOnboarding) unlistenOnboarding();
     };
   }, []);
 
@@ -154,10 +159,10 @@ export const StepTrigger: React.FC<StepProps> & { Visual: React.FC } = ({ onNext
     <div className="h-full flex flex-col">
       <div>
         <h1 className="font-['Syne'] font-extrabold text-4xl leading-[0.95] tracking-tight mb-4 text-gray-900">
-          Global<br/>Trigger
+          Try the<br/>Shortcut
         </h1>
         <p className="text-gray-500 text-sm font-medium max-w-xs leading-relaxed mb-8">
-          Press the keyboard shortcut <kbd className="bg-white border border-gray-200 px-1.5 py-0.5 rounded text-xs text-gray-800 shadow-sm">Ctrl</kbd>+<kbd className="bg-white border border-gray-200 px-1.5 py-0.5 rounded text-xs text-gray-800 shadow-sm">Shift</kbd>+<kbd className="bg-white border border-gray-200 px-1.5 py-0.5 rounded text-xs text-gray-800 shadow-sm">K</kbd> to test the activation sequence.
+          This is how you'll start dictating. Press <kbd className="bg-white border border-gray-200 px-1.5 py-0.5 rounded text-xs text-gray-800 shadow-sm">Ctrl</kbd>+<kbd className="bg-white border border-gray-200 px-1.5 py-0.5 rounded text-xs text-gray-800 shadow-sm">Shift</kbd>+<kbd className="bg-white border border-gray-200 px-1.5 py-0.5 rounded text-xs text-gray-800 shadow-sm">K</kbd> now!
         </p>
       </div>
 

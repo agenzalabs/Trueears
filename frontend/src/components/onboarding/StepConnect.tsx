@@ -21,7 +21,7 @@ const ConnectVisual: React.FC = () => {
       <div className="font-mono text-[11px] leading-relaxed text-gray-400 space-y-1">
         <div className="flex gap-2">
           <span className="text-gray-600">$</span>
-          <span className="text-gray-300">scribe init --provider=groq</span>
+          <span className="text-gray-300">Trueears init --provider=groq</span>
         </div>
         <div className="flex gap-2">
           <span className="text-gray-600">{'>'}</span>
@@ -37,7 +37,7 @@ const ConnectVisual: React.FC = () => {
   );
 };
 
-export const StepConnect: React.FC<StepProps> & { Visual: React.FC } = ({ onNext, onPrev }) => {
+export const StepConnect: React.FC<StepProps> & { Visual: React.FC } = ({ onNext, onPrev: _onPrev }) => {
   const { apiKey, saveApiKey, saveLlmEnabled, saveLlmApiKey } = useSettings();
   const [inputKey, setInputKey] = useState(apiKey || '');
 
@@ -66,16 +66,16 @@ export const StepConnect: React.FC<StepProps> & { Visual: React.FC } = ({ onNext
     <div className="h-full flex flex-col">
       <div>
         <h1 className="font-['Syne'] font-extrabold text-4xl leading-[0.95] tracking-tight mb-4 text-gray-900">
-          Scribe<br/>
-          <span className="text-emerald-400">Terminal</span>
+          Connect<br/>
+          <span className="text-emerald-400">to Groq</span>
         </h1>
         <p className="text-gray-500 text-sm font-medium max-w-xs leading-relaxed">
-          Initialize the protocol. Connect your Groq API key to enable LPU™ acceleration.
+          Trueears uses Groq for fast transcription. Paste your free API key below.
         </p>
 
         <div className="mt-8 space-y-2">
           <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-gray-600">
-            <span>Access Token</span>
+            <span>API Key</span>
             <span className="text-[#333]">Required</span>
           </div>
           <input
@@ -99,7 +99,7 @@ export const StepConnect: React.FC<StepProps> & { Visual: React.FC } = ({ onNext
               : 'bg-gray-200 text-gray-400 cursor-not-allowed'
             }`}
         >
-          Authenticate System
+          Connect
         </button>
         
         <div className="text-center mt-4">

@@ -1,6 +1,6 @@
 [package]
-name = "scribe"
-version = "0.1.0"
+name = "Trueears"
+version = "0.3.0"
 description = "Minimalist AI dictation"
 authors = ["Shayan Khan"]
 license = ""
@@ -31,10 +31,39 @@ tokio = { version = "1", features = ["time"] }
 once_cell = "1.20"
 walkdir = "2.5"
 tauri-plugin-shell = "2.3.3"
+tauri-plugin-process = "2"
+image = "0.25"
+base64 = "0.22"
+lnk = "0.5"
+
+# OAuth and authentication
+keyring = "3"                           # OS keychain for secure token storage
+reqwest = { version = "0.12", features = ["json"] }  # HTTP client for API calls
+tiny_http = "0.12"                      # Local server for OAuth callback
+url = "2.5"                             # URL parsing
+uuid = { version = "1.6", features = ["v4"] }  # Unique IDs
+urlencoding = "2.1"                     # URL encoding for OAuth
+dotenvy = "0.15"                        # Load .env file
+open = "5.3.3"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.52", features = [
     "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Controls",
     "Win32_Foundation",
-    "Win32_System_Threading"
+    "Win32_System_Threading",
+    "Win32_System_Com",
+    "Win32_System_Ole",
+    "Win32_System_Variant",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_Common",
+    "Win32_UI_Accessibility",
+    "Win32_Storage_FileSystem",
+    "Win32_Graphics_Gdi"
 ] }
+winreg = "0.52"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gio = "0.18"
+glib = "0.18"
+webkit2gtk = "2.0"

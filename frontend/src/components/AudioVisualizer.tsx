@@ -42,8 +42,8 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ stream, isReco
     if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
-    const logicalWidth = 104;
-    const logicalHeight = 24;
+    const logicalWidth = 96;
+    const logicalHeight = 22;
     
     canvas.width = logicalWidth * dpr;
     canvas.height = logicalHeight * dpr;
@@ -61,7 +61,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ stream, isReco
       ctx.clearRect(0, 0, logicalWidth, logicalHeight);
 
       const bars = 12;
-      const gap = 4; 
+      const gap = 3;
       const barWidth = 5;
       const totalBarGroupWidth = (bars * barWidth) + ((bars - 1) * gap);
       const startX = (logicalWidth - totalBarGroupWidth) / 2;
@@ -135,6 +135,8 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ stream, isReco
           ctx.save();
           ctx.globalAlpha = opacity;
           ctx.fillStyle = effectiveBarColor;
+          ctx.shadowBlur = 8;
+          ctx.shadowColor = effectiveBarColor;
           
           ctx.beginPath();
           if (ctx.roundRect) {
@@ -162,7 +164,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ stream, isReco
   return (
     <canvas 
         ref={canvasRef} 
-        style={{ width: '80px', height: '24px' }}
+        style={{ width: '84px', height: '22px' }}
         className="opacity-100"
     />
   );

@@ -1,11 +1,20 @@
 export class GroqService {
   private static readonly API_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 
-  static async transcribe(audioBlob: Blob, apiKey: string, model: string, language?: string): Promise<string> {
+  private static getAudioFilename(audioBlob: Blob): string {
+    const mimeType = audioBlob.type.toLowerCase();
+
+    if (mimeType.includes('wav')) return 'recording.wav';
+    if (mimeType.includes('ogg')) return 'recording.ogg';
+    if (mimeType.includes('mp4') || mimeType.includes('m4a')) return 'recording.m4a';
+
+    return 'recording.webm';
+  }
+
+  static async tranTrueears(audioBlob: Blob, apiKey: string, model: string, language?: string): Promise<string> {
     const formData = new FormData();
     // Groq accepts m4a, mp3, webm, mp4, mpga, wav, mpeg
-    // Chrome MediaRecorder usually results in audio/webm
-    formData.append('file', audioBlob, 'recording.webm');
+    formData.append('file', audioBlob, this.getAudioFilename(audioBlob));
     formData.append('model', model);
     // temperature 0 makes the output deterministic
     formData.append('temperature', '0');
