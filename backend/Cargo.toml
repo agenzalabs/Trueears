@@ -34,7 +34,7 @@ tauri-plugin-shell = "2.3.3"
 tauri-plugin-process = "2"
 image = "0.25"
 base64 = "0.22"
-lnk = "0.5"
+lnk = "0.6"
 
 # OAuth and authentication
 keyring = "3"                           # OS keychain for secure token storage
