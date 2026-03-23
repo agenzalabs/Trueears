@@ -2,9 +2,14 @@
 
 A minimalist, context-aware AI voice dictation application built with Tauri, React, and Rust. Uses Groq's Whisper models for fast speech-to-text and LLM-powered post-processing to format your words intelligently based on the active application.
 
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
+[![CI](https://github.com/devv-shayan/Trueears/actions/workflows/ci.yml/badge.svg)](https://github.com/devv-shayan/Trueears/actions/workflows/ci.yml)
+[![Release](https://github.com/devv-shayan/Trueears/actions/workflows/release.yml/badge.svg)](https://github.com/devv-shayan/Trueears/actions/workflows/release.yml)
+[![GitHub release](https://img.shields.io/github/v/release/devv-shayan/Trueears)](https://github.com/devv-shayan/Trueears/releases/latest)
 [![Bundle Size](https://img.shields.io/badge/bundle-~15MB-green)](docs/guides/deployment.md)
 [![Tauri](https://img.shields.io/badge/tauri-2.x-blue)](https://tauri.app)
-[![License](https://img.shields.io/badge/license-AGPL--3.0-lightgrey)](LICENSE)
+
+> **[Contributing Guide](CONTRIBUTING.md)** | **[Downloads](https://github.com/devv-shayan/Trueears/releases/latest)**
 
 ## Features
 
@@ -61,10 +66,12 @@ Customize in Settings > App Profiles.
 
 | Guide | Description |
 |-------|-------------|
+| [Architecture](docs/ARCHITECTURE.md) | High-level architecture overview |
+| [Development](docs/DEVELOPMENT.md) | Development setup and workflow |
 | [Getting Started](docs/guides/getting-started.md) | Install, configure, and start dictating |
-| [Development](docs/guides/development.md) | Local setup, code conventions, testing |
+| [Development (detailed)](docs/guides/development.md) | Local setup, code conventions, testing |
 | [Deployment](docs/guides/deployment.md) | Build for production distribution |
-| [Architecture](docs/architecture/overview.md) | System design with Mermaid diagrams |
+| [Architecture (detailed)](docs/architecture/overview.md) | System design with Mermaid diagrams |
 | [API Reference](docs/reference/tauri-commands.md) | Tauri backend command documentation |
 | [Troubleshooting](docs/troubleshooting/README.md) | Common issues and solutions |
 | [FAQ](docs/troubleshooting/faq.md) | Frequently asked questions |
@@ -89,6 +96,14 @@ Trueears/
 ```
 
 See [Architecture Overview](docs/architecture/overview.md) for detailed component breakdown.
+
+## Downloads
+
+Download the latest release for your platform:
+
+**[Latest Release](https://github.com/devv-shayan/Trueears/releases/latest)**
+
+Available for Windows and Linux. Check the [releases page](https://github.com/devv-shayan/Trueears/releases/latest) for platform-specific installers.
 
 ## Contributing
 

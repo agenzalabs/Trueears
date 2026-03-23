@@ -2,6 +2,28 @@
 
 All notable changes to Trueears will be documented in this file.
 
+## [Unreleased]
+
+## [0.3.0] - 2026-03-23
+
+### Added
+- Linux platform support (portal shortcuts, remote desktop, clipboard, audio capture)
+- Payment system with LemonSqueezy integration
+- Microphone device selection
+- App profile language override
+- Automated multi-platform release pipeline (Windows + Linux)
+- AGPL-3.0 license and open-source community files
+
+### Changed
+- Rebranded from Scribe to Trueears
+- Auth server URL updated to production endpoint
+
+### Fixed
+- Audio visualizer and recorder overlay dimensions/styling
+- Background color handling simplified
+
+---
+
 ## [0.2.0] - 2024-12-04
 
 ### ✨ New Features
