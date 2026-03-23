@@ -11,6 +11,7 @@
     "vite:dev": "cd frontend && vite",
     "vite:build": "node scripts/sync-version.js && cd frontend && vite build",
     "dev": "cd backend && tauri dev",
+    "dev:linux": "./scripts/dev-linux.sh",
     "build": "node scripts/sync-version.js && cd backend && tauri build",
     "preview": "cd frontend && vite preview",
     "tauri": "cd backend && tauri"

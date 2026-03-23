@@ -32,27 +32,93 @@ const PermissionsVisual: React.FC = () => {
 export const StepPermissions: React.FC<StepProps> & { Visual: React.FC } = ({ onNext, onPrev }) => {
   const [granted, setGranted] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check if we already have access (labels are present)
-    navigator.mediaDevices.enumerateDevices().then(devices => {
-        const hasLabel = devices.some(d => d.kind === 'audioinput' && d.label !== '');
-        if (hasLabel) {
-            setGranted(true);
+    let cancelled = false;
+
+    const checkPermissionState = async () => {
+      try {
+        if (!navigator.mediaDevices?.enumerateDevices) {
+          if (!cancelled) {
+            setErrorMessage('Microphone API is unavailable in this WebView build.');
+          }
+          return;
         }
-    });
+
+        // Prefer explicit permissions state when available.
+        if ((navigator as Navigator & { permissions?: Permissions }).permissions?.query) {
+          try {
+            const result = await navigator.permissions.query({
+              name: 'microphone' as PermissionName,
+            });
+            if (!cancelled && result.state === 'granted') {
+              setGranted(true);
+              setErrorMessage(null);
+              return;
+            }
+          } catch {
+            // Ignore and continue with enumerate fallback.
+          }
+        }
+
+        // Fallback signal: labeled audioinput devices usually indicate granted access.
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const hasLabel = devices.some(
+          (d) => d.kind === 'audioinput' && (d.label || '').trim().length > 0
+        );
+        if (!cancelled && hasLabel) {
+          setGranted(true);
+          setErrorMessage(null);
+        }
+      } catch (err) {
+        console.error('Failed to check microphone state:', err);
+      }
+    };
+
+    checkPermissionState();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleGrant = async () => {
     setVerifying(true);
+    setErrorMessage(null);
     try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('Microphone API not available in this environment');
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       // Stop tracks immediately - we just needed the permission
       stream.getTracks().forEach(track => track.stop());
       setGranted(true);
+      setErrorMessage(null);
     } catch (err) {
       // User denied or error occurred - stay on this step
       console.error('Microphone permission denied:', err);
+      let message = 'Could not access microphone. Please allow access and try again.';
+      if (err instanceof DOMException) {
+        if (err.name === 'NotAllowedError') {
+          message =
+            'Microphone access was blocked. Click Allow in the permission prompt, then try again.';
+        } else if (err.name === 'NotFoundError') {
+          message = 'No microphone device found. Connect a mic and retry.';
+        } else if (err.name === 'NotReadableError') {
+          message = 'Microphone is busy or unavailable. Close other apps using it and retry.';
+        } else if (err.name === 'SecurityError') {
+          message = 'Security policy blocked microphone access in this WebView session.';
+        }
+      } else if (err instanceof Error && err.message) {
+        message = err.message;
+      }
+
+      if (navigator.userAgent.toLowerCase().includes('linux')) {
+        message += ' On Linux, also verify PipeWire and xdg-desktop-portal are running.';
+      }
+
+      setErrorMessage(message);
     } finally {
       setVerifying(false);
     }
@@ -87,6 +153,9 @@ export const StepPermissions: React.FC<StepProps> & { Visual: React.FC } = ({ on
               >
                 {verifying ? 'Requesting...' : 'Allow Microphone'}
               </button>
+            )}
+            {!granted && errorMessage && (
+              <p className="mt-2 text-[11px] text-rose-600 leading-relaxed">{errorMessage}</p>
             )}
           </div>
 

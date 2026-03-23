@@ -10,6 +10,8 @@ dependencies = [
  "base64 0.22.1",
  "dotenvy",
  "enigo",
+ "gio",
+ "glib",
  "image",
  "keyring",
  "lnk",
@@ -32,6 +34,7 @@ dependencies = [
  "urlencoding",
  "uuid",
  "walkdir",
+ "webkit2gtk",
  "windows 0.52.0",
  "winreg 0.52.0",
 ]

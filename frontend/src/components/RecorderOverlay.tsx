@@ -17,10 +17,11 @@ import { debug } from '../utils/debug';
 let listenersInitialized = false;
 
 export const RecorderOverlay: React.FC = () => {
+  const isLinux = navigator.userAgent.toLowerCase().includes('linux');
   const [isVisible, setIsVisible] = useState(false);
   const [uiMode, setUiMode] = useState<'none' | 'setup' | 'warning'>('none');
   const [warningMessage, setWarningMessage] = useState('');
-  const [windowPadding, setWindowPadding] = useState(250); // Default padding, will be calculated
+  const [windowPadding, setWindowPadding] = useState(isLinux ? 12 : 250);
   const [onboardingTriggerActive, setOnboardingTriggerActive] = useState(false);
   const [isConfigTransitioning, setIsConfigTransitioning] = useState(false);
   const [isConfigAppearing, setIsConfigAppearing] = useState(false);
@@ -63,6 +64,100 @@ export const RecorderOverlay: React.FC = () => {
 
   // Derived status for rendering
   const status = uiMode !== 'none' ? uiMode : recordingStatus;
+  const statusMeta = {
+    idle: {
+      title: 'Standby',
+      accent: '#b8f2ff',
+      border: 'rgba(184, 242, 255, 0.14)',
+      glow: 'rgba(184, 242, 255, 0.10)',
+    },
+    recording: {
+      title: 'Live Capture',
+      accent: '#d7fbff',
+      border: 'rgba(215, 251, 255, 0.18)',
+      glow: 'rgba(143, 236, 255, 0.12)',
+    },
+    processing: {
+      title: 'Synthesizing',
+      accent: '#f7f0d0',
+      border: 'rgba(247, 240, 208, 0.16)',
+      glow: 'rgba(247, 240, 208, 0.10)',
+    },
+    success: {
+      title: 'Inserted',
+      accent: '#dcffe8',
+      border: 'rgba(220, 255, 232, 0.16)',
+      glow: 'rgba(220, 255, 232, 0.10)',
+    },
+    error: {
+      title: 'Signal Fault',
+      accent: '#ffd6df',
+      border: 'rgba(255, 214, 223, 0.16)',
+      glow: 'rgba(255, 214, 223, 0.10)',
+    },
+    cancelled: {
+      title: 'Aborted',
+      accent: '#efe5c8',
+      border: 'rgba(239, 229, 200, 0.14)',
+      glow: 'rgba(239, 229, 200, 0.08)',
+    },
+    setup: {
+      title: 'Provisioning',
+      accent: '#b8f2ff',
+      border: 'rgba(184, 242, 255, 0.14)',
+      glow: 'rgba(184, 242, 255, 0.08)',
+    },
+    settings: {
+      title: 'Control Deck',
+      accent: '#b8f2ff',
+      border: 'rgba(184, 242, 255, 0.14)',
+      glow: 'rgba(184, 242, 255, 0.08)',
+    },
+    warning: {
+      title: 'Signal Warning',
+      accent: '#f7f0d0',
+      border: 'rgba(247, 240, 208, 0.16)',
+      glow: 'rgba(247, 240, 208, 0.10)',
+    },
+    'log-config-needed': {
+      title: 'Route Mapping',
+      accent: '#b8f2ff',
+      border: 'rgba(184, 242, 255, 0.14)',
+      glow: 'rgba(184, 242, 255, 0.08)',
+    },
+    'log-saved': {
+      title: 'Archived',
+      accent: '#dcffe8',
+      border: 'rgba(220, 255, 232, 0.16)',
+      glow: 'rgba(220, 255, 232, 0.10)',
+    },
+    none: {
+      title: 'Standby',
+      accent: '#b8f2ff',
+      border: 'rgba(184, 242, 255, 0.14)',
+      glow: 'rgba(184, 242, 255, 0.10)',
+    },
+  } as const;
+  const currentMeta = statusMeta[status] || statusMeta.idle;
+  const isRecordingCapsule = status === 'recording' && !isConfigTransitioning && !isConfigAppearing;
+  const statusSizingClass =
+    status === 'setup'
+      ? 'w-[24rem] h-15 rounded-[1.35rem]'
+      : status === 'warning'
+        ? 'w-[30rem] max-w-[calc(100vw-2rem)] h-14 rounded-[1.25rem]'
+        : status === 'log-config-needed'
+          ? 'w-[28rem] h-30 rounded-[1.5rem]'
+          : isConfigAppearing
+            ? 'w-[28rem] h-30 rounded-[1.5rem]'
+            : isConfigTransitioning && !isToastVisible
+              ? 'w-[16rem] h-20 rounded-[1.2rem]'
+            : isConfigTransitioning && isToastVisible
+                ? 'w-[14rem] h-11 rounded-[0.95rem]'
+                : status === 'recording'
+                  ? 'w-[16.5rem] h-14 rounded-[1.15rem]'
+                  : status === 'processing'
+                    ? 'w-[12rem] h-14 rounded-[1.1rem]'
+                    : 'w-[10rem] h-12 rounded-[1rem]';
 
   // Add CSS keyframes for smooth morphing animations
   const morphStyles = `
@@ -74,11 +169,24 @@ export const RecorderOverlay: React.FC = () => {
       from { opacity: 0; }
       to { opacity: 1; }
     }
+    @keyframes softPulse {
+      0%, 100% { opacity: 0.7; transform: scale(0.985); }
+      50% { opacity: 1; transform: scale(1); }
+    }
+    @keyframes dataBlink {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 0.85; }
+    }
   `;
 
   // -- Effect: Calculate window padding from window position --
   useEffect(() => {
     const calculatePadding = async () => {
+      if (isLinux) {
+        setWindowPadding(12);
+        return;
+      }
+
       try {
         const { getCurrentWindow } = await import('@tauri-apps/api/window');
         const window = getCurrentWindow();
@@ -92,7 +200,7 @@ export const RecorderOverlay: React.FC = () => {
       }
     };
     calculatePadding();
-  }, []);
+  }, [isLinux]);
 
   // -- Effect: Debug Tauri availability --
   useEffect(() => {
@@ -278,6 +386,23 @@ export const RecorderOverlay: React.FC = () => {
     await tauriAPI.openSettingsWindow();
   };
 
+  const ensureOverlayWindowVisible = useCallback(async () => {
+    if (!isLinux) {
+      return;
+    }
+
+    try {
+      const { getCurrentWindow, PhysicalSize } = await import('@tauri-apps/api/window');
+      const window = getCurrentWindow();
+      await window.setSize(new PhysicalSize(560, 220));
+      await window.center();
+      await window.show();
+      debug.log('[RecorderOverlay] Ensured overlay window is visible on Linux');
+    } catch (error) {
+      console.error('[RecorderOverlay] Failed to ensure Linux overlay visibility:', error);
+    }
+  }, [isLinux]);
+
   // -- Action: Start Recording --
   const handleStartRecording = async (manualKey?: string, windowInfo?: ActiveWindowInfo | null, selectedText?: string | null) => {
     debug.log('[RecorderOverlay] handleStartRecording called with window info:', windowInfo, 'selected text:', selectedText ? `${selectedText.length} chars` : 'none');
@@ -291,6 +416,7 @@ export const RecorderOverlay: React.FC = () => {
       setIsVisible(true); // Ensure visible for setup
       // Enable mouse events for setup screen
       tauriAPI.setIgnoreMouseEvents(false);
+      await ensureOverlayWindowVisible();
       return;
     }
 
@@ -300,6 +426,7 @@ export const RecorderOverlay: React.FC = () => {
     setIsVisible(true);
     setIsStartingRecording(true);
     tauriAPI.setIgnoreMouseEvents(false);
+    await ensureOverlayWindowVisible();
 
     try {
       debug.log('[RecorderOverlay] Starting dictation...');
@@ -750,32 +877,81 @@ export const RecorderOverlay: React.FC = () => {
             className={`
           pointer-events-auto
           flex items-center justify-center
-          backdrop-blur-xl
-          rounded-full
-          ${status === 'setup' ? 'w-80 h-12 rounded-xl' : ''}
-          ${status === 'warning' ? 'w-64 h-10 rounded-xl' : ''}
-          ${status === 'log-config-needed' && !isConfigTransitioning && !isConfigAppearing ? 'w-96 h-28 rounded-xl' : ''}
-          ${isConfigAppearing ? 'w-96 h-28 rounded-xl' : ''}
-          ${isConfigTransitioning && !isToastVisible ? 'w-64 h-20 rounded-xl' : ''}
-          ${isConfigTransitioning && isToastVisible ? 'w-52 h-10 rounded-lg' : ''}
-          ${status === 'recording' && !isConfigAppearing ? 'w-40 h-9' : ''}
-          ${status === 'processing' && !isConfigAppearing ? 'w-9 h-9' : ''}
-          ${((status === 'idle' || status === 'success' || status === 'error' || status === 'cancelled' || (status === 'log-saved' && !isConfigTransitioning && !isToastVisible)) && !isConfigAppearing) ? 'w-9 h-9' : ''}
+          ${isRecordingCapsule ? '' : 'backdrop-blur-xl'}
+          overflow-hidden
+          ${statusSizingClass}
         `}
             style={{
-              backgroundColor: isConfigTransitioning
-                ? isToastVisible
-                  ? toastType === 'success' ? 'rgba(16, 185, 129, 0.9)'
-                    : toastType === 'error' ? 'rgba(244, 63, 94, 0.9)'
-                      : 'rgba(59, 130, 246, 0.9)'
-                  : isDark ? 'rgba(10, 10, 10, 0.95)' : 'rgba(248, 250, 252, 0.95)'
-                : isDark ? '#0a0a0a' : '#f8fafc',
-              border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid #d1d5db',
-              boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.5)' : '0 8px 32px rgba(0,0,0,0.15)',
+              backgroundColor: isRecordingCapsule
+                ? 'transparent'
+                : isConfigTransitioning
+                  ? isToastVisible
+                    ? toastType === 'success' ? 'rgba(16, 185, 129, 0.9)'
+                      : toastType === 'error' ? 'rgba(244, 63, 94, 0.9)'
+                        : 'rgba(59, 130, 246, 0.9)'
+                    : 'rgba(10, 12, 18, 0.96)'
+                  : 'rgba(10, 12, 18, 0.92)',
+              border: `1px solid ${currentMeta.border}`,
+              boxShadow: isRecordingCapsule
+                ? `0 0 28px ${currentMeta.glow}`
+                : `
+                    inset 0 1px 0 rgba(255,255,255,0.04),
+                    0 0 32px ${currentMeta.glow},
+                    0 12px 38px rgba(0,0,0,0.42)
+                  `,
               transition: 'all 600ms cubic-bezier(0.4, 0, 0.2, 1)',
+              animation: status === 'recording' ? 'softPulse 2.8s ease-in-out infinite' : undefined,
             }}
           >
             <div className="relative w-full h-full flex items-center justify-center">
+              {!isRecordingCapsule && (
+                <div className="absolute inset-0 rounded-[inherit] overflow-hidden pointer-events-none">
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      background: `
+                        linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0) 28%),
+                        linear-gradient(135deg, rgba(11, 14, 24, 0.98) 0%, rgba(8, 11, 19, 0.96) 100%)
+                      `,
+                    }}
+                  />
+                  <div
+                    className="absolute inset-[1px] rounded-[inherit]"
+                    style={{
+                      background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 18%), linear-gradient(135deg, rgba(12,16,28,0.68), rgba(8,10,18,0.94))',
+                    }}
+                  />
+                  <div
+                    className="absolute inset-x-0 top-0 h-px"
+                    style={{
+                      background: `linear-gradient(90deg, transparent, ${currentMeta.accent}, transparent)`,
+                      opacity: 0.7,
+                    }}
+                  />
+                </div>
+              )}
+
+              {status === 'recording' && !isConfigTransitioning && !isConfigAppearing && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center gap-3 px-4 pointer-events-none">
+                  <div className="relative flex h-10 w-[10rem] items-center justify-center">
+                    <span
+                      className="absolute left-1 inline-flex h-2 w-2 rounded-full"
+                      style={{
+                        background: currentMeta.accent,
+                        boxShadow: `0 0 10px ${currentMeta.accent}`,
+                        animation: 'dataBlink 1.6s linear infinite',
+                      }}
+                    />
+                    {mediaStream && (
+                      <AudioVisualizer
+                        stream={mediaStream}
+                        isRecording={true}
+                        barColor={currentMeta.accent}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* WARNING MODE */}
               {status === 'warning' && <WarningView message={warningMessage} />}
@@ -884,7 +1060,7 @@ export const RecorderOverlay: React.FC = () => {
                 className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${status === 'recording' && mediaStream ? 'opacity-100 delay-100' : 'opacity-0 pointer-events-none'}`}
               >
                 {/* Visualizer logic remains same */}
-                {status === 'recording' && mediaStream && <AudioVisualizer stream={mediaStream} isRecording={true} barColor={isDark ? '#ffffff' : '#1f2937'} />}
+                {status === 'recording' && mediaStream && <AudioVisualizer stream={mediaStream} isRecording={true} barColor={currentMeta.accent} />}
               </div>
 
               {/* STATUS ICONS - Hide during config transitions */}

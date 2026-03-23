@@ -56,7 +56,8 @@ pub struct OAuthConfig {
 impl OAuthConfig {
     pub fn from_env() -> Option<Self> {
         let google_client_id = std::env::var("GOOGLE_CLIENT_ID").ok()?;
-        let api_url = std::env::var("API_URL").ok()?;
+        let api_url =
+            std::env::var("API_URL").unwrap_or_else(|_| "https://trueears-backend.vercel.app".to_string());
 
         Some(OAuthConfig {
             google_client_id,

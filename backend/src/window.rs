@@ -23,7 +23,28 @@ pub fn get_cursor_position() -> Option<(i32, i32)> {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "linux")]
+pub fn get_cursor_position() -> Option<(i32, i32)> {
+    if let Some(output) = run_command("xdotool", &["getmouselocation", "--shell"]) {
+        if let (Some(x), Some(y)) = (parse_shell_value(&output, "X"), parse_shell_value(&output, "Y")) {
+            return Some((x, y));
+        }
+    }
+
+    // Wayland/Hyprland fallback when xdotool is unavailable.
+    if let Some(output) = run_command("hyprctl", &["cursorpos"]) {
+        let mut parts = output.split(',').map(str::trim);
+        if let (Some(x_raw), Some(y_raw)) = (parts.next(), parts.next()) {
+            if let (Ok(x), Ok(y)) = (x_raw.parse::<f64>(), y_raw.parse::<f64>()) {
+                return Some((x.round() as i32, y.round() as i32));
+            }
+        }
+    }
+
+    None
+}
+
+#[cfg(all(not(target_os = "windows"), not(target_os = "linux")))]
 pub fn get_cursor_position() -> Option<(i32, i32)> {
     None
 }
@@ -244,15 +265,160 @@ pub fn get_active_window_info() -> Option<ActiveWindowInfo> {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "linux")]
 pub fn get_active_window_info() -> Option<ActiveWindowInfo> {
-    // TODO: Implement for macOS using NSWorkspace.activeApplication
-    // TODO: Implement for Linux using xdotool or wmctrl
+    let window_id = get_active_window_id()?;
+    let window_title = get_window_title(&window_id)?;
+
+    if window_title.trim().is_empty() {
+        return None;
+    }
+
+    let process_id = get_window_pid(&window_id);
+    let executable_path = process_id
+        .and_then(get_executable_path_from_pid)
+        .unwrap_or_default();
+
+    let app_name = if !executable_path.is_empty() {
+        std::path::Path::new(&executable_path)
+            .file_name()
+            .and_then(|v| v.to_str())
+            .unwrap_or("Unknown")
+            .to_string()
+    } else {
+        get_window_class_name(&window_id).unwrap_or_else(|| "Unknown".to_string())
+    };
+
+    let url = extract_url_like_value(&window_title);
+
+    Some(ActiveWindowInfo {
+        app_name,
+        window_title,
+        executable_path,
+        url,
+    })
+}
+
+#[cfg(target_os = "linux")]
+pub fn get_active_window_id_for_linux() -> Option<String> {
+    get_active_window_id()
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn get_active_window_id_for_linux() -> Option<String> {
+    None
+}
+
+#[cfg(all(not(target_os = "windows"), not(target_os = "linux")))]
+pub fn get_active_window_info() -> Option<ActiveWindowInfo> {
     Some(ActiveWindowInfo {
         app_name: "Unknown".to_string(),
         window_title: "Unknown".to_string(),
-        executable_path: "".to_string(),
+        executable_path: String::new(),
         url: None,
     })
 }
 
+#[cfg(target_os = "linux")]
+fn run_command(command: &str, args: &[&str]) -> Option<String> {
+    let output = std::process::Command::new(command).args(args).output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+
+    let text = String::from_utf8(output.stdout).ok()?;
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn parse_shell_value(output: &str, key: &str) -> Option<i32> {
+    output.lines().find_map(|line| {
+        let (k, v) = line.split_once('=')?;
+        if k.trim() == key {
+            v.trim().parse::<i32>().ok()
+        } else {
+            None
+        }
+    })
+}
+
+#[cfg(target_os = "linux")]
+fn get_active_window_id() -> Option<String> {
+    if let Some(window_id) = run_command("xdotool", &["getactivewindow"]) {
+        return Some(window_id);
+    }
+
+    // Fallback for environments where xdotool isn't available.
+    let root_output = run_command("xprop", &["-root", "_NET_ACTIVE_WINDOW"])?;
+    root_output
+        .split_whitespace()
+        .find(|token| token.starts_with("0x"))
+        .map(|id| id.to_string())
+}
+
+#[cfg(target_os = "linux")]
+fn get_window_title(window_id: &str) -> Option<String> {
+    if let Some(title) = run_command("xdotool", &["getwindowname", window_id]) {
+        return Some(title);
+    }
+
+    let output = run_command("xprop", &["-id", window_id, "_NET_WM_NAME", "WM_NAME"])?;
+    output
+        .split('"')
+        .nth(1)
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+#[cfg(target_os = "linux")]
+fn get_window_pid(window_id: &str) -> Option<u32> {
+    if let Some(pid) = run_command("xdotool", &["getwindowpid", window_id]) {
+        if let Ok(parsed) = pid.parse::<u32>() {
+            return Some(parsed);
+        }
+    }
+
+    let output = run_command("xprop", &["-id", window_id, "_NET_WM_PID"])?;
+    output
+        .rsplit_once('=')
+        .and_then(|(_, value)| value.trim().parse::<u32>().ok())
+}
+
+#[cfg(target_os = "linux")]
+fn get_executable_path_from_pid(pid: u32) -> Option<String> {
+    let exe_path = std::fs::read_link(format!("/proc/{}/exe", pid)).ok()?;
+    Some(exe_path.to_string_lossy().to_string())
+}
+
+#[cfg(target_os = "linux")]
+fn get_window_class_name(window_id: &str) -> Option<String> {
+    run_command("xdotool", &["getwindowclassname", window_id]).map(|value| {
+        value
+            .lines()
+            .next()
+            .unwrap_or("Unknown")
+            .trim()
+            .to_string()
+    })
+}
+
+#[cfg(target_os = "linux")]
+fn extract_url_like_value(title: &str) -> Option<String> {
+    title
+        .split_whitespace()
+        .map(|token| {
+            token.trim_matches(|c: char| {
+                matches!(
+                    c,
+                    ',' | '.' | ';' | ':' | ')' | '(' | ']' | '[' | '}' | '{' | '"' | '\''
+                )
+            })
+        })
+        .find(|token| token.starts_with("http://") || token.starts_with("https://"))
+        .map(|token| token.to_string())
+}

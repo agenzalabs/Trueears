@@ -1,12 +1,16 @@
 mod auth;
 mod automation;
+mod installed_apps;
+#[cfg(target_os = "linux")]
+mod linux_portal_shortcuts;
+#[cfg(target_os = "linux")]
+mod linux_remote_desktop;
+mod log_mode;
 mod shortcuts;
 mod window;
-mod installed_apps;
-mod log_mode;
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use window::ActiveWindowInfo;
 
 #[derive(serde::Serialize)]
@@ -18,6 +22,97 @@ struct CursorPosition {
 // Global state to track if onboarding trigger step is active
 pub static ONBOARDING_TRIGGER_ACTIVE: AtomicBool = AtomicBool::new(false);
 
+#[cfg(target_os = "linux")]
+fn configure_linux_webview_media(window: &tauri::WebviewWindow) {
+    use webkit2gtk::glib::ObjectExt;
+    use webkit2gtk::{
+        DeviceInfoPermissionRequest, PermissionRequest, PermissionRequestExt, SettingsExt,
+        UserMediaPermissionRequest, WebViewExt,
+    };
+
+    let window_label = window.label().to_string();
+    let label_for_setup = window_label.clone();
+    if let Err(err) = window.with_webview(move |webview| {
+        let webview = webview.inner();
+
+        if let Some(settings) = webview.settings() {
+            settings.set_enable_media_stream(true);
+            log::info!(
+                "Enabled WebKit media stream for Linux window '{}'",
+                label_for_setup
+            );
+        } else {
+            log::warn!(
+                "WebKit settings unavailable while configuring media stream for '{}'",
+                label_for_setup
+            );
+        }
+
+        let permission_window_label = label_for_setup.clone();
+        webview.connect_permission_request(move |_view, request: &PermissionRequest| {
+            if request.is::<UserMediaPermissionRequest>() || request.is::<DeviceInfoPermissionRequest>() {
+                log::info!(
+                    "Allowing Linux media permission request for '{}'",
+                    permission_window_label
+                );
+                request.allow();
+                return true;
+            }
+
+            false
+        });
+    }) {
+        log::error!(
+            "Failed to configure Linux webview media permissions for '{}': {}",
+            window_label,
+            err
+        );
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn configure_linux_webview_media(_window: &tauri::WebviewWindow) {}
+
+#[cfg(target_os = "linux")]
+fn is_linux_wayland_session() -> bool {
+    matches!(
+        std::env::var("XDG_SESSION_TYPE"),
+        Ok(value) if value.eq_ignore_ascii_case("wayland")
+    ) || std::env::var_os("WAYLAND_DISPLAY").is_some()
+}
+
+#[cfg(not(target_os = "linux"))]
+fn is_linux_wayland_session() -> bool {
+    false
+}
+
+#[cfg(target_os = "linux")]
+fn configure_wayland_overlay_panel(window: &tauri::WebviewWindow) {
+    let _ = window.set_size(tauri::PhysicalSize::new(560_u32, 220_u32));
+    let _ = window.center();
+    // Keep the Linux overlay visible without taking text focus away from the
+    // currently selected field. Wayland input insertion targets the focused app.
+    let _ = window.set_focusable(false);
+}
+
+#[cfg(not(target_os = "linux"))]
+fn configure_wayland_overlay_panel(_window: &tauri::WebviewWindow) {}
+
+fn load_env_with_workspace_fallback() {
+    // Load shared workspace env first, overriding stale exported shell values.
+    // This keeps local dev deterministic when multiple services share JWT/API vars.
+    match dotenvy::from_filename_override("../.env") {
+        Ok(path) => log::info!("Loaded workspace env from {:?}", path),
+        Err(e) => log::debug!("Workspace env not loaded: {}", e),
+    }
+
+    // Then load backend-local env only for missing values.
+    match dotenvy::from_filename(".env") {
+        Ok(path) => log::info!("Loaded backend env fallback from {:?}", path),
+        Err(e) => log::debug!("Backend env fallback not loaded: {}", e),
+    }
+}
+
 fn is_sensitive_store_key(key: &str) -> bool {
     let k = key.to_ascii_uppercase();
     k.contains("KEY") || k.contains("TOKEN") || k.contains("SECRET") || k.contains("PASSWORD")
@@ -25,6 +120,16 @@ fn is_sensitive_store_key(key: &str) -> bool {
 
 #[tauri::command]
 async fn set_ignore_mouse_events(window: tauri::Window, ignore: bool) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    {
+        // tao/wry on Linux can panic when enabling cursor-ignore before the
+        // GTK window surface is ready. Keep Linux stable by skipping this call.
+        if ignore {
+            log::debug!("Skipping set_ignore_cursor_events(true) on Linux");
+            return Ok(());
+        }
+    }
+
     window
         .set_ignore_cursor_events(ignore)
         .map_err(|e| e.to_string())
@@ -69,9 +174,18 @@ async fn set_store_value(app: tauri::AppHandle, key: String, value: String) -> R
 }
 
 #[tauri::command]
-async fn transcription_complete(text: String) -> Result<(), String> {
+async fn transcription_complete(app: tauri::AppHandle, text: String) -> Result<(), String> {
     log::info!("transcription_complete command called");
-    automation::paste_text(&text).await?;
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.hide();
+        tokio::time::sleep(tokio::time::Duration::from_millis(90)).await;
+    }
+
+    let outcome = automation::paste_text(&app, &text).await?;
+
+    if let automation::PasteOutcome::ClipboardFallback { message } = outcome {
+        let _ = app.emit("show-warning", message);
+    }
 
     // Wait a bit before hiding the window
     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
@@ -173,6 +287,8 @@ async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
     .build()
     .map_err(|e| e.to_string())?;
 
+    configure_linux_webview_media(&settings_window);
+
     // Ensure the window is interactive
     settings_window
         .set_ignore_cursor_events(false)
@@ -214,8 +330,7 @@ async fn get_auth_state() -> Result<auth::AuthState, String> {
 async fn logout() -> Result<(), String> {
     log::info!("logout command called");
 
-    let api_url = std::env::var("API_URL")
-        .expect("API_URL environment variable must be set. Check your .env file.");
+    let api_url = std::env::var("API_URL").unwrap_or_else(|_| "https://trueears-backend.vercel.app".to_string());
 
     auth::logout(&api_url).await
 }
@@ -224,6 +339,12 @@ async fn logout() -> Result<(), String> {
 async fn get_user_info() -> Result<Option<auth::UserInfo>, String> {
     log::info!("get_user_info command called");
     Ok(auth::get_stored_user_info())
+}
+
+#[tauri::command]
+async fn get_access_token() -> Result<Option<String>, String> {
+    log::info!("get_access_token command called");
+    Ok(auth::get_access_token())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -237,12 +358,7 @@ pub fn run() {
             use tauri::Manager;
             use tauri_plugin_store::StoreExt;
 
-            // Load .env file from project root
-            if let Err(e) = dotenvy::dotenv() {
-                log::warn!("No .env file found: {}", e);
-            } else {
-                log::info!("Loaded .env file");
-            }
+            load_env_with_workspace_fallback();
 
             // Migrate any legacy auth storage to the consolidated path
             auth::migrate_legacy_auth_file();
@@ -270,50 +386,54 @@ pub fn run() {
             // Resize main window to span all monitors
             // Add padding to account for Windows display scaling issues
             if let Some(window) = app.get_webview_window("main") {
-                let monitors = window.available_monitors().unwrap_or_default();
-                if !monitors.is_empty() {
-                    let mut min_x = i32::MAX;
-                    let mut min_y = i32::MAX;
-                    let mut max_x = i32::MIN;
-                    let mut max_y = i32::MIN;
+                configure_linux_webview_media(&window);
 
-                    for monitor in &monitors {
-                        let pos = monitor.position();
-                        let size = monitor.size();
-                        min_x = min_x.min(pos.x);
-                        min_y = min_y.min(pos.y);
-                        max_x = max_x.max(pos.x + size.width as i32);
-                        max_y = max_y.max(pos.y + size.height as i32);
+                if is_linux_wayland_session() {
+                    log::info!("Configuring main window for Linux Wayland panel overlay");
+                    configure_wayland_overlay_panel(&window);
+                } else {
+                    let monitors = window.available_monitors().unwrap_or_default();
+                    if !monitors.is_empty() {
+                        let mut min_x = i32::MAX;
+                        let mut min_y = i32::MAX;
+                        let mut max_x = i32::MIN;
+                        let mut max_y = i32::MIN;
+
+                        for monitor in &monitors {
+                            let pos = monitor.position();
+                            let size = monitor.size();
+                            min_x = min_x.min(pos.x);
+                            min_y = min_y.min(pos.y);
+                            max_x = max_x.max(pos.x + size.width as i32);
+                            max_y = max_y.max(pos.y + size.height as i32);
+                        }
+
+                        let max_scale_factor = monitors
+                            .iter()
+                            .map(|m| m.scale_factor())
+                            .fold(1.0_f64, |a, b| a.max(b));
+
+                        let padding = (200.0 * max_scale_factor) as i32;
+                        min_x -= padding;
+                        min_y -= padding;
+                        max_x += padding;
+                        max_y += padding;
+
+                        let total_width = (max_x - min_x) as u32;
+                        let total_height = (max_y - min_y) as u32;
+
+                        log::info!(
+                            "Setting main window to span all monitors: pos=({}, {}), size={}x{}, scale={}",
+                            min_x,
+                            min_y,
+                            total_width,
+                            total_height,
+                            max_scale_factor
+                        );
+
+                        let _ = window.set_position(tauri::PhysicalPosition::new(min_x, min_y));
+                        let _ = window.set_size(tauri::PhysicalSize::new(total_width, total_height));
                     }
-
-                    // Get maximum scale factor across all monitors to account for DPI scaling
-                    let max_scale_factor = monitors
-                        .iter()
-                        .map(|m| m.scale_factor())
-                        .fold(1.0_f64, |a, b| a.max(b));
-
-                    // Add generous padding to ensure full coverage on all devices
-                    // 200px base padding scaled by DPI should cover any edge cases
-                    let padding = (200.0 * max_scale_factor) as i32;
-                    min_x -= padding;
-                    min_y -= padding;
-                    max_x += padding;
-                    max_y += padding;
-
-                    let total_width = (max_x - min_x) as u32;
-                    let total_height = (max_y - min_y) as u32;
-
-                    log::info!(
-                        "Setting main window to span all monitors: pos=({}, {}), size={}x{}, scale={}",
-                        min_x,
-                        min_y,
-                        total_width,
-                        total_height,
-                        max_scale_factor
-                    );
-
-                    let _ = window.set_position(tauri::PhysicalPosition::new(min_x, min_y));
-                    let _ = window.set_size(tauri::PhysicalSize::new(total_width, total_height));
                 }
             }
 
@@ -333,8 +453,19 @@ pub fn run() {
                 .map(|s| s == "true")
                 .unwrap_or(false);
 
-            if !onboarding_complete {
-                log::info!("First run detected: onboarding not complete. Opening settings.");
+            let force_open_settings_on_start = std::env::var("TRUEEARS_OPEN_SETTINGS_ON_START")
+                .map(|v| {
+                    let value = v.trim().to_ascii_lowercase();
+                    value == "1" || value == "true" || value == "yes" || value == "on"
+                })
+                .unwrap_or(false);
+
+            if !onboarding_complete || force_open_settings_on_start {
+                if force_open_settings_on_start {
+                    log::info!("TRUEEARS_OPEN_SETTINGS_ON_START enabled. Opening settings.");
+                } else {
+                    log::info!("First run detected: onboarding not complete. Opening settings.");
+                }
                 let app_handle = app.handle().clone();
                 // Spawn async task to open settings window after a short delay
                 tauri::async_runtime::spawn(async move {
@@ -368,6 +499,7 @@ pub fn run() {
             get_auth_state,
             logout,
             get_user_info,
+            get_access_token,
             // Log Mode commands
             log_mode::append_to_file,
             log_mode::validate_log_path,

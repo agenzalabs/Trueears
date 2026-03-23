@@ -14,6 +14,7 @@ use axum::{
     Extension, Router,
 };
 use handlers::auth::AppState;
+use sha2::{Digest, Sha256};
 use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subTrueearsr::{layer::SubTrueearsrExt, util::SubTrueearsrInitExt};
@@ -24,6 +25,32 @@ use crate::{
     models::UserInfo,
     utils::JwtManager,
 };
+
+fn load_env_with_workspace_fallback() {
+    // Load shared workspace env first, overriding stale exported shell values.
+    // This keeps local dev deterministic when multiple services share JWT/API vars.
+    match dotenvy::from_filename_override("../.env") {
+        Ok(path) => tracing::info!("Loaded workspace env from {:?}", path),
+        Err(e) => tracing::debug!("Workspace env not loaded: {}", e),
+    }
+
+    // Then load auth-server local env only for missing values.
+    match dotenvy::from_filename(".env") {
+        Ok(path) => tracing::info!("Loaded auth-server env fallback from {:?}", path),
+        Err(e) => tracing::debug!("Auth-server env fallback not loaded: {}", e),
+    }
+}
+
+fn secret_fingerprint(secret: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(secret.as_bytes());
+    let digest = hasher.finalize();
+    digest
+        .iter()
+        .take(6)
+        .map(|b| format!("{:02x}", b))
+        .collect::<String>()
+}
 
 #[tokio::main]
 async fn main() {
@@ -36,15 +63,15 @@ async fn main() {
         .with(tracing_subTrueearsr::fmt::layer())
         .init();
 
-    // Load environment variables
-    let dotenv_result = dotenvy::dotenv();
-    match &dotenv_result {
-        Ok(path) => tracing::info!("Loaded .env from: {:?}", path),
-        Err(e) => tracing::warn!("No .env file found: {}", e),
-    }
+    load_env_with_workspace_fallback();
     
     // Load configuration
     let config = Config::from_env().expect("Failed to load configuration");
+    tracing::info!(
+        "JWT secret fingerprint={} len={}",
+        secret_fingerprint(&config.jwt_secret),
+        config.jwt_secret.len()
+    );
     
     // Debug: show what we're connecting to (hide password)
     let db_host = config.database_url

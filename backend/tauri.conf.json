@@ -36,11 +36,14 @@
   "bundle": {
     "active": true,
     "targets": [
-      "nsis"
+      "nsis",
+      "deb",
+      "appimage"
     ],
     "licenseFile": "./assets/legal/terms-and-privacy.txt",
     "icon": [
-      "../build/icon.ico"
+      "../build/icon.ico",
+      "icons/icon.png"
     ],
     "windows": {
       "nsis": {

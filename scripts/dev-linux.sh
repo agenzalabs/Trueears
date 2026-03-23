@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"${SCRIPT_DIR}/ensure-linux-app-id.sh"
+
+env -i \
+  HOME="${HOME}" \
+  USER="${USER}" \
+  LOGNAME="${LOGNAME}" \
+  PATH="${PATH}" \
+  SHELL="${SHELL}" \
+  LANG="${LANG:-C.UTF-8}" \
+  LC_ALL="${LC_ALL:-}" \
+  DISPLAY="${DISPLAY:-}" \
+  WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-}" \
+  XAUTHORITY="${XAUTHORITY:-}" \
+  XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}" \
+  XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-}" \
+  XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-}" \
+  XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}" \
+  DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-}" \
+  XDG_DATA_DIRS="${XDG_DATA_DIRS_VSCODE_SNAP_ORIG:-${XDG_DATA_DIRS:-}}" \
+  WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1 \
+  TRUEEARS_OPEN_SETTINGS_ON_START=1 \
+  sh -lc 'cd backend && tauri dev'
