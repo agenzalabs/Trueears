@@ -4,10 +4,16 @@ mod windows_impl;
 #[cfg(target_os = "windows")]
 pub use windows_impl::*;
 
-#[cfg(any(target_os = "linux", all(not(target_os = "windows"), not(target_os = "linux"))))]
+#[cfg(any(
+    target_os = "linux",
+    all(not(target_os = "windows"), not(target_os = "linux"))
+))]
 use serde::{Deserialize, Serialize};
 
-#[cfg(any(target_os = "linux", all(not(target_os = "windows"), not(target_os = "linux"))))]
+#[cfg(any(
+    target_os = "linux",
+    all(not(target_os = "windows"), not(target_os = "linux"))
+))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InstalledApp {
     pub name: String,
@@ -52,10 +58,18 @@ pub fn search_installed_apps(query: &str) -> Vec<InstalledApp> {
 fn detect_linux_popular_apps() -> Vec<InstalledApp> {
     // Display name, category, candidate binary names (first hit wins).
     let definitions: [(&str, &str, &[&str]); 23] = [
-        ("Google Chrome", "browser", &["google-chrome", "google-chrome-stable", "chrome"]),
+        (
+            "Google Chrome",
+            "browser",
+            &["google-chrome", "google-chrome-stable", "chrome"],
+        ),
         ("Chromium", "browser", &["chromium", "chromium-browser"]),
         ("Mozilla Firefox", "browser", &["firefox"]),
-        ("Microsoft Edge", "browser", &["microsoft-edge", "microsoft-edge-stable"]),
+        (
+            "Microsoft Edge",
+            "browser",
+            &["microsoft-edge", "microsoft-edge-stable"],
+        ),
         ("Brave Browser", "browser", &["brave-browser", "brave"]),
         ("Vivaldi", "browser", &["vivaldi", "vivaldi-stable"]),
         ("Visual Studio Code", "code", &["code"]),
@@ -63,8 +77,16 @@ fn detect_linux_popular_apps() -> Vec<InstalledApp> {
         ("Cursor", "code", &["cursor"]),
         ("Zed", "code", &["zed"]),
         ("Sublime Text", "code", &["subl"]),
-        ("IntelliJ IDEA", "code", &["idea", "idea-ultimate", "idea-community"]),
-        ("PyCharm", "code", &["pycharm", "pycharm-community", "pycharm-professional"]),
+        (
+            "IntelliJ IDEA",
+            "code",
+            &["idea", "idea-ultimate", "idea-community"],
+        ),
+        (
+            "PyCharm",
+            "code",
+            &["pycharm", "pycharm-community", "pycharm-professional"],
+        ),
         ("Slack", "chat", &["slack"]),
         ("Discord", "chat", &["discord"]),
         ("Telegram", "chat", &["telegram-desktop", "telegram"]),

@@ -1,0 +1,28 @@
+# EditorConfig — https://editorconfig.org
+root = true
+
+# Default settings for all files
+[*]
+charset = utf-8
+end_of_line = lf
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# TypeScript, JavaScript, React, JSON, CSS, HTML, Markdown, YAML — 2 spaces
+[*.{ts,tsx,js,jsx,json,css,html,md,yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# Rust — 4 spaces
+[*.rs]
+indent_style = space
+indent_size = 4
+
+# TOML — 2 spaces
+[*.toml]
+indent_style = space
+indent_size = 2
+
+# Makefile — tabs (required by make)
+[Makefile]
+indent_style = tab

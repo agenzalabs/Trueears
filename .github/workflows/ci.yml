@@ -40,3 +40,77 @@ jobs:
 
       - name: Compile check backend
         run: cargo check --manifest-path backend/Cargo.toml
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npx eslint frontend/src
+
+  rust-format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            librsvg2-dev \
+            patchelf \
+            libgtk-3-dev \
+            libglib2.0-dev \
+            libayatana-appindicator3-dev \
+            libxdo-dev \
+            libssl-dev
+
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path backend/Cargo.toml -- --check
+
+      - name: Run Clippy
+        run: cargo clippy --manifest-path backend/Cargo.toml -- -D warnings
+
+  security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: NPM security audit
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo security audit
+        run: cargo install cargo-audit && cargo audit --file backend/Cargo.toml
+        continue-on-error: true

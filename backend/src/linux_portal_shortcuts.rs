@@ -434,7 +434,10 @@ fn register_host_app(connection: &DBusConnection, app_id: &str) -> Result<(), St
         )
         .map_err(|err| format!("Failed to register Linux app ID with the desktop portal: {err}"))?;
 
-    log::info!("Registered Linux app ID with the desktop portal: {}", app_id);
+    log::info!(
+        "Registered Linux app ID with the desktop portal: {}",
+        app_id
+    );
     Ok(())
 }
 

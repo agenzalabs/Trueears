@@ -56,8 +56,8 @@ pub struct OAuthConfig {
 impl OAuthConfig {
     pub fn from_env() -> Option<Self> {
         let google_client_id = std::env::var("GOOGLE_CLIENT_ID").ok()?;
-        let api_url =
-            std::env::var("API_URL").unwrap_or_else(|_| "https://trueears-backend.vercel.app".to_string());
+        let api_url = std::env::var("API_URL")
+            .unwrap_or_else(|_| "https://trueears-backend.vercel.app".to_string());
 
         Some(OAuthConfig {
             google_client_id,
@@ -105,7 +105,9 @@ pub fn migrate_legacy_auth_file() {
     #[cfg(target_os = "windows")]
     {
         if let Some(app_data) = std::env::var_os("APPDATA") {
-            let legacy_path = PathBuf::from(&app_data).join("Trueears").join(AUTH_FILE_NAME);
+            let legacy_path = PathBuf::from(&app_data)
+                .join("Trueears")
+                .join(AUTH_FILE_NAME);
             let new_dir = PathBuf::from(&app_data).join("com.Trueears");
             let new_path = new_dir.join(AUTH_FILE_NAME);
             if legacy_path.exists() {

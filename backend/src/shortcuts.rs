@@ -191,7 +191,10 @@ fn register_recording_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error
     let mut shortcuts: Vec<Shortcut> = Vec::new();
 
     if cfg!(target_os = "macos") {
-        shortcuts.push(Shortcut::new(Some(Modifiers::META | Modifiers::SHIFT), Code::KeyK));
+        shortcuts.push(Shortcut::new(
+            Some(Modifiers::META | Modifiers::SHIFT),
+            Code::KeyK,
+        ));
     } else {
         shortcuts.push(Shortcut::new(
             Some(Modifiers::CONTROL | Modifiers::SHIFT),
@@ -228,7 +231,11 @@ fn register_recording_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error
                 log::info!("Registered recording shortcut binding: {:?}", shortcut);
             }
             Err(e) => {
-                log::warn!("Failed to register recording shortcut binding {:?}: {}", shortcut, e);
+                log::warn!(
+                    "Failed to register recording shortcut binding {:?}: {}",
+                    shortcut,
+                    e
+                );
             }
         }
     }
@@ -245,7 +252,10 @@ fn register_settings_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error:
     let mut shortcuts: Vec<Shortcut> = Vec::new();
 
     if cfg!(target_os = "macos") {
-        shortcuts.push(Shortcut::new(Some(Modifiers::META | Modifiers::SHIFT), Code::KeyS));
+        shortcuts.push(Shortcut::new(
+            Some(Modifiers::META | Modifiers::SHIFT),
+            Code::KeyS,
+        ));
     } else {
         // Primary binding used on all non-macOS platforms.
         shortcuts.push(Shortcut::new(
@@ -256,7 +266,10 @@ fn register_settings_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error:
         // Linux fallback: avoid layout/compositor quirks on alpha keys.
         #[cfg(target_os = "linux")]
         {
-            shortcuts.push(Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::F10));
+            shortcuts.push(Shortcut::new(
+                Some(Modifiers::CONTROL | Modifiers::SHIFT),
+                Code::F10,
+            ));
         }
     }
 
@@ -275,7 +288,11 @@ fn register_settings_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error:
                 log::info!("Registered settings shortcut binding: {:?}", shortcut);
             }
             Err(e) => {
-                log::warn!("Failed to register settings shortcut binding {:?}: {}", shortcut, e);
+                log::warn!(
+                    "Failed to register settings shortcut binding {:?}: {}",
+                    shortcut,
+                    e
+                );
             }
         }
     }
@@ -287,7 +304,6 @@ fn register_settings_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::error:
     log::info!("Settings shortcut bindings registered");
     Ok(())
 }
-
 
 /// Dynamically register the Escape shortcut.
 /// Called when the Trueears overlay becomes visible to allow global Escape to cancel recording.
@@ -313,7 +329,9 @@ pub fn register_escape_shortcut(app: &AppHandle) -> Result<(), Box<dyn std::erro
                 if let Some(window) = app_handle.get_webview_window("main") {
                     // Only emit if window is visible
                     if let Ok(true) = window.is_visible() {
-                        log::info!("Escape pressed while window visible - emitting shortcut-cancelled");
+                        log::info!(
+                            "Escape pressed while window visible - emitting shortcut-cancelled"
+                        );
                         let _ = window.emit("shortcut-cancelled", ());
                     }
                 }

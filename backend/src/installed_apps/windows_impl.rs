@@ -1,29 +1,28 @@
+use image::ImageEncoder;
+use lnk::ShellLink;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::RwLock;
-use once_cell::sync::Lazy;
+use walkdir::WalkDir;
+use windows::core::PCWSTR;
+use windows::Win32::Storage::FileSystem::FILE_FLAGS_AND_ATTRIBUTES;
+use windows::Win32::UI::Controls::{IImageList, ILD_TRANSPARENT};
+use windows::Win32::UI::Shell::{
+    SHGetFileInfoW, SHGetImageList, SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON, SHGFI_SYSICONINDEX,
+    SHIL_JUMBO,
+};
+use windows::Win32::UI::WindowsAndMessaging::{DestroyIcon, DI_FLAGS};
 use winreg::enums::*;
 use winreg::RegKey;
-use windows::Win32::UI::Shell::{
-    SHGetFileInfoW, SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON,
-    SHGetImageList, SHIL_JUMBO, SHGFI_SYSICONINDEX,
-};
-use windows::Win32::Storage::FileSystem::FILE_FLAGS_AND_ATTRIBUTES;
-use windows::Win32::UI::WindowsAndMessaging::{DestroyIcon, DI_FLAGS};
-use windows::Win32::UI::Controls::{IImageList, ILD_TRANSPARENT};
-use windows::core::PCWSTR;
-use image::ImageEncoder;
-use walkdir::WalkDir;
-use lnk::ShellLink;
 
 /// In-memory cache for installed apps (RwLock for concurrent read access)
 static INSTALLED_APPS_CACHE: Lazy<RwLock<Option<Vec<InstalledApp>>>> =
     Lazy::new(|| RwLock::new(None));
 
 /// Flag to track if background refresh is running
-static REFRESH_IN_PROGRESS: Lazy<RwLock<bool>> =
-    Lazy::new(|| RwLock::new(false));
+static REFRESH_IN_PROGRESS: Lazy<RwLock<bool>> = Lazy::new(|| RwLock::new(false));
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InstalledApp {
@@ -55,10 +54,13 @@ const KNOWN_APPS: &[(&str, &str, &str)] = &[
     ("Opera", "opera.exe", "browser"),
     ("Arc", "arc.exe", "browser"),
     ("Vivaldi", "vivaldi.exe", "browser"),
-
     // Code Editors & IDEs
     ("Visual Studio Code", "Code.exe", "code"),
-    ("Visual Studio Code - Insiders", "Code - Insiders.exe", "code"),
+    (
+        "Visual Studio Code - Insiders",
+        "Code - Insiders.exe",
+        "code",
+    ),
     ("Cursor", "Cursor.exe", "code"),
     ("Antigravity", "Antigravity.exe", "code"),
     ("Sublime Text", "sublime_text.exe", "code"),
@@ -71,7 +73,6 @@ const KNOWN_APPS: &[(&str, &str, &str)] = &[
     ("Android Studio", "studio64.exe", "code"),
     ("Zed", "zed.exe", "code"),
     ("Neovim", "nvim-qt.exe", "code"),
-
     // Communication
     ("Slack", "slack.exe", "chat"),
     ("Discord", "Discord.exe", "chat"),
@@ -82,12 +83,10 @@ const KNOWN_APPS: &[(&str, &str, &str)] = &[
     ("WhatsApp Desktop", "WhatsApp.exe", "chat"),
     ("Signal", "Signal.exe", "chat"),
     ("Skype", "Skype.exe", "chat"),
-
     // Email
     ("Microsoft Outlook", "OUTLOOK.EXE", "email"),
     ("Thunderbird", "thunderbird.exe", "email"),
     ("Mailspring", "mailspring.exe", "email"),
-
     // Notes & Productivity
     ("Notion", "Notion.exe", "notes"),
     ("Obsidian", "Obsidian.exe", "notes"),
@@ -96,13 +95,11 @@ const KNOWN_APPS: &[(&str, &str, &str)] = &[
     ("Roam Research", "Roam Research.exe", "notes"),
     ("Logseq", "Logseq.exe", "notes"),
     ("Joplin", "Joplin.exe", "notes"),
-
     // Office
     ("Microsoft Word", "WINWORD.EXE", "office"),
     ("Microsoft Excel", "EXCEL.EXE", "office"),
     ("Microsoft PowerPoint", "POWERPNT.EXE", "office"),
     ("LibreOffice Writer", "swriter.exe", "office"),
-
     // Design
     ("Figma", "Figma.exe", "design"),
     ("Adobe Photoshop", "Photoshop.exe", "design"),
@@ -112,7 +109,6 @@ const KNOWN_APPS: &[(&str, &str, &str)] = &[
     ("Canva", "Canva.exe", "design"),
     ("GIMP", "gimp-2.10.exe", "design"),
     ("Inkscape", "inkscape.exe", "design"),
-
     // Development Tools
     ("Postman", "Postman.exe", "dev"),
     ("Insomnia", "Insomnia.exe", "dev"),
@@ -122,18 +118,15 @@ const KNOWN_APPS: &[(&str, &str, &str)] = &[
     ("Windows Terminal", "WindowsTerminal.exe", "dev"),
     ("Warp", "warp.exe", "dev"),
     ("Hyper", "Hyper.exe", "dev"),
-
     // Media
     ("Spotify", "Spotify.exe", "media"),
     ("VLC Media Player", "vlc.exe", "media"),
     ("iTunes", "iTunes.exe", "media"),
-
     // Other Popular
     ("1Password", "1Password.exe", "utility"),
     ("Grammarly Desktop", "Grammarly.exe", "utility"),
     ("Loom", "Loom.exe", "utility"),
     ("Krisp", "krisp.exe", "utility"),
-
     // System Apps
     ("Notepad", "notepad.exe", "utility"),
 ];
@@ -294,7 +287,8 @@ pub fn search_installed_apps(query: &str) -> Vec<InstalledApp> {
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
 
     // Check aliases
-    let alias_exe = APP_ALIASES.iter()
+    let alias_exe = APP_ALIASES
+        .iter()
         .find(|(alias, _)| alias.to_lowercase() == query_lower)
         .map(|(_, exe)| exe.to_lowercase());
 
@@ -409,7 +403,12 @@ pub fn force_refresh_cache() {
 /// Known system apps with their full paths (these are always available on Windows)
 const SYSTEM_APPS: &[(&str, &str, &str, &str)] = &[
     // (name, exe, category, path)
-    ("Notepad", "notepad.exe", "utility", r"C:\Windows\System32\notepad.exe"),
+    (
+        "Notepad",
+        "notepad.exe",
+        "utility",
+        r"C:\Windows\System32\notepad.exe",
+    ),
 ];
 
 /// Actually scan for installed popular apps (expensive operation)
@@ -446,7 +445,10 @@ fn scan_installed_popular_apps() -> Vec<InstalledApp> {
         }
     }
 
-    log::info!("Scanned and found {} installed popular apps", installed.len());
+    log::info!(
+        "Scanned and found {} installed popular apps",
+        installed.len()
+    );
     installed
 }
 
@@ -507,7 +509,9 @@ fn collect_start_menu_links() -> HashMap<String, String> {
     let mut map: HashMap<String, String> = HashMap::new();
     let mut start_menu_paths = Vec::new();
 
-    start_menu_paths.push(PathBuf::from(r"C:\ProgramData\Microsoft\Windows\Start Menu\Programs"));
+    start_menu_paths.push(PathBuf::from(
+        r"C:\ProgramData\Microsoft\Windows\Start Menu\Programs",
+    ));
 
     if let Ok(appdata) = std::env::var("APPDATA") {
         let mut p = PathBuf::from(appdata);
@@ -520,9 +524,18 @@ fn collect_start_menu_links() -> HashMap<String, String> {
             continue;
         }
 
-        for entry in WalkDir::new(dir).max_depth(3).into_iter().filter_map(|e| e.ok()) {
+        for entry in WalkDir::new(dir)
+            .max_depth(3)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
             let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()).map(|ext| ext.eq_ignore_ascii_case("lnk")).unwrap_or(false) {
+            if path
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(|ext| ext.eq_ignore_ascii_case("lnk"))
+                .unwrap_or(false)
+            {
                 // Use lnk crate to parse the shortcut (much faster than COM)
                 if let Some(target_path) = resolve_lnk_target_fast(path) {
                     let full_path = sanitize_exe_path(&expand_env_vars(&target_path));
@@ -550,7 +563,9 @@ fn resolve_lnk_target_fast(lnk_path: &std::path::Path) -> Option<String> {
     let path = lnk_path.to_path_buf();
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         resolve_lnk_target_inner(&path)
-    })).ok().flatten()
+    }))
+    .ok()
+    .flatten()
 }
 
 /// Inner function for lnk parsing (may panic on malformed files)
@@ -610,12 +625,27 @@ fn expand_env_vars(path: &str) -> String {
 
     // Common environment variables to expand
     let vars = [
-        ("LOCALAPPDATA", std::env::var("LOCALAPPDATA").unwrap_or_default()),
+        (
+            "LOCALAPPDATA",
+            std::env::var("LOCALAPPDATA").unwrap_or_default(),
+        ),
         ("APPDATA", std::env::var("APPDATA").unwrap_or_default()),
-        ("PROGRAMFILES", std::env::var("PROGRAMFILES").unwrap_or_default()),
-        ("PROGRAMFILES(X86)", std::env::var("PROGRAMFILES(X86)").unwrap_or_default()),
-        ("USERPROFILE", std::env::var("USERPROFILE").unwrap_or_default()),
-        ("SYSTEMROOT", std::env::var("SYSTEMROOT").unwrap_or_default()),
+        (
+            "PROGRAMFILES",
+            std::env::var("PROGRAMFILES").unwrap_or_default(),
+        ),
+        (
+            "PROGRAMFILES(X86)",
+            std::env::var("PROGRAMFILES(X86)").unwrap_or_default(),
+        ),
+        (
+            "USERPROFILE",
+            std::env::var("USERPROFILE").unwrap_or_default(),
+        ),
+        (
+            "SYSTEMROOT",
+            std::env::var("SYSTEMROOT").unwrap_or_default(),
+        ),
     ];
 
     for (var_name, var_value) in vars {
@@ -664,8 +694,7 @@ fn extract_icon_from_path(path: &str) -> Option<String> {
     }
 
     // Try to get extra-large icon first (48x48), fall back to large (32x32)
-    extract_icon_high_quality(path)
-        .or_else(|| extract_icon_standard(path))
+    extract_icon_high_quality(path).or_else(|| extract_icon_standard(path))
 }
 
 /// Extract high-quality icon (256x256) using SHGetImageList with SHIL_JUMBO
@@ -693,7 +722,9 @@ fn extract_icon_high_quality(path: &str) -> Option<String> {
         let image_list: IImageList = SHGetImageList(SHIL_JUMBO as i32).ok()?;
 
         // Get the icon from the image list
-        let hicon: HICON = image_list.GetIcon(shfi.iIcon, ILD_TRANSPARENT.0 as u32).ok()?;
+        let hicon: HICON = image_list
+            .GetIcon(shfi.iIcon, ILD_TRANSPARENT.0 as u32)
+            .ok()?;
 
         if hicon.is_invalid() {
             return None;
@@ -733,10 +764,13 @@ fn extract_icon_standard(path: &str) -> Option<String> {
 }
 
 /// Convert HICON to PNG base64 with specified size
-fn icon_to_png_base64(hicon: windows::Win32::UI::WindowsAndMessaging::HICON, size: i32) -> Option<String> {
+fn icon_to_png_base64(
+    hicon: windows::Win32::UI::WindowsAndMessaging::HICON,
+    size: i32,
+) -> Option<String> {
     use windows::Win32::Graphics::Gdi::{
-        CreateCompatibleDC, DeleteDC, DeleteObject, GetDC, ReleaseDC, SelectObject,
-        CreateCompatibleBitmap, GetDIBits, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
+        CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDC, GetDIBits,
+        ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
     };
     use windows::Win32::UI::WindowsAndMessaging::DrawIconEx;
 
@@ -783,8 +817,18 @@ fn icon_to_png_base64(hicon: windows::Win32::UI::WindowsAndMessaging::HICON, siz
         let mut cursor = std::io::Cursor::new(&mut png_bytes);
 
         let encoder = image::codecs::png::PngEncoder::new(&mut cursor);
-        encoder.write_image(&img, size as u32, size as u32, image::ExtendedColorType::Rgba8).ok()?;
+        encoder
+            .write_image(
+                &img,
+                size as u32,
+                size as u32,
+                image::ExtendedColorType::Rgba8,
+            )
+            .ok()?;
 
-        Some(base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &png_bytes))
+        Some(base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            &png_bytes,
+        ))
     }
 }

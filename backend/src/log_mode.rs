@@ -99,7 +99,11 @@ fn contains_traversal(path: &str) -> bool {
 /// * `Err(String)` with error code on failure
 #[tauri::command]
 pub async fn append_to_file(path: String, content: String) -> Result<(), String> {
-    log::info!("append_to_file: path={}, content_len={}", path, content.len());
+    log::info!(
+        "append_to_file: path={}, content_len={}",
+        path,
+        content.len()
+    );
 
     // Validate path format
     if !is_absolute_path(&path) {
@@ -137,9 +141,7 @@ pub async fn append_to_file(path: String, content: String) -> Result<(), String>
                 std::io::ErrorKind::PermissionDenied => {
                     "PERMISSION_DENIED: Cannot write to file".to_string()
                 }
-                std::io::ErrorKind::StorageFull => {
-                    "DISK_FULL: Insufficient disk space".to_string()
-                }
+                std::io::ErrorKind::StorageFull => "DISK_FULL: Insufficient disk space".to_string(),
                 _ => {
                     // Check if file is locked (Windows-specific error handling)
                     let error_str = e.to_string().to_lowercase();
@@ -214,10 +216,7 @@ pub async fn validate_log_path(path: String) -> Result<PathValidation, String> {
     let exists = file_path.exists();
 
     // Check if parent directory exists
-    let parent_exists = file_path
-        .parent()
-        .map(|p| p.exists())
-        .unwrap_or(false);
+    let parent_exists = file_path.parent().map(|p| p.exists()).unwrap_or(false);
 
     // Check write permission
     let writable = if exists {
