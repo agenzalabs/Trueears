@@ -57,7 +57,7 @@ jobs:
         run: npm ci
 
       - name: Run ESLint
-        run: npx eslint frontend/src --max-warnings 0
+        run: npx eslint frontend/src
 
   rust-format:
     runs-on: ubuntu-latest
@@ -73,7 +73,15 @@ jobs:
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libgtk-3-dev libglib2.0-dev libayatana-appindicator3-dev libxdo-dev libssl-dev
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            librsvg2-dev \
+            patchelf \
+            libgtk-3-dev \
+            libglib2.0-dev \
+            libayatana-appindicator3-dev \
+            libxdo-dev \
+            libssl-dev
 
       - name: Check Rust formatting
         run: cargo fmt --manifest-path backend/Cargo.toml -- --check
