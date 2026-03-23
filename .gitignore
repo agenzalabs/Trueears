@@ -71,3 +71,4 @@ Thumbs.db
 
 # Migration files
 MIGRATION_SUMMARY.md
+/launch

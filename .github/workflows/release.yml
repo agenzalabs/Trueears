@@ -2,17 +2,57 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
 
 jobs:
-  release:
+  # First, check if a release is needed (version not already tagged)
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      tag: ${{ steps.get_version.outputs.tag }}
+      should_release: ${{ steps.check_tag.outputs.should_release }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from package.json
+        id: get_version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+          echo "Detected version: $VERSION"
+
+      - name: Check if tag already exists
+        id: check_tag
+        run: |
+          TAG="v${{ steps.get_version.outputs.version }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists — skipping release"
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          else
+            echo "Tag $TAG does not exist — proceeding with release"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          fi
+
+  # Build and release for each platform
+  build-and-release:
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
     permissions:
       contents: write
     strategy:
       fail-fast: false
       matrix:
-        platform: [windows-latest]
+        include:
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+          - platform: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
 
     runs-on: ${{ matrix.platform }}
 
@@ -34,7 +74,24 @@ jobs:
         with:
           workspaces: './backend -> target'
 
-      - name: Install dependencies
+      # Linux-specific system dependencies for Tauri
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libgtk-3-dev \
+            libglib2.0-dev \
+            libgio2.0-cil-dev \
+            libayatana-appindicator3-dev \
+            libxdo-dev \
+            libssl-dev
+
+      - name: Install npm dependencies
         run: npm ci
 
       - name: Build the app
@@ -42,39 +99,21 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Trueears v__VERSION__'
+          tagName: ${{ needs.check-version.outputs.tag }}
+          releaseName: 'Trueears ${{ needs.check-version.outputs.tag }}'
           releaseBody: |
-            ## What's New in v0.2.0
+            ## Trueears ${{ needs.check-version.outputs.tag }}
 
-            ### ✨ New Features
-            - **Light/Dark Theme Support** - App now adapts to your system theme preference
-            - **Multi-Language Transcription** - Added support for transcribing in multiple languages
-            - **Comprehensive Onboarding Wizard** - New first-run experience to help you get started
-            - **Shell Integration** - Enhanced integration with system shell
+            Auto-generated release from merge to `main`.
 
-            ### 🐛 Bug Fixes
-            - Fixed recorder overlay window visibility and UI positioning
-            - Fixed mic stream leaks when switching audio devices
-            - Cleared clipboard after paste to prevent data leaks
-            - Prevented shortcut interference during onboarding trigger step
-            - Improved settings window startup and visibility
-
-            ### 🔧 Improvements
-            - Main window now spans across all monitors for better multi-monitor support
-            - Simplified to Groq-only transcription provider for better reliability
-            - Added pointer cursors to onboarding buttons for better UX
-            - Enhanced UI components throughout the app
-
-            ---
-
-            ## Installation
+            ### Installation
 
             Download the installer for your platform:
-            - **Windows (.msi)**: Recommended for most users
-            - **Windows (.exe)**: NSIS installer alternative
+            - **Windows (.exe)**: NSIS installer
+            - **Linux (.deb)**: Debian/Ubuntu package
+            - **Linux (.AppImage)**: Portable, works on most distros
 
-            **[Full Changelog](https://github.com/devv-shayan/Trueears/blob/main/CHANGELOG.md)**
+            **[Full Changelog](https://github.com/devv-shayan/Trueears/compare/v${{ needs.check-version.outputs.version }}...main)**
           releaseDraft: false
           prerelease: false
           projectPath: './backend'
