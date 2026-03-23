@@ -1,4 +1,5 @@
 import js from '@eslint/js';
+import globals from 'globals';
 import tseslint from '@typescript-eslint/eslint-plugin';
 import tsparser from '@typescript-eslint/parser';
 import reactPlugin from 'eslint-plugin-react';
@@ -18,59 +19,11 @@ export default [
         },
       },
       globals: {
-        // Browser globals
-        console: 'readonly',
-        window: 'readonly',
-        document: 'readonly',
-        navigator: 'readonly',
-        setTimeout: 'readonly',
-        clearTimeout: 'readonly',
-        setInterval: 'readonly',
-        clearInterval: 'readonly',
-        fetch: 'readonly',
-        URL: 'readonly',
-        Blob: 'readonly',
-        File: 'readonly',
-        FileReader: 'readonly',
-        FormData: 'readonly',
-        Headers: 'readonly',
-        Request: 'readonly',
-        Response: 'readonly',
-        Navigator: 'readonly',
-        Permissions: 'readonly',
-        PermissionName: 'readonly',
-        // Audio/Media
-        AudioContext: 'readonly',
-        MediaRecorder: 'readonly',
-        MediaStream: 'readonly',
-        MediaDeviceInfo: 'readonly',
-        AnalyserNode: 'readonly',
-        // Animation
-        requestAnimationFrame: 'readonly',
-        cancelAnimationFrame: 'readonly',
-        DOMException: 'readonly',
-        CustomEvent: 'readonly',
-        // DOM
-        HTMLElement: 'readonly',
-        HTMLCanvasElement: 'readonly',
-        HTMLInputElement: 'readonly',
-        HTMLSelectElement: 'readonly',
-        HTMLButtonElement: 'readonly',
-        HTMLDivElement: 'readonly',
-        Node: 'readonly',
-        // Events
-        MouseEvent: 'readonly',
-        KeyboardEvent: 'readonly',
-        Event: 'readonly',
-        EventTarget: 'readonly',
-        // Styles
-        getComputedStyle: 'readonly',
-        // Node.js
+        ...globals.browser,
+        ...globals.node,
         NodeJS: 'readonly',
-        process: 'readonly',
-        __dirname: 'readonly',
-        module: 'readonly',
-        require: 'readonly',
+        PermissionName: 'readonly',
+        HeadersInit: 'readonly',
       },
     },
     plugins: {
@@ -96,6 +49,7 @@ export default [
       'no-unused-vars': 'off', // Use TypeScript version
       'no-console': ['warn', { allow: ['warn', 'error'] }],
       'no-debugger': 'error',
+      'no-empty': ['error', { allowEmptyCatch: true }],
       'prefer-const': 'error',
       'no-var': 'error',
     },
