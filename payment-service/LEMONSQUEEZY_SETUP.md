@@ -248,7 +248,7 @@ After completing the setup, update your `payment-service/.env`:
 ```env
 # LemonSqueezy API
 LEMONSQUEEZY_API_KEY=your_lemonsqueezy_api_key  # From Step 5
-LEMONSQUEEZY_STORE_ID=your_store_id  # From Step 1 (you already have this)
+LEMONSQUEEZY_STORE_ID=your_store_id  # From Step 1
 LEMONSQUEEZY_WEBHOOK_SECRET=your_real_signing_secret_here  # From Step 4
 
 # Product Variants - UPDATE THESE with real IDs (one-time payment variants)

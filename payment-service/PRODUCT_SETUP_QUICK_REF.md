@@ -44,11 +44,11 @@
 
 ### After Each Step, Update `.env`:
 
-1. **Create Store** → Copy **Store ID** → `LEMONSQUEEZY_STORE_ID=your_store_id` ✅ (you have this)
+1. **Create Store** → Copy **Store ID** → `LEMONSQUEEZY_STORE_ID=your_store_id`
 2. **Create Basic License variant** → Copy **Variant ID** → `LEMONSQUEEZY_VARIANT_ID_BASIC=?`
 3. **Create Pro License variant** → Copy **Variant ID** → `LEMONSQUEEZY_VARIANT_ID_PRO=?`
-4. **Generate API Key** → `LEMONSQUEEZY_API_KEY=eyJ...` ✅ (you have this)
-5. **Create Webhook** → Copy **Signing Secret** → `LEMONSQUEEZY_WEBHOOK_SECRET=?` ⚠️ (update from 12345678)
+4. **Generate API Key** → `LEMONSQUEEZY_API_KEY=your_api_key`
+5. **Create Webhook** → Copy **Signing Secret** → `LEMONSQUEEZY_WEBHOOK_SECRET=your_webhook_signing_secret`
 
 ### Remove Old Subscription Variants:
 ❌ Delete: `LEMONSQUEEZY_VARIANT_ID_BASIC_MONTHLY`

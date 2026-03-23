@@ -3,7 +3,12 @@
   "productName": "Trueears",
   "description": "Minimalist AI dictation",
   "author": "Shayan Khan",
+  "license": "AGPL-3.0-or-later",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devv-shayan/Trueears.git"
+  },
   "version": "0.3.0",
   "type": "module",
   "scripts": {

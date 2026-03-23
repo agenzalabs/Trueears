@@ -10,31 +10,29 @@ This guide covers:
 3. Integrating with the desktop app
 4. Testing the complete checkout flow
 5. Testing license activation
-# Server Configuration
+
+## Example Development Configuration
+
+Never commit real credentials. Use placeholders like the following in local-only `.env` files:
+
+```env
 PAYMENT_API_HOST=127.0.0.1
 PAYMENT_API_PORT=3002
-
-# Database
 PAYMENT_DATABASE_URL=postgres://postgres:your_local_password@localhost:5432/trueears_payments
-
-# LemonSqueezy API
 LEMONSQUEEZY_API_KEY=your_lemonsqueezy_api_key
 LEMONSQUEEZY_STORE_ID=your_store_id
-LEMONSQUEEZY_WEBHOOK_SECRET=12345678
+LEMONSQUEEZY_WEBHOOK_SECRET=your_webhook_signing_secret
 LEMONSQUEEZY_VARIANT_ID_PRO=your_pro_variant_id
-# Product Variants (LemonSqueezy variant IDs for each plan)
-LEMONSQUEEZY_VARIANT_ID_BASIC_MONTHLY=12345
-LEMONSQUEEZY_VARIANT_ID_BASIC_ANNUAL=12346
-LEMONSQUEEZY_VARIANT_ID_PRO_MONTHLY=12347
-LEMONSQUEEZY_VARIANT_ID_PRO_ANNUAL=12348
-
-# JWT (shared with auth-server for token validation)
+LEMONSQUEEZY_VARIANT_ID_BASIC_MONTHLY=your_basic_monthly_variant_id
+LEMONSQUEEZY_VARIANT_ID_BASIC_ANNUAL=your_basic_annual_variant_id
+LEMONSQUEEZY_VARIANT_ID_PRO_MONTHLY=your_pro_monthly_variant_id
+LEMONSQUEEZY_VARIANT_ID_PRO_ANNUAL=your_pro_annual_variant_id
 JWT_SECRET=your_shared_jwt_secret
-
-# Environment
 IS_PRODUCTION=false
 LEMONSQUEEZY_TEST_MODE=true
-https://your-ngrok-subdomain.ngrok-free.app/webhooks/lemonsqueezy
+PUBLIC_WEBHOOK_URL=https://your-ngrok-subdomain.ngrok-free.app/webhooks/lemonsqueezy
+```
+
 ---
 
 ## ✅ Prerequisites
@@ -56,7 +54,7 @@ Before testing, make sure you have:
 ### Terminal 1: Start Payment Service
 
 ```bash
-cd ~/Desktop/code/side-hustle/Scribe/payment-service
+cd payment-service
 cargo run
 ```
 
@@ -68,14 +66,14 @@ Wait for:
 ### Terminal 2: Start Auth Server (if not running)
 
 ```bash
-cd ~/Desktop/code/side-hustle/Scribe/auth-server
+cd auth-server
 cargo run
 ```
 
 ### Terminal 3: Start Desktop App
 
 ```bash
-cd ~/Desktop/code/side-hustle/Scribe
+cd /path/to/Trueears
 npm run dev
 ```
 

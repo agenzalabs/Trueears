@@ -106,26 +106,26 @@ sudo -u postgres psql -d trueears_payments -c "SELECT COUNT(*) FROM webhook_even
 
 ## 🔧 Configuration
 
-Your current `.env` configuration:
+Example `.env` configuration:
 
 ```env
 # Server
 PAYMENT_API_HOST=127.0.0.1
 PAYMENT_API_PORT=3002
 
-# Database (✅ Configured)
+# Database
 PAYMENT_DATABASE_URL=postgres://postgres:your_local_password@localhost:5432/trueears_payments
 
-# LemonSqueezy (✅ API Key configured)
+# LemonSqueezy
 LEMONSQUEEZY_API_KEY=your_lemonsqueezy_api_key
 LEMONSQUEEZY_STORE_ID=your_store_id
-LEMONSQUEEZY_WEBHOOK_SECRET=12345678  # ⚠️ Update with real secret from webhook config
+LEMONSQUEEZY_WEBHOOK_SECRET=your_webhook_signing_secret
 
 # Product Variants (⚠️ Update when you create products)
-LEMONSQUEEZY_VARIANT_ID_BASIC_MONTHLY=12345
-LEMONSQUEEZY_VARIANT_ID_BASIC_ANNUAL=12346
-LEMONSQUEEZY_VARIANT_ID_PRO_MONTHLY=12347
-LEMONSQUEEZY_VARIANT_ID_PRO_ANNUAL=12348
+LEMONSQUEEZY_VARIANT_ID_BASIC_MONTHLY=your_basic_monthly_variant_id
+LEMONSQUEEZY_VARIANT_ID_BASIC_ANNUAL=your_basic_annual_variant_id
+LEMONSQUEEZY_VARIANT_ID_PRO_MONTHLY=your_pro_monthly_variant_id
+LEMONSQUEEZY_VARIANT_ID_PRO_ANNUAL=your_pro_annual_variant_id
 
 # JWT (⚠️ Must match auth-server secret)
 JWT_SECRET=your_shared_jwt_secret
@@ -137,7 +137,7 @@ LEMONSQUEEZY_TEST_MODE=true
 
 ### What to Update
 
-1. **LEMONSQUEEZY_WEBHOOK_SECRET**: Replace `12345678` with the actual signing secret from your LemonSqueezy webhook configuration
+1. **LEMONSQUEEZY_WEBHOOK_SECRET**: Replace the placeholder with the actual signing secret from your LemonSqueezy webhook configuration
 2. **LEMONSQUEEZY_VARIANT_ID_***: Update with real variant IDs after creating products in LemonSqueezy
 3. **JWT_SECRET**: Must match the secret used in your auth-server (check `auth-server/.env`)
 
@@ -164,7 +164,7 @@ ngrok http 3002
 
 Update your LemonSqueezy webhook configuration:
 ```
-Callback URL: https://trueearsal.com/webhooks/lemonsqueezy
+Callback URL: https://your-domain.example/webhooks/lemonsqueezy
 ```
 
 Make sure:

@@ -35,5 +35,5 @@ The following are in scope:
 
 | Version | Supported |
 |---------|-----------|
-| 2.x     | Yes       |
-| < 2.0   | No        |
+| 0.3.x   | Yes       |
+| < 0.3   | No        |

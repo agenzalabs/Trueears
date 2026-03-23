@@ -3,8 +3,8 @@ name = "Trueears"
 version = "0.3.0"
 description = "Minimalist AI dictation"
 authors = ["Shayan Khan"]
-license = ""
-repository = ""
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/devv-shayan/Trueears"
 edition = "2021"
 rust-version = "1.77.2"
 

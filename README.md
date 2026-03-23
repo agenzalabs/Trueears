@@ -4,7 +4,7 @@ A minimalist, context-aware AI voice dictation application built with Tauri, Rea
 
 [![Bundle Size](https://img.shields.io/badge/bundle-~15MB-green)](docs/guides/deployment.md)
 [![Tauri](https://img.shields.io/badge/tauri-2.x-blue)](https://tauri.app)
-[![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-lightgrey)](LICENSE)
 
 ## Features
 
@@ -12,7 +12,7 @@ A minimalist, context-aware AI voice dictation application built with Tauri, Rea
 - **Context-Aware Formatting** - Detects active window and applies app-specific formatting
 - **Select-to-Transform** - Select text, speak a transformation ("make it professional"), auto-replace
 - **LLM Post-Processing** - Optional GPT-powered formatting (not responding, just formatting)
-- **Auto-Paste** - TranTrueearsd text automatically pastes into active application
+- **Auto-Paste** - Transcribed text automatically pastes into active application
 - **Minimalist Overlay** - Non-intrusive floating UI with recording status
 
 ## Quick Start
@@ -96,4 +96,4 @@ Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines and
 
 ## License
 
-MIT
+GNU AGPL v3.0 or later

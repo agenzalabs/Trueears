@@ -28,7 +28,7 @@
 ### 3. Configuration
 - ✅ `.env` file configured
 - ✅ LemonSqueezy API key present
-- ✅ Store ID: 290936
+- ✅ Store ID configured
 - ✅ Test mode enabled
 - ⚠️ Webhook secret: needs update from LemonSqueezy
 - ⚠️ Variant IDs: need real IDs from products
@@ -112,9 +112,8 @@ Look for:
 ## ⚠️ Known Limitations
 
 ### Desktop App Integration
-- ❌ Desktop app won't compile on Linux (Windows-specific code)
-- ✅ **Solution**: Test payment service standalone (browser + curl)
-- ✅ **Full integration**: Test on Windows machine later
+- ⚠️ Validate desktop app purchase flows on each supported platform before release
+- ✅ Payment service APIs can be tested independently with browser + curl
 
 ### What You CAN Test on Linux:
 - ✅ Payment service API

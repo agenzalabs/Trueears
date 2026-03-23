@@ -150,13 +150,15 @@ Use prefixes: `feat/`, `fix/`, `docs/`, `refactor/`
 ### 3. Test Locally
 
 ```bash
-# Run frontend tests
-cd frontend && npm test
-
-# Run Rust tests
+# Run Rust/Tauri tests
 cd backend && cargo test
 
+# Run server tests
+cd ../auth-server && cargo test
+cd ../payment-service && cargo test
+
 # Build for production
+cd ..
 npm run build
 ```
 
@@ -275,4 +277,4 @@ Keep these targets in mind:
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the MIT License.
+By contributing, you agree that your contributions will be licensed under the GNU AGPL v3.0 or later.
