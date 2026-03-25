@@ -6,150 +6,118 @@ interface AudioVisualizerProps {
   barColor?: string;
 }
 
+const BAR_COUNT = 48;
+const SCROLL_INTERVAL_MS = 60; // push a new bar every 60ms
+
 export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ stream, isRecording, barColor }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>(0);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const dataArrayRef = useRef<Uint8Array | null>(null);
-  const visualStateRef = useRef<number[]>(new Array(12).fill(0));
+  // Rolling buffer: each entry is an amplitude value (0-255)
+  const scrollBufferRef = useRef<number[]>(new Array(BAR_COUNT).fill(0));
+  const lastScrollTimeRef = useRef<number>(0);
 
   useEffect(() => {
     if (!stream || !isRecording || !canvasRef.current) return;
-    
-    // Get bar color from CSS variable if not provided
+
     const effectiveBarColor = barColor || getComputedStyle(document.documentElement).getPropertyValue('--visualizer-bar').trim() || '#1f2937';
 
-    // Use the browser's native audio context (usually 44.1kHz or 48kHz) for visualization
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     const source = audioContext.createMediaStreamSource(stream);
     const analyser = audioContext.createAnalyser();
-    
-    // Use 512 to get ~256 frequency bins.
+
     analyser.fftSize = 512;
-    
-    // CRITICAL CHANGE: Reduced smoothing from 0.5 to 0.1 for instant, raw reaction
-    analyser.smoothingTimeConstant = 0.1; 
-    
+    analyser.smoothingTimeConstant = 0.2;
+
     source.connect(analyser);
-    
+
     analyserRef.current = analyser;
     const bufferLength = analyser.frequencyBinCount;
     dataArrayRef.current = new Uint8Array(bufferLength);
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    
+
     if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
-    const logicalWidth = 96;
-    const logicalHeight = 22;
-    
+    const barWidth = 3;
+    const gap = 1;
+    const logicalWidth = (BAR_COUNT * barWidth) + ((BAR_COUNT - 1) * gap) + 4;
+    const logicalHeight = 30;
+
     canvas.width = logicalWidth * dpr;
     canvas.height = logicalHeight * dpr;
     ctx.scale(dpr, dpr);
 
-    const draw = () => {
+    // Reset buffer on mount
+    scrollBufferRef.current = new Array(BAR_COUNT).fill(0);
+    lastScrollTimeRef.current = performance.now();
+
+    const draw = (now: number) => {
       if (!isRecording) return;
-      
+
       animationRef.current = requestAnimationFrame(draw);
-      
+
       if (analyserRef.current && dataArrayRef.current) {
         analyserRef.current.getByteFrequencyData(dataArrayRef.current);
       }
 
+      // Compute current RMS energy across voice-range bins (1-160)
+      let sum = 0;
+      const voiceStart = 1;
+      const voiceEnd = 160;
+      for (let i = voiceStart; i < voiceEnd; i++) {
+        const v = dataArrayRef.current![i];
+        sum += v * v;
+      }
+      const rms = Math.sqrt(sum / (voiceEnd - voiceStart));
+
+      // Apply noise floor and expand dynamic range
+      const noiseFloor = 12;
+      let level = rms < noiseFloor ? 0 : (rms - noiseFloor) * 1.8;
+      level = Math.min(255, level);
+
+      // Push new sample into buffer at the scroll interval
+      const elapsed = now - lastScrollTimeRef.current;
+      if (elapsed >= SCROLL_INTERVAL_MS) {
+        const steps = Math.floor(elapsed / SCROLL_INTERVAL_MS);
+        const buf = scrollBufferRef.current;
+        for (let s = 0; s < steps; s++) {
+          // Shift left, new value enters from the right
+          buf.shift();
+          buf.push(level);
+        }
+        lastScrollTimeRef.current = now - (elapsed % SCROLL_INTERVAL_MS);
+      }
+
+      // Render
       ctx.clearRect(0, 0, logicalWidth, logicalHeight);
 
-      const bars = 12;
-      const gap = 3;
-      const barWidth = 5;
-      const totalBarGroupWidth = (bars * barWidth) + ((bars - 1) * gap);
+      const totalBarGroupWidth = (BAR_COUNT * barWidth) + ((BAR_COUNT - 1) * gap);
       const startX = (logicalWidth - totalBarGroupWidth) / 2;
-      
-      // CRITICAL CHANGE: Increased lerp factor from 0.3 to 0.85
-      // This makes the visual bars jump almost instantly to the target value, removing the "sluggish" feel.
-      const lerpFactor = 0.85; 
+      const buf = scrollBufferRef.current;
 
-      // Helper to average energy in a frequency range (indices)
-      const getAverage = (start: number, end: number) => {
-          let sum = 0;
-          const count = end - start;
-          if (count <= 0) return 0;
-          for (let i = start; i < end; i++) {
-              sum += dataArrayRef.current![i];
-          }
-          return sum / count;
-      };
+      for (let i = 0; i < BAR_COUNT; i++) {
+        const percent = buf[i] / 255;
 
-      // Define frequency ranges roughly optimized for human voice (12 bands)
-      const ranges = [
-          { s: 1, e: 3 },   // Sub-bass
-          { s: 3, e: 5 },   // Bass
-          { s: 5, e: 8 },   // Low-mid
-          { s: 8, e: 12 },  // Mid-bass
-          { s: 12, e: 18 }, // Low-mids
-          { s: 18, e: 26 }, // Mids
-          { s: 26, e: 36 }, // High-mids
-          { s: 36, e: 50 }, // Presence
-          { s: 50, e: 70 }, // Brilliance
-          { s: 70, e: 95 }, // Highs
-          { s: 95, e: 125 },// Air
-          { s: 125, e: 160 }// Top
-      ];
+        const height = 2 + (Math.pow(percent, 0.85) * (logicalHeight - 4));
 
-      for (let i = 0; i < bars; i++) {
-          const range = ranges[i];
-          // Get raw average (0-255)
-          let rawValue = getAverage(range.s, range.e);
+        const x = startX + i * (barWidth + gap);
+        const y = (logicalHeight - height) / 2;
 
-          // Boost sensitivity: multiply lower values to make them visible
-          // and subtract a noise floor so silence is truly silence.
-          const noiseFloor = 20;
-          if (rawValue < noiseFloor) rawValue = 0;
-          else {
-              rawValue = (rawValue - noiseFloor) * 1.5; // Expand dynamic range
-          }
+        const opacity = 0.4 + (percent * 0.6);
 
-          // Clamp to 255
-          rawValue = Math.min(255, rawValue);
-
-          const targetValue = rawValue;
-          
-          // Smooth transition
-          const currentValue = visualStateRef.current[i];
-          const newValue = currentValue + (targetValue - currentValue) * lerpFactor;
-          visualStateRef.current[i] = newValue;
-
-          const percent = newValue / 255;
-          
-          // Min height 4px (pill shape when idle), Max height logicalHeight
-          // Non-linear height response makes quiet sounds visible but loud ones distinct
-          const height = 4 + (Math.pow(percent, 0.8) * (logicalHeight - 4));
-          
-          const x = startX + i * (barWidth + gap);
-          const y = (logicalHeight - height) / 2;
-
-          // Opacity also scales with volume for a "glowing" effect
-          const opacity = 0.5 + (percent * 0.5);
-          
-          ctx.save();
-          ctx.globalAlpha = opacity;
-          ctx.fillStyle = effectiveBarColor;
-          ctx.shadowBlur = 8;
-          ctx.shadowColor = effectiveBarColor;
-          
-          ctx.beginPath();
-          if (ctx.roundRect) {
-              ctx.roundRect(x, y, barWidth, height, 10); // Full rounded caps
-          } else {
-              ctx.rect(x, y, barWidth, height); 
-          }
-          ctx.fill();
-          ctx.restore();
+        ctx.save();
+        ctx.globalAlpha = opacity;
+        ctx.fillStyle = effectiveBarColor;
+        ctx.fillRect(x, y, barWidth, height);
+        ctx.restore();
       }
     };
 
-    draw();
+    animationRef.current = requestAnimationFrame(draw);
 
     return () => {
       cancelAnimationFrame(animationRef.current);
@@ -161,10 +129,12 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ stream, isReco
     };
   }, [stream, isRecording, barColor]);
 
+  const displayWidth = (BAR_COUNT * 3) + ((BAR_COUNT - 1) * 1) + 4;
+
   return (
-    <canvas 
-        ref={canvasRef} 
-        style={{ width: '84px', height: '22px' }}
+    <canvas
+        ref={canvasRef}
+        style={{ width: `${displayWidth}px`, height: '30px' }}
         className="opacity-100"
     />
   );

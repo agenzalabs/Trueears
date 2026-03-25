@@ -6,8 +6,10 @@ Thank you for your interest in contributing to Trueears! This guide will help yo
 
 - [Development Setup](#development-setup)
 - [Code Conventions](#code-conventions)
+- [Coding Standards](#coding-standards)
 - [Pull Request Process](#pull-request-process)
 - [Issue Guidelines](#issue-guidelines)
+- [Getting Help](#getting-help)
 
 ---
 
@@ -25,7 +27,7 @@ Thank you for your interest in contributing to Trueears! This guide will help yo
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/devv-shayan/Trueears.git
 cd Trueears
 
 # Install dependencies
@@ -101,6 +103,33 @@ UI Components
 ```
 
 Never import UI components from services or controllers.
+
+---
+
+## Coding Standards
+
+All contributions must pass linting and formatting checks before being merged.
+
+### TypeScript / React
+
+- **ESLint** is used for static analysis. Run `npx eslint .` from the project root to check for issues.
+- Fix all ESLint errors before submitting a PR. Warnings should also be addressed unless there is a documented justification.
+- ESLint rules enforce strict typing, React best practices, and import ordering.
+
+### Rust
+
+- **`cargo fmt`** -- All Rust code must be formatted with `cargo fmt`. Run it before every commit:
+  ```bash
+  cd backend && cargo fmt --all
+  ```
+- **`cargo clippy`** -- All Rust code must pass `cargo clippy` with no warnings:
+  ```bash
+  cd backend && cargo clippy -- -D warnings
+  ```
+
+### Conventional Commits (Required)
+
+All commits **must** follow the [Conventional Commits](https://www.conventionalcommits.org/) specification. PRs with non-conforming commit messages will be asked to rebase and fix them. See the [Commit Messages](#commit-messages) section below for the full format and allowed types.
 
 ---
 
@@ -269,9 +298,10 @@ Keep these targets in mind:
 
 ## Getting Help
 
-- **Questions**: Open a discussion on GitHub
-- **Bugs**: Open an issue with reproduction steps
-- **Architecture**: Check [Architecture Overview](docs/architecture/overview.md)
+- **Questions or ideas**: Start a thread in [GitHub Discussions](https://github.com/devv-shayan/Trueears/discussions)
+- **Bug reports**: [Open an issue](https://github.com/devv-shayan/Trueears/issues/new) with reproduction steps (see [Issue Guidelines](#issue-guidelines) above)
+- **Feature requests**: [Open an issue](https://github.com/devv-shayan/Trueears/issues/new) describing the problem and proposed solution
+- **Architecture questions**: Check the [Architecture Overview](docs/architecture/overview.md) first, then ask in Discussions if you need more context
 
 ---
 

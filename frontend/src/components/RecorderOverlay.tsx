@@ -9,7 +9,7 @@ import { StatusIndicator } from './StatusIndicator';
 import { WarningView } from './WarningView';
 import { ConfigPrompt } from './ConfigPrompt';
 import { tauriAPI, ShortcutPressedPayload } from '../utils/tauriApi';
-import { AppProfile, ActiveWindowInfo } from '../types/appProfile';
+import { ActiveWindowInfo } from '../types/appProfile';
 import { AppProfileService } from '../services/appProfileService';
 import { debug } from '../utils/debug';
 
@@ -49,6 +49,7 @@ export const RecorderOverlay: React.FC = () => {
   const isDark = theme === 'dark';
   const {
     status: recordingStatus,
+    mode,
     mediaStream,
     startDictation,
     stopDictation,
@@ -64,100 +65,53 @@ export const RecorderOverlay: React.FC = () => {
 
   // Derived status for rendering
   const status = uiMode !== 'none' ? uiMode : recordingStatus;
+  const darkColors = {
+    accent: '#ffffff',
+    border: 'rgba(255, 255, 255, 0.08)',
+    glow: 'rgba(255, 255, 255, 0.04)',
+    surface: 'rgb(8, 8, 8)',
+  };
+  const lightColors = {
+    accent: '#1f2937',
+    border: 'rgba(0, 0, 0, 0.1)',
+    glow: 'rgba(0, 0, 0, 0.04)',
+    surface: 'rgb(245, 245, 245)',
+  };
+  const themeColors = isDark ? darkColors : lightColors;
+
   const statusMeta = {
-    idle: {
-      title: 'Standby',
-      accent: '#b8f2ff',
-      border: 'rgba(184, 242, 255, 0.14)',
-      glow: 'rgba(184, 242, 255, 0.10)',
-    },
-    recording: {
-      title: 'Live Capture',
-      accent: '#d7fbff',
-      border: 'rgba(215, 251, 255, 0.18)',
-      glow: 'rgba(143, 236, 255, 0.12)',
-    },
-    processing: {
-      title: 'Synthesizing',
-      accent: '#f7f0d0',
-      border: 'rgba(247, 240, 208, 0.16)',
-      glow: 'rgba(247, 240, 208, 0.10)',
-    },
-    success: {
-      title: 'Inserted',
-      accent: '#dcffe8',
-      border: 'rgba(220, 255, 232, 0.16)',
-      glow: 'rgba(220, 255, 232, 0.10)',
-    },
-    error: {
-      title: 'Signal Fault',
-      accent: '#ffd6df',
-      border: 'rgba(255, 214, 223, 0.16)',
-      glow: 'rgba(255, 214, 223, 0.10)',
-    },
-    cancelled: {
-      title: 'Aborted',
-      accent: '#efe5c8',
-      border: 'rgba(239, 229, 200, 0.14)',
-      glow: 'rgba(239, 229, 200, 0.08)',
-    },
-    setup: {
-      title: 'Provisioning',
-      accent: '#b8f2ff',
-      border: 'rgba(184, 242, 255, 0.14)',
-      glow: 'rgba(184, 242, 255, 0.08)',
-    },
-    settings: {
-      title: 'Control Deck',
-      accent: '#b8f2ff',
-      border: 'rgba(184, 242, 255, 0.14)',
-      glow: 'rgba(184, 242, 255, 0.08)',
-    },
-    warning: {
-      title: 'Signal Warning',
-      accent: '#f7f0d0',
-      border: 'rgba(247, 240, 208, 0.16)',
-      glow: 'rgba(247, 240, 208, 0.10)',
-    },
-    'log-config-needed': {
-      title: 'Route Mapping',
-      accent: '#b8f2ff',
-      border: 'rgba(184, 242, 255, 0.14)',
-      glow: 'rgba(184, 242, 255, 0.08)',
-    },
-    'log-saved': {
-      title: 'Archived',
-      accent: '#dcffe8',
-      border: 'rgba(220, 255, 232, 0.16)',
-      glow: 'rgba(220, 255, 232, 0.10)',
-    },
-    none: {
-      title: 'Standby',
-      accent: '#b8f2ff',
-      border: 'rgba(184, 242, 255, 0.14)',
-      glow: 'rgba(184, 242, 255, 0.10)',
-    },
+    idle: { title: 'Ready', ...themeColors },
+    recording: { title: 'Listening', ...themeColors },
+    processing: { title: mode === 'transform' ? 'Rewriting' : 'Formatting', ...themeColors },
+    success: { title: 'Inserted', ...themeColors },
+    error: { title: 'Try Again', ...themeColors },
+    cancelled: { title: 'Cancelled', ...themeColors },
+    setup: { title: 'Connect', ...themeColors },
+    settings: { title: 'Settings', ...themeColors },
+    warning: { title: 'Notice', ...themeColors },
+    'log-config-needed': { title: 'Map Log', ...themeColors },
+    'log-saved': { title: 'Saved', ...themeColors },
+    none: { title: 'Ready', ...themeColors },
   } as const;
   const currentMeta = statusMeta[status] || statusMeta.idle;
-  const isRecordingCapsule = status === 'recording' && !isConfigTransitioning && !isConfigAppearing;
   const statusSizingClass =
     status === 'setup'
-      ? 'w-[24rem] h-15 rounded-[1.35rem]'
+      ? 'w-[24rem] h-15 rounded-[1.5rem]'
       : status === 'warning'
-        ? 'w-[30rem] max-w-[calc(100vw-2rem)] h-14 rounded-[1.25rem]'
+        ? 'w-[30rem] max-w-[calc(100vw-2rem)] h-14 rounded-[1.4rem]'
         : status === 'log-config-needed'
-          ? 'w-[28rem] h-30 rounded-[1.5rem]'
+          ? 'w-[28rem] h-30 rounded-[1.65rem]'
           : isConfigAppearing
-            ? 'w-[28rem] h-30 rounded-[1.5rem]'
+            ? 'w-[28rem] h-30 rounded-[1.65rem]'
             : isConfigTransitioning && !isToastVisible
-              ? 'w-[16rem] h-20 rounded-[1.2rem]'
+              ? 'w-[16rem] h-20 rounded-[1.45rem]'
             : isConfigTransitioning && isToastVisible
-                ? 'w-[14rem] h-11 rounded-[0.95rem]'
+                ? 'w-[14rem] h-11 rounded-[1.25rem]'
                 : status === 'recording'
-                  ? 'w-[16.5rem] h-14 rounded-[1.15rem]'
+                  ? 'w-[16.5rem] max-w-[calc(100vw-2rem)] h-[3.2rem] rounded-[1.45rem]'
                   : status === 'processing'
-                    ? 'w-[12rem] h-14 rounded-[1.1rem]'
-                    : 'w-[10rem] h-12 rounded-[1rem]';
+                    ? 'w-[3rem] h-[3rem] rounded-full'
+                    : 'w-[3rem] h-[3rem] rounded-full';
 
   // Add CSS keyframes for smooth morphing animations
   const morphStyles = `
@@ -170,12 +124,12 @@ export const RecorderOverlay: React.FC = () => {
       to { opacity: 1; }
     }
     @keyframes softPulse {
-      0%, 100% { opacity: 0.7; transform: scale(0.985); }
-      50% { opacity: 1; transform: scale(1); }
+      0%, 100% { opacity: 1; transform: none; }
+      50% { opacity: 1; transform: none; }
     }
     @keyframes dataBlink {
-      0%, 100% { opacity: 0.3; }
-      50% { opacity: 0.85; }
+      0%, 100% { opacity: 0.38; }
+      50% { opacity: 0.88; }
     }
   `;
 
@@ -877,71 +831,24 @@ export const RecorderOverlay: React.FC = () => {
             className={`
           pointer-events-auto
           flex items-center justify-center
-          ${isRecordingCapsule ? '' : 'backdrop-blur-xl'}
+          backdrop-blur-2xl backdrop-saturate-150
           overflow-hidden
           ${statusSizingClass}
         `}
             style={{
-              backgroundColor: isRecordingCapsule
-                ? 'transparent'
-                : isConfigTransitioning
-                  ? isToastVisible
-                    ? toastType === 'success' ? 'rgba(16, 185, 129, 0.9)'
-                      : toastType === 'error' ? 'rgba(244, 63, 94, 0.9)'
-                        : 'rgba(59, 130, 246, 0.9)'
-                    : 'rgba(10, 12, 18, 0.96)'
-                  : 'rgba(10, 12, 18, 0.92)',
+              backgroundColor: isConfigTransitioning
+                  ? themeColors.surface
+                  : currentMeta.surface,
               border: `1px solid ${currentMeta.border}`,
-              boxShadow: isRecordingCapsule
-                ? `0 0 28px ${currentMeta.glow}`
-                : `
-                    inset 0 1px 0 rgba(255,255,255,0.04),
-                    0 0 32px ${currentMeta.glow},
-                    0 12px 38px rgba(0,0,0,0.42)
-                  `,
+              boxShadow: isDark ? '0 10px 30px rgba(0,0,0,0.35)' : '0 10px 30px rgba(0,0,0,0.12)',
               transition: 'all 600ms cubic-bezier(0.4, 0, 0.2, 1)',
-              animation: status === 'recording' ? 'softPulse 2.8s ease-in-out infinite' : undefined,
+              animation: undefined,
             }}
           >
             <div className="relative w-full h-full flex items-center justify-center">
-              {!isRecordingCapsule && (
-                <div className="absolute inset-0 rounded-[inherit] overflow-hidden pointer-events-none">
-                  <div
-                    className="absolute inset-0"
-                    style={{
-                      background: `
-                        linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0) 28%),
-                        linear-gradient(135deg, rgba(11, 14, 24, 0.98) 0%, rgba(8, 11, 19, 0.96) 100%)
-                      `,
-                    }}
-                  />
-                  <div
-                    className="absolute inset-[1px] rounded-[inherit]"
-                    style={{
-                      background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 18%), linear-gradient(135deg, rgba(12,16,28,0.68), rgba(8,10,18,0.94))',
-                    }}
-                  />
-                  <div
-                    className="absolute inset-x-0 top-0 h-px"
-                    style={{
-                      background: `linear-gradient(90deg, transparent, ${currentMeta.accent}, transparent)`,
-                      opacity: 0.7,
-                    }}
-                  />
-                </div>
-              )}
-
               {status === 'recording' && !isConfigTransitioning && !isConfigAppearing && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center gap-3 px-4 pointer-events-none">
-                  <div className="relative flex h-10 w-[10rem] items-center justify-center">
-                    <span
-                      className="absolute left-1 inline-flex h-2 w-2 rounded-full"
-                      style={{
-                        background: currentMeta.accent,
-                        boxShadow: `0 0 10px ${currentMeta.accent}`,
-                        animation: 'dataBlink 1.6s linear infinite',
-                      }}
-                    />
+                <div className="absolute inset-0 z-10 flex items-center justify-center px-5 pointer-events-none">
+                  <div className="relative flex h-11 min-w-[10rem] items-center justify-center">
                     {mediaStream && (
                       <AudioVisualizer
                         stream={mediaStream}
