@@ -12,9 +12,7 @@ import { tauriAPI, ShortcutPressedPayload } from '../utils/tauriApi';
 import { ActiveWindowInfo } from '../types/appProfile';
 import { AppProfileService } from '../services/appProfileService';
 import { debug } from '../utils/debug';
-
-// Module-level flag to prevent duplicate listeners (survives React Strict Mode)
-let listenersInitialized = false;
+import { getCurrentWindow, PhysicalSize } from '@tauri-apps/api/window';
 
 export const RecorderOverlay: React.FC = () => {
   const isLinux = navigator.userAgent.toLowerCase().includes('linux');
@@ -142,7 +140,6 @@ export const RecorderOverlay: React.FC = () => {
       }
 
       try {
-        const { getCurrentWindow } = await import('@tauri-apps/api/window');
         const window = getCurrentWindow();
         const position = await window.outerPosition();
         // Vertical padding is the absolute value of the negative Y position
@@ -225,7 +222,7 @@ export const RecorderOverlay: React.FC = () => {
     if (!isVisible || recordingStatus !== 'log-config-needed') return;
 
     let isUnmounted = false;
-    let intervalId: NodeJS.Timeout | null = null;
+    let timeoutId: NodeJS.Timeout | null = null;
     let inFlight = false;
 
     let cachedWindowPos: { x: number; y: number } | null = null;
@@ -235,13 +232,14 @@ export const RecorderOverlay: React.FC = () => {
       if (cachedWindowPos && cachedScale) {
         return { pos: cachedWindowPos, scale: cachedScale };
       }
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
       const window = getCurrentWindow();
       const [pos, scale] = await Promise.all([window.outerPosition(), window.scaleFactor()]);
       cachedWindowPos = pos;
       cachedScale = scale;
       return { pos, scale };
     };
+
+    const POLL_INTERVAL_MS = 120;
 
     const tick = async () => {
       if (isUnmounted || inFlight) return;
@@ -272,15 +270,19 @@ export const RecorderOverlay: React.FC = () => {
         // Ignore
       } finally {
         inFlight = false;
+        if (!isUnmounted) {
+          timeoutId = setTimeout(() => {
+            void tick();
+          }, POLL_INTERVAL_MS);
+        }
       }
     };
 
-    tick();
-    intervalId = setInterval(tick, 50);
+    void tick();
 
     return () => {
       isUnmounted = true;
-      if (intervalId) clearInterval(intervalId);
+      if (timeoutId) clearTimeout(timeoutId);
       logConfigIgnoreMouseRef.current = null;
     };
   }, [isVisible, recordingStatus]);
@@ -346,7 +348,6 @@ export const RecorderOverlay: React.FC = () => {
     }
 
     try {
-      const { getCurrentWindow, PhysicalSize } = await import('@tauri-apps/api/window');
       const window = getCurrentWindow();
       await window.setSize(new PhysicalSize(560, 220));
       await window.center();
@@ -647,31 +648,12 @@ export const RecorderOverlay: React.FC = () => {
     handleShortcutCancelledRef.current = handleShortcutCancelled;
   });
 
-  // -- Keyboard Shortcuts (Escape key + F12 for DevTools) --
+  // -- Keyboard Shortcuts (Escape key) --
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isVisible) {
         if (recordingStatus === 'recording') cancelDictation();
         else setIsVisible(false);
-      }
-
-      // F12 to open DevTools
-      if (e.key === 'F12') {
-        e.preventDefault();
-        try {
-          const { getCurrentWindow } = await import('@tauri-apps/api/window');
-          const window = getCurrentWindow();
-          // @ts-ignore - isDevToolsOpen might not be in types
-          if (window.isDevToolsOpen && await window.isDevToolsOpen()) {
-            // @ts-ignore
-            await window.closeDevTools();
-          } else {
-            // @ts-ignore
-            await window.openDevTools();
-          }
-        } catch (err) {
-          console.error('Failed to toggle DevTools:', err);
-        }
       }
     };
 
@@ -681,13 +663,8 @@ export const RecorderOverlay: React.FC = () => {
 
   // -- Tauri Event Listeners (setup ONCE using module-level flag) --
   useEffect(() => {
-    // Skip if already initialized (prevents React Strict Mode double-init)
-    if (listenersInitialized) {
-      debug.log('[RecorderOverlay] Listeners already initialized, skipping');
-      return;
-    }
-    listenersInitialized = true;
     debug.log('[RecorderOverlay] Setting up Tauri event listeners...');
+    let isActive = true;
 
     let unlistenPressed: (() => void) | null = null;
     let unlistenReleased: (() => void) | null = null;
@@ -700,6 +677,9 @@ export const RecorderOverlay: React.FC = () => {
 
       // Wait a bit for Tauri context to be available after HMR
       await new Promise(resolve => setTimeout(resolve, 100));
+      if (!isActive) {
+        return;
+      }
 
       unlistenPressed = await tauriAPI.onShortcutPressed((windowInfo) => {
         debug.log('[RecorderOverlay] Shortcut pressed callback fired with window info:', windowInfo);
@@ -736,16 +716,21 @@ export const RecorderOverlay: React.FC = () => {
     };
 
     setupListeners().catch(error => {
-      console.error('[RecorderOverlay] Failed to setup listeners:', error);
-      listenersInitialized = false; // Allow retry
+      if (isActive) {
+        console.error('[RecorderOverlay] Failed to setup listeners:', error);
+      }
     });
 
-    // Don't clean up on React re-renders - listeners should persist
     return () => {
-      // Only log, don't actually cleanup (we want listeners to persist)
-      debug.log('[RecorderOverlay] Effect cleanup (listeners persist)');
+      isActive = false;
+      unlistenPressed?.();
+      unlistenReleased?.();
+      unlistenCancelled?.();
+      unlistenWarning?.();
+      unlistenOnboardingState?.();
+      debug.log('[RecorderOverlay] Tauri listeners cleaned up');
     };
-  }, []); // Empty deps - setup ONCE on mount
+  }, []);
 
   const handleCancelLogConfig = useCallback(async () => {
     // Start transition animation

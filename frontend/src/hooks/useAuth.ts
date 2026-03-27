@@ -19,17 +19,18 @@ export const useAuth = (): UseAuthReturn => {
     // Load initial auth state
     const refreshAuthState = useCallback(async () => {
         try {
-            const state = await authService.getAuthState();
+            const [state, accessToken] = await Promise.all([
+                authService.getAuthState(),
+                authService.getAccessToken().catch((error) => {
+                    console.error('[useAuth] Failed to fetch access token:', error);
+                    return null;
+                }),
+            ]);
             setIsAuthenticated(state.is_authenticated);
             setUser(state.user);
 
-            if (state.is_authenticated) {
-                const accessToken = await authService.getAccessToken();
-                if (accessToken) {
-                    paymentService.setAuthToken(accessToken);
-                } else {
-                    paymentService.clearAuthToken();
-                }
+            if (state.is_authenticated && accessToken) {
+                paymentService.setAuthToken(accessToken);
             } else {
                 paymentService.clearAuthToken();
             }
@@ -55,17 +56,8 @@ export const useAuth = (): UseAuthReturn => {
             // Listen for auth success
             unlistenSuccess = await authService.onAuthSuccess((userInfo) => {
                 console.log('[useAuth] Auth success:', userInfo.email);
-                setIsAuthenticated(true);
-                setUser(userInfo);
-                setIsLoading(false);
-
-                authService.getAccessToken()
-                    .then((token) => {
-                        if (token) paymentService.setAuthToken(token);
-                    })
-                    .catch((err) => {
-                        console.error('[useAuth] Failed to fetch access token:', err);
-                    });
+                setIsLoading(true);
+                void refreshAuthState();
             });
 
             // Listen for auth error

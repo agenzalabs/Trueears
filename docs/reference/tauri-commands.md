@@ -50,7 +50,34 @@ await invoke('set_store_value', { key: 'theme', value: 'dark' });
 
 **Returns:** `void`
 
-**Events:** Emits `settings-changed` to all windows after saving.
+**Events:** Emits `settings-changed` with payload `{ keys: string[] }` to all windows after saving.
+
+---
+
+### `get_settings_snapshot`
+
+Retrieves the startup settings snapshot in a single IPC round-trip.
+
+```typescript
+interface SettingsSnapshot {
+  groqApiKey: string | null;
+  groqModel: string | null;
+  llmEnabled: string | null;
+  llmApiKey: string | null;
+  llmModel: string | null;
+  defaultSystemPrompt: string | null;
+  onboardingComplete: string | null;
+  theme: string | null;
+  language: string | null;
+  autoDetectLanguage: string | null;
+  recordingMode: string | null;
+  microphoneId: string | null;
+}
+
+const snapshot = await invoke<SettingsSnapshot>('get_settings_snapshot');
+```
+
+**Returns:** All startup-critical persisted settings needed for frontend hydration.
 
 ---
 
@@ -78,7 +105,7 @@ const info = await invoke<ActiveWindowInfo | null>('get_active_window_info');
 | `exe_name` | `string` | Executable name (e.g., `code.exe`) |
 | `process_id` | `number` | Process ID |
 
-**Platform:** Windows only (macOS/Linux return null)
+**Platform:** Windows supported, Linux beta, macOS not implemented yet.
 
 ---
 
@@ -143,9 +170,9 @@ await invoke('transcription_complete', { text: 'Hello world!' });
 | `text` | `string` | Text to paste |
 
 **Behavior:**
-1. Copies text to clipboard
-2. Simulates `Ctrl+V` keystroke
-3. Waits 500ms before returning
+1. Hides the overlay window
+2. Offloads paste automation to a blocking worker
+3. Emits a warning event if clipboard fallback is needed
 
 ---
 
@@ -383,18 +410,22 @@ The backend emits these events that the frontend can listen to:
 
 | Event | Payload | Description |
 |-------|---------|-------------|
-| `toggle-recording` | `null` | Global hotkey (Ctrl+Shift+K) pressed |
-| `cancel-recording` | `null` | Escape pressed during recording |
-| `settings-changed` | `null` | A setting was updated |
+| `shortcut-pressed` | `ShortcutPressedPayload` | Global dictation shortcut pressed |
+| `shortcut-released` | `null` | Global dictation shortcut released |
+| `shortcut-cancelled` | `null` | Escape shortcut pressed while overlay visible |
+| `show-warning` | `string` | Non-fatal backend warning for the frontend |
+| `settings-changed` | `{ keys: string[] }` | One or more settings were updated |
 | `onboarding-trigger-state` | `boolean` | Onboarding step state changed |
+| `auth-success` | `UserInfo` | OAuth flow completed successfully |
+| `auth-error` | `string` | OAuth flow failed |
 
 ### Listening to Events
 
 ```typescript
 import { listen } from '@tauri-apps/api/event';
 
-const unlisten = await listen('toggle-recording', () => {
-  // Handle recording toggle
+const unlisten = await listen('shortcut-pressed', (event) => {
+  // Handle dictation shortcut
 });
 
 // Cleanup

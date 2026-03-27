@@ -17,6 +17,8 @@ use tauri_plugin_store::StoreExt;
 #[cfg(target_os = "linux")]
 use uuid::Uuid;
 
+use crate::error::AppError;
+
 #[cfg(target_os = "linux")]
 const PORTAL_BUS_NAME: &str = "org.freedesktop.portal.Desktop";
 #[cfg(target_os = "linux")]
@@ -45,14 +47,14 @@ const KEY_STATE_RELEASED: u32 = 0;
 const KEY_STATE_PRESSED: u32 = 1;
 
 #[cfg(target_os = "linux")]
-pub fn paste_via_remote_desktop(app: &AppHandle) -> Result<bool, String> {
+pub fn paste_via_remote_desktop(app: &AppHandle) -> Result<bool, AppError> {
     let connection = gio::bus_get_sync(BusType::Session, None::<&gio::Cancellable>)
         .map_err(|err| format!("Failed to connect to the session bus: {err}"))?;
     let context = MainContext::new();
     let restore_token = load_restore_token(app);
 
     let session_path = context
-        .with_thread_default(|| -> Result<String, String> {
+        .with_thread_default(|| -> Result<String, AppError> {
             let session_path = create_session(&connection, &context)?;
             select_keyboard_device(
                 &connection,
@@ -72,12 +74,12 @@ pub fn paste_via_remote_desktop(app: &AppHandle) -> Result<bool, String> {
 }
 
 #[cfg(not(target_os = "linux"))]
-pub fn paste_via_remote_desktop(_app: &AppHandle) -> Result<bool, String> {
+pub fn paste_via_remote_desktop(_app: &AppHandle) -> Result<bool, AppError> {
     Ok(false)
 }
 
 #[cfg(target_os = "linux")]
-fn create_session(connection: &DBusConnection, context: &MainContext) -> Result<String, String> {
+fn create_session(connection: &DBusConnection, context: &MainContext) -> Result<String, AppError> {
     let handle_token = new_token("remote_request");
     let session_token = new_token("remote_session");
     let request_path = request_path(connection, &handle_token)?;
@@ -110,7 +112,8 @@ fn create_session(connection: &DBusConnection, context: &MainContext) -> Result<
         return Err(format!(
             "RemoteDesktop.CreateSession was rejected by the desktop portal (status {}, details {:?})",
             response.status, response.results
-        ));
+        )
+        .into());
     }
 
     let Some(returned_session_path) = response.results.get("session_handle").and_then(|value| {
@@ -119,7 +122,7 @@ fn create_session(connection: &DBusConnection, context: &MainContext) -> Result<
             .or_else(|| value.get::<ObjectPath>().map(|path| path.to_string()))
     }) else {
         return Err(
-            "RemoteDesktop.CreateSession succeeded but no session_handle was returned".to_string(),
+            "RemoteDesktop.CreateSession succeeded but no session_handle was returned".into(),
         );
     };
 
@@ -140,7 +143,7 @@ fn select_keyboard_device(
     context: &MainContext,
     session_path: &str,
     restore_token: Option<&str>,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let handle_token = new_token("remote_select");
     let request_path = request_path(connection, &handle_token)?;
     let pending_response = subscribe_request_response(connection, context, &request_path);
@@ -175,7 +178,8 @@ fn select_keyboard_device(
         return Err(format!(
             "RemoteDesktop.SelectDevices was rejected by the desktop portal (status {}, details {:?})",
             response.status, response.results
-        ));
+        )
+        .into());
     }
 
     Ok(())
@@ -187,7 +191,7 @@ fn start_session(
     connection: &DBusConnection,
     context: &MainContext,
     session_path: &str,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let handle_token = new_token("remote_start");
     let request_path = request_path(connection, &handle_token)?;
     let pending_response = subscribe_request_response(connection, context, &request_path);
@@ -221,7 +225,8 @@ fn start_session(
         return Err(format!(
             "RemoteDesktop.Start was rejected by the desktop portal (status {}, details {:?})",
             response.status, response.results
-        ));
+        )
+        .into());
     }
 
     let granted_devices = response
@@ -231,9 +236,7 @@ fn start_session(
         .unwrap_or_default();
 
     if granted_devices & DEVICE_KEYBOARD == 0 {
-        return Err(
-            "RemoteDesktop.Start succeeded but keyboard access was not granted".to_string(),
-        );
+        return Err("RemoteDesktop.Start succeeded but keyboard access was not granted".into());
     }
 
     if let Some(restore_token) = response
@@ -248,7 +251,7 @@ fn start_session(
 }
 
 #[cfg(target_os = "linux")]
-fn send_ctrl_v(connection: &DBusConnection, session_path: &str) -> Result<(), String> {
+fn send_ctrl_v(connection: &DBusConnection, session_path: &str) -> Result<(), AppError> {
     notify_keysym(
         connection,
         session_path,
@@ -275,7 +278,7 @@ fn notify_keysym(
     session_path: &str,
     keysym: i32,
     state: u32,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let options = VariantDict::default();
     let parameters = Variant::tuple_from_iter([
         object_path_variant(session_path)?,
@@ -325,7 +328,7 @@ fn load_restore_token(app: &AppHandle) -> Option<String> {
 }
 
 #[cfg(target_os = "linux")]
-fn save_restore_token(app: &AppHandle, restore_token: &str) -> Result<(), String> {
+fn save_restore_token(app: &AppHandle, restore_token: &str) -> Result<(), AppError> {
     let store = app
         .store(STORE_NAME)
         .map_err(|err| format!("Failed to open settings store: {err}"))?;
@@ -341,14 +344,15 @@ fn validate_request_path(
     method_name: &str,
     request_path: &str,
     request_handle: &Variant,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     if let Some((returned_request_path,)) = request_handle.get::<(ObjectPath,)>() {
         if returned_request_path.as_str() != request_path {
             return Err(format!(
                 "RemoteDesktop.{} returned an unexpected request path: {}",
                 method_name,
                 returned_request_path.as_str()
-            ));
+            )
+            .into());
         }
     }
 
@@ -356,14 +360,14 @@ fn validate_request_path(
 }
 
 #[cfg(target_os = "linux")]
-fn object_path_variant(path: &str) -> Result<Variant, String> {
+fn object_path_variant(path: &str) -> Result<Variant, AppError> {
     ObjectPath::try_from(path)
         .map(|object_path| object_path.to_variant())
-        .map_err(|_| format!("Invalid D-Bus object path: {path}"))
+        .map_err(|_| -> AppError { format!("Invalid D-Bus object path: {path}").into() })
 }
 
 #[cfg(target_os = "linux")]
-fn request_path(connection: &DBusConnection, token: &str) -> Result<String, String> {
+fn request_path(connection: &DBusConnection, token: &str) -> Result<String, AppError> {
     let sender = connection
         .unique_name()
         .map(|name| sanitize_bus_name(name.as_str()))
@@ -374,7 +378,7 @@ fn request_path(connection: &DBusConnection, token: &str) -> Result<String, Stri
 }
 
 #[cfg(target_os = "linux")]
-fn session_path(connection: &DBusConnection, token: &str) -> Result<String, String> {
+fn session_path(connection: &DBusConnection, token: &str) -> Result<String, AppError> {
     let sender = connection
         .unique_name()
         .map(|name| sanitize_bus_name(name.as_str()))
@@ -436,14 +440,14 @@ fn wait_for_request_response(
     connection: &DBusConnection,
     request_path: &str,
     pending_response: PendingRequestResponse,
-) -> Result<PortalRequestResponse, String> {
+) -> Result<PortalRequestResponse, AppError> {
     pending_response.response_loop.run();
     connection.signal_unsubscribe(pending_response.subscription_id);
 
-    pending_response
+    Ok(pending_response
         .receiver
         .recv_timeout(Duration::from_secs(20))
-        .map_err(|_| format!("Timed out waiting for portal response on {request_path}"))
+        .map_err(|_| format!("Timed out waiting for portal response on {request_path}"))?)
 }
 
 #[cfg(target_os = "linux")]

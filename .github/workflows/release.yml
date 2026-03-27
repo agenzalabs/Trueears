@@ -102,8 +102,7 @@ jobs:
             printf 'Auto-generated release from merge to `main`.\n\n'
             printf '### Installation\n\n'
             printf '%s\n' '- **Windows (.exe)**: NSIS installer'
-            printf '%s\n' '- **Linux (.deb)**: Debian/Ubuntu package'
-            printf '%s\n' '- **Linux (.AppImage)**: Portable, works on most distros'
+            printf '\n%s\n' 'Linux and macOS artifacts remain in CI only during the Phase 1 Windows-first hardening pass.'
             printf '\n### Changelog\n\n'
             printf '%b' "$BODY"
             if [ -n "$COMPARE_URL" ]; then
@@ -124,8 +123,6 @@ jobs:
         include:
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
-          - platform: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
 
     runs-on: ${{ matrix.platform }}
 
@@ -146,21 +143,6 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: './backend -> target'
-
-      # Linux-specific system dependencies for Tauri
-      - name: Install Linux dependencies
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            librsvg2-dev \
-            patchelf \
-            libgtk-3-dev \
-            libglib2.0-dev \
-            libayatana-appindicator3-dev \
-            libxdo-dev \
-            libssl-dev
 
       - name: Install npm dependencies
         run: npm ci

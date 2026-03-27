@@ -30,7 +30,11 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob: mediastream:; connect-src 'self' https://api.groq.com https://*.vercel.app http://localhost:* http://127.0.0.1:*",
+      "capabilities": [
+        "main-window",
+        "settings-window"
+      ]
     }
   },
   "bundle": {

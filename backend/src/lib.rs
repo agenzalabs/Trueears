@@ -1,5 +1,6 @@
 mod auth;
 mod automation;
+mod error;
 mod installed_apps;
 #[cfg(target_os = "linux")]
 mod linux_portal_shortcuts;
@@ -9,6 +10,8 @@ mod log_mode;
 mod shortcuts;
 mod window;
 
+pub use error::AppError;
+
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{Emitter, Manager};
 use window::ActiveWindowInfo;
@@ -17,6 +20,29 @@ use window::ActiveWindowInfo;
 struct CursorPosition {
     x: i32,
     y: i32,
+}
+
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SettingsChangedPayload {
+    keys: Vec<String>,
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SettingsSnapshot {
+    groq_api_key: Option<String>,
+    groq_model: Option<String>,
+    llm_enabled: Option<String>,
+    llm_api_key: Option<String>,
+    llm_model: Option<String>,
+    default_system_prompt: Option<String>,
+    onboarding_complete: Option<String>,
+    theme: Option<String>,
+    language: Option<String>,
+    auto_detect_language: Option<String>,
+    recording_mode: Option<String>,
+    microphone_id: Option<String>,
 }
 
 // Global state to track if onboarding trigger step is active
@@ -120,8 +146,58 @@ fn is_sensitive_store_key(key: &str) -> bool {
     k.contains("KEY") || k.contains("TOKEN") || k.contains("SECRET") || k.contains("PASSWORD")
 }
 
+fn read_store_value_sync(app: &tauri::AppHandle, key: &str) -> Result<Option<String>, AppError> {
+    use tauri_plugin_store::StoreExt;
+
+    let store = app.store("settings.json").map_err(|e| e.to_string())?;
+    Ok(store
+        .get(key)
+        .and_then(|v| v.as_str().map(|s| s.to_string())))
+}
+
+fn write_store_value_sync(app: &tauri::AppHandle, key: &str, value: &str) -> Result<(), AppError> {
+    use tauri_plugin_store::StoreExt;
+
+    let store = app.store("settings.json").map_err(|e| e.to_string())?;
+    store.set(key.to_string(), value.to_string());
+    store.save().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn get_settings_snapshot_sync(app: &tauri::AppHandle) -> Result<SettingsSnapshot, AppError> {
+    use tauri_plugin_store::StoreExt;
+
+    let store = app.store("settings.json").map_err(|e| e.to_string())?;
+    let read = |key: &str| {
+        store
+            .get(key)
+            .and_then(|v| v.as_str().map(|s| s.to_string()))
+    };
+
+    Ok(SettingsSnapshot {
+        groq_api_key: read("GROQ_API_KEY"),
+        groq_model: read("GROQ_MODEL"),
+        llm_enabled: read("Trueears_LLM_ENABLED"),
+        llm_api_key: read("Trueears_LLM_API_KEY"),
+        llm_model: read("Trueears_LLM_MODEL"),
+        default_system_prompt: read("Trueears_DEFAULT_SYSTEM_PROMPT"),
+        onboarding_complete: read("Trueears_ONBOARDING_COMPLETE"),
+        theme: read("Trueears_THEME"),
+        language: read("Trueears_LANGUAGE"),
+        auto_detect_language: read("Trueears_AUTO_DETECT_LANGUAGE"),
+        recording_mode: read("Trueears_RECORDING_MODE"),
+        microphone_id: read("Trueears_MICROPHONE_ID"),
+    })
+}
+
+fn read_onboarding_complete_sync(app: &tauri::AppHandle) -> Result<bool, AppError> {
+    Ok(read_store_value_sync(app, "Trueears_ONBOARDING_COMPLETE")?
+        .map(|value| value == "true")
+        .unwrap_or(false))
+}
+
 #[tauri::command]
-async fn set_ignore_mouse_events(window: tauri::Window, ignore: bool) -> Result<(), String> {
+async fn set_ignore_mouse_events(window: tauri::Window, ignore: bool) -> Result<(), AppError> {
     #[cfg(target_os = "linux")]
     {
         // tao/wry on Linux can panic when enabling cursor-ignore before the
@@ -134,16 +210,16 @@ async fn set_ignore_mouse_events(window: tauri::Window, ignore: bool) -> Result<
 
     window
         .set_ignore_cursor_events(ignore)
-        .map_err(|e| e.to_string())
+        .map_err(AppError::from)
 }
 
 #[tauri::command]
-async fn get_store_value(app: tauri::AppHandle, key: String) -> Result<Option<String>, String> {
-    use tauri_plugin_store::StoreExt;
-    let store = app.store("settings.json").map_err(|e| e.to_string())?;
-    let value = store
-        .get(&key)
-        .and_then(|v| v.as_str().map(|s| s.to_string()));
+async fn get_store_value(app: tauri::AppHandle, key: String) -> Result<Option<String>, AppError> {
+    let key_for_read = key.clone();
+    let value =
+        tauri::async_runtime::spawn_blocking(move || read_store_value_sync(&app, &key_for_read))
+            .await
+            .map_err(|e| format!("get_store_value worker failed: {}", e))??;
 
     if is_sensitive_store_key(&key) {
         let len = value.as_ref().map(|v| v.len()).unwrap_or(0);
@@ -155,11 +231,19 @@ async fn get_store_value(app: tauri::AppHandle, key: String) -> Result<Option<St
 }
 
 #[tauri::command]
-async fn set_store_value(app: tauri::AppHandle, key: String, value: String) -> Result<(), String> {
-    use tauri_plugin_store::StoreExt;
-    let store = app.store("settings.json").map_err(|e| e.to_string())?;
-    store.set(key.clone(), value.clone());
-    store.save().map_err(|e| e.to_string())?;
+async fn set_store_value(
+    app: tauri::AppHandle,
+    key: String,
+    value: String,
+) -> Result<(), AppError> {
+    let app_for_write = app.clone();
+    let key_for_write = key.clone();
+    let value_for_write = value.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        write_store_value_sync(&app_for_write, &key_for_write, &value_for_write)
+    })
+    .await
+    .map_err(|e| format!("set_store_value worker failed: {}", e))??;
 
     if is_sensitive_store_key(&key) {
         log::info!(
@@ -172,22 +256,40 @@ async fn set_store_value(app: tauri::AppHandle, key: String, value: String) -> R
     }
 
     // Emit event to all windows
-    app.emit("settings-changed", ())
-        .map_err(|e| e.to_string())?;
+    app.emit(
+        "settings-changed",
+        SettingsChangedPayload {
+            keys: vec![key.clone()],
+        },
+    )
+    .map_err(|e| e.to_string())?;
     log::info!("settings-changed event emitted");
 
     Ok(())
 }
 
 #[tauri::command]
-async fn transcription_complete(app: tauri::AppHandle, text: String) -> Result<(), String> {
+async fn get_settings_snapshot(app: tauri::AppHandle) -> Result<SettingsSnapshot, AppError> {
+    tauri::async_runtime::spawn_blocking(move || get_settings_snapshot_sync(&app))
+        .await
+        .map_err(|e| format!("get_settings_snapshot worker failed: {}", e))?
+}
+
+#[tauri::command]
+async fn transcription_complete(app: tauri::AppHandle, text: String) -> Result<(), AppError> {
     log::info!("transcription_complete command called");
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.hide();
         tokio::time::sleep(tokio::time::Duration::from_millis(90)).await;
     }
 
-    let outcome = automation::paste_text(&app, &text).await?;
+    let app_for_paste = app.clone();
+    let text_for_paste = text.clone();
+    let outcome = tauri::async_runtime::spawn_blocking(move || {
+        automation::paste_text(&app_for_paste, &text_for_paste)
+    })
+    .await
+    .map_err(|e| format!("paste worker failed: {}", e))??;
 
     if let automation::PasteOutcome::ClipboardFallback { message } = outcome {
         let _ = app.emit("show-warning", message);
@@ -200,26 +302,32 @@ async fn transcription_complete(app: tauri::AppHandle, text: String) -> Result<(
 }
 
 #[tauri::command]
-fn copy_selected_text() -> Result<Option<String>, String> {
+async fn copy_selected_text() -> Result<Option<String>, AppError> {
     log::info!("copy_selected_text command called");
-    automation::copy_selected_text()
+    tauri::async_runtime::spawn_blocking(automation::copy_selected_text)
+        .await
+        .map_err(|e| format!("copy_selected_text worker failed: {}", e))?
 }
 
 #[tauri::command]
-async fn get_active_window_info() -> Result<Option<ActiveWindowInfo>, String> {
+async fn get_active_window_info() -> Result<Option<ActiveWindowInfo>, AppError> {
     log::info!("get_active_window_info command called");
-    Ok(window::get_active_window_info())
+    Ok(tauri::async_runtime::spawn_blocking(window::get_active_window_info).await?)
 }
 
 #[tauri::command]
-async fn get_cursor_position() -> Result<CursorPosition, String> {
-    window::get_cursor_position()
+async fn get_cursor_position() -> Result<CursorPosition, AppError> {
+    tauri::async_runtime::spawn_blocking(window::get_cursor_position)
+        .await?
         .map(|(x, y)| CursorPosition { x, y })
-        .ok_or_else(|| "Failed to get cursor position".to_string())
+        .ok_or_else(|| AppError::from("Failed to get cursor position"))
 }
 
 #[tauri::command]
-async fn set_onboarding_trigger_active(app: tauri::AppHandle, active: bool) -> Result<(), String> {
+async fn set_onboarding_trigger_active(
+    app: tauri::AppHandle,
+    active: bool,
+) -> Result<(), AppError> {
     log::info!("set_onboarding_trigger_active: {}", active);
     ONBOARDING_TRIGGER_ACTIVE.store(active, Ordering::SeqCst);
     // Broadcast state so frontends can ignore toggle-recording while onboarding step is active
@@ -228,36 +336,43 @@ async fn set_onboarding_trigger_active(app: tauri::AppHandle, active: bool) -> R
 }
 
 #[tauri::command]
-fn register_escape_shortcut(app: tauri::AppHandle) -> Result<(), String> {
-    shortcuts::register_escape_shortcut(&app).map_err(|e| e.to_string())
+fn register_escape_shortcut(app: tauri::AppHandle) -> Result<(), AppError> {
+    shortcuts::register_escape_shortcut(&app).map_err(|e| AppError::Generic(e.to_string()))
 }
 
 #[tauri::command]
-fn unregister_escape_shortcut(app: tauri::AppHandle) -> Result<(), String> {
-    shortcuts::unregister_escape_shortcut(&app).map_err(|e| e.to_string())
+fn unregister_escape_shortcut(app: tauri::AppHandle) -> Result<(), AppError> {
+    shortcuts::unregister_escape_shortcut(&app).map_err(|e| AppError::Generic(e.to_string()))
 }
 
 #[tauri::command]
-async fn search_installed_apps(query: String) -> Result<Vec<installed_apps::InstalledApp>, String> {
+async fn search_installed_apps(
+    query: String,
+) -> Result<Vec<installed_apps::InstalledApp>, AppError> {
     log::info!("search_installed_apps: query={}", query);
-    Ok(installed_apps::search_installed_apps(&query))
+    Ok(
+        tauri::async_runtime::spawn_blocking(move || installed_apps::search_installed_apps(&query))
+            .await?,
+    )
 }
 
 #[tauri::command]
-fn refresh_installed_apps_cache() -> Result<(), String> {
+async fn refresh_installed_apps_cache() -> Result<(), AppError> {
     log::info!("refresh_installed_apps_cache called");
-    installed_apps::force_refresh_cache();
+    tauri::async_runtime::spawn_blocking(installed_apps::force_refresh_cache)
+        .await
+        .map_err(|e| format!("refresh_installed_apps_cache worker failed: {}", e))?;
     Ok(())
 }
 
 #[tauri::command]
-async fn get_installed_popular_apps() -> Result<Vec<installed_apps::InstalledApp>, String> {
+async fn get_installed_popular_apps() -> Result<Vec<installed_apps::InstalledApp>, AppError> {
     log::info!("get_installed_popular_apps command called");
-    Ok(installed_apps::get_installed_popular_apps())
+    Ok(tauri::async_runtime::spawn_blocking(installed_apps::get_installed_popular_apps).await?)
 }
 
 #[tauri::command]
-async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
+async fn open_settings_window(app: tauri::AppHandle) -> Result<(), AppError> {
     use tauri::Manager;
 
     log::info!("open_settings_window command called");
@@ -265,7 +380,7 @@ async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
     // Check if settings window already exists
     if let Some(window) = app.get_webview_window("settings") {
         log::info!("Settings window already exists, closing it");
-        window.close().map_err(|e| e.to_string())?;
+        window.close()?;
         return Ok(());
     }
 
@@ -288,15 +403,12 @@ async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
     .skip_taskbar(false)
     .transparent(false)
     .initialization_script("document.documentElement.style.background = '#f8fafc'; document.body.style.background = '#f8fafc';")
-    .build()
-    .map_err(|e| e.to_string())?;
+    .build()?;
 
     configure_linux_webview_media(&settings_window);
 
     // Ensure the window is interactive
-    settings_window
-        .set_ignore_cursor_events(false)
-        .map_err(|e| e.to_string())?;
+    settings_window.set_ignore_cursor_events(false)?;
 
     // Failsafe: Force show window after 2000ms if frontend hasn't done it
     let window_clone = settings_window.clone();
@@ -314,59 +426,64 @@ async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
 // ============ Authentication Commands ============
 
 #[tauri::command]
-async fn start_google_login(app: tauri::AppHandle) -> Result<(), String> {
+async fn start_google_login(app: tauri::AppHandle) -> Result<(), AppError> {
     log::info!("start_google_login command called");
 
     // Load config from environment
-    let config = auth::OAuthConfig::from_env()
-        .ok_or_else(|| "Missing GOOGLE_CLIENT_ID environment variable".to_string())?;
+    let config =
+        auth::OAuthConfig::from_env().ok_or("Missing GOOGLE_CLIENT_ID environment variable")?;
 
     auth::start_google_oauth(app, config).await
 }
 
 #[tauri::command]
-async fn get_auth_state() -> Result<auth::AuthState, String> {
+async fn get_auth_state(app: tauri::AppHandle) -> Result<auth::AuthState, AppError> {
     log::info!("get_auth_state command called");
-    Ok(auth::get_auth_state())
+    let app_handle = app.clone();
+    Ok(tauri::async_runtime::spawn_blocking(move || auth::get_auth_state(&app_handle)).await?)
 }
 
 #[tauri::command]
-async fn logout() -> Result<(), String> {
+async fn logout(app: tauri::AppHandle) -> Result<(), AppError> {
     log::info!("logout command called");
 
     let api_url = std::env::var("API_URL")
         .unwrap_or_else(|_| "https://trueears-backend.vercel.app".to_string());
 
-    auth::logout(&api_url).await
+    auth::logout(&app, &api_url).await
 }
 
 #[tauri::command]
-async fn get_user_info() -> Result<Option<auth::UserInfo>, String> {
+async fn get_user_info(app: tauri::AppHandle) -> Result<Option<auth::UserInfo>, AppError> {
     log::info!("get_user_info command called");
-    Ok(auth::get_stored_user_info())
+    let app_handle = app.clone();
+    Ok(
+        tauri::async_runtime::spawn_blocking(move || auth::get_stored_user_info(&app_handle))
+            .await?,
+    )
 }
 
 #[tauri::command]
-async fn get_access_token() -> Result<Option<String>, String> {
+async fn get_access_token(app: tauri::AppHandle) -> Result<Option<String>, AppError> {
     log::info!("get_access_token command called");
-    Ok(auth::get_access_token())
+    let app_handle = app.clone();
+    Ok(tauri::async_runtime::spawn_blocking(move || auth::get_access_token(&app_handle)).await?)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::new().build())
         .setup(|app| {
             use tauri::Manager;
-            use tauri_plugin_store::StoreExt;
 
             load_env_with_workspace_fallback();
 
             // Migrate any legacy auth storage to the consolidated path
-            auth::migrate_legacy_auth_file();
+            auth::migrate_legacy_auth_file(app.handle());
 
             // Initialize installed apps cache in background
             installed_apps::init_cache();
@@ -445,19 +562,6 @@ pub fn run() {
             // Register global shortcuts
             shortcuts::register_shortcuts(app.handle())?;
 
-            // First-run onboarding: auto-open settings if no API key is configured
-            let store = app.store("settings.json").map_err(|e| e.to_string())?;
-            let _has_groq_key = store
-                .get("GROQ_API_KEY")
-                .and_then(|v| v.as_str().map(|s| s.to_string()))
-                .map(|s| !s.is_empty())
-                .unwrap_or(false);
-            let onboarding_complete = store
-                .get("Trueears_ONBOARDING_COMPLETE")
-                .and_then(|v| v.as_str().map(|s| s.to_string()))
-                .map(|s| s == "true")
-                .unwrap_or(false);
-
             let force_open_settings_on_start = std::env::var("TRUEEARS_OPEN_SETTINGS_ON_START")
                 .map(|v| {
                     let value = v.trim().to_ascii_lowercase();
@@ -465,22 +569,39 @@ pub fn run() {
                 })
                 .unwrap_or(false);
 
-            if !onboarding_complete || force_open_settings_on_start {
-                if force_open_settings_on_start {
-                    log::info!("TRUEEARS_OPEN_SETTINGS_ON_START enabled. Opening settings.");
-                } else {
-                    log::info!("First run detected: onboarding not complete. Opening settings.");
-                }
-                let app_handle = app.handle().clone();
-                // Spawn async task to open settings window after a short delay
-                tauri::async_runtime::spawn(async move {
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let app_for_read = app_handle.clone();
+                let onboarding_complete = match tauri::async_runtime::spawn_blocking(move || {
+                    read_onboarding_complete_sync(&app_for_read)
+                })
+                .await
+                {
+                    Ok(Ok(value)) => value,
+                    Ok(Err(err)) => {
+                        log::error!("Failed to read onboarding status: {}", err);
+                        false
+                    }
+                    Err(err) => {
+                        log::error!("Onboarding status worker failed: {}", err);
+                        false
+                    }
+                };
+
+                if !onboarding_complete || force_open_settings_on_start {
+                    if force_open_settings_on_start {
+                        log::info!("TRUEEARS_OPEN_SETTINGS_ON_START enabled. Opening settings.");
+                    } else {
+                        log::info!("First run detected: onboarding not complete. Opening settings.");
+                    }
+
                     // Small delay to ensure main window is ready
                     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
                     if let Err(e) = open_settings_window(app_handle).await {
                         log::error!("Failed to auto-open settings: {}", e);
                     }
-                });
-            }
+                }
+            });
 
             Ok(())
         })
@@ -493,6 +614,7 @@ pub fn run() {
             open_settings_window,
             get_store_value,
             set_store_value,
+            get_settings_snapshot,
             set_onboarding_trigger_active,
             register_escape_shortcut,
             unregister_escape_shortcut,

@@ -41,6 +41,30 @@ jobs:
       - name: Compile check backend
         run: cargo check --manifest-path backend/Cargo.toml
 
+      - name: Run backend tests
+        run: cargo test --manifest-path backend/Cargo.toml
+
+  windows-tauri-build-smoke:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Windows app smoke
+        run: npm run build
+
   lint:
     runs-on: ubuntu-latest
     steps:

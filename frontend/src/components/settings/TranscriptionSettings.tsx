@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import 'flag-icons/css/flag-icons.min.css';
 import { CustomSelect } from '../CustomSelect';
 import { GROQ_MODELS } from '../../hooks/useSettings';
-import { open } from '@tauri-apps/plugin-shell';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { WHISPER_LANGUAGES, getLanguageByCode } from '../../types/languages';
 
 interface TranscriptionSettingsProps {
@@ -204,7 +204,7 @@ export const TranscriptionSettings: React.FC<TranscriptionSettingsProps> = ({
           </div>
           <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
             Get your API key from{' '}
-            <button onClick={() => open('https://console.groq.com/keys')} className="text-blue-400 hover:underline cursor-pointer">
+            <button onClick={() => openUrl('https://console.groq.com/keys')} className="text-blue-400 hover:underline cursor-pointer">
               console.groq.com/keys
             </button>
           </p>

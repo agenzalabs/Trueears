@@ -32,11 +32,11 @@ The installer is generated in:
 backend/target/release/bundle/
 ├── nsis/
 │   └── Trueears_<version>_x64-setup.exe    # Windows NSIS installer
-└── msi/
-    └── Trueears_<version>_x64_en-US.msi    # Windows MSI installer
 ```
 
 **Bundle size:** ~15-20 MB (vs ~150MB with Electron)
+
+During the current Phase 1 Tauri v2 hardening pass, official releases are Windows-only. Linux and macOS stay in CI/build verification until their hardening phases are complete.
 
 ## Build Configuration
 
@@ -69,7 +69,6 @@ Key settings in `backend/tauri.conf.json`:
 | Target | Format | Platform |
 |--------|--------|----------|
 | `nsis` | NSIS Installer (.exe) | Windows |
-| `msi` | MSI Installer (.msi) | Windows |
 | `dmg` | Disk Image (.dmg) | macOS |
 | `app` | Application Bundle (.app) | macOS |
 | `deb` | Debian Package (.deb) | Linux |

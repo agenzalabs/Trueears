@@ -1,6 +1,6 @@
-use crate::automation::{
-    copy_selected_text, remember_linux_target_window, restore_linux_target_window_focus,
-};
+#[cfg(target_os = "linux")]
+use crate::automation::restore_linux_target_window_focus;
+use crate::automation::{copy_selected_text, remember_linux_target_window};
 use crate::window::{get_active_window_id_for_linux, get_active_window_info};
 use crate::ONBOARDING_TRIGGER_ACTIVE;
 use serde::Serialize;

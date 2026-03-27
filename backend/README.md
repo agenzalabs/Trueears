@@ -138,12 +138,15 @@ cargo test
 
 ## Platform Support
 
+The current hardening focus is Windows-first. Linux remains in CI coverage, and macOS work is deferred until the Windows runtime gate is green.
+
 | Feature | Windows | macOS | Linux |
 |---------|---------|-------|-------|
-| Hotkeys | Yes | Yes | Yes |
-| Window detection | Yes | Planned | Planned |
-| Clipboard | Yes | Yes | Yes |
-| Keyboard sim | Yes | Yes | Yes |
+| Hotkeys | Supported | Planned | Beta |
+| Window detection | Supported | Not implemented | Beta |
+| Clipboard | Supported | Planned | Beta |
+| Keyboard sim | Supported | Planned | Beta |
+| Installed app discovery | Supported | Not implemented | Beta |
 
 ## Related Documentation
 

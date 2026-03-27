@@ -8,7 +8,10 @@
 use serde::{Deserialize, Serialize};
 use std::fs::{self, OpenOptions};
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use tauri::Manager;
+
+use crate::error::AppError;
 
 /// Allowed file extensions for log files
 const ALLOWED_EXTENSIONS: [&str; 3] = [".md", ".txt", ".log"];
@@ -33,42 +36,20 @@ pub struct PathValidation {
 ///
 /// Returns the path to the Trueears logs directory in the user's Documents folder.
 /// This directory may not exist yet - it will be created when the first log is saved.
+fn default_log_directory_path<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<PathBuf, AppError> {
+    app.path()
+        .document_dir()
+        .map(|path| path.join("Trueears"))
+        .map_err(|e| format!("Could not determine default log directory: {}", e).into())
+}
+
 #[tauri::command]
-pub async fn get_default_log_directory() -> Result<String, String> {
-    #[cfg(target_os = "windows")]
-    {
-        if let Ok(user_profile) = std::env::var("USERPROFILE") {
-            let documents_path = std::path::Path::new(&user_profile)
-                .join("Documents")
-                .join("Trueears");
-            log::info!("get_default_log_directory: {}", documents_path.display());
-            return Ok(documents_path.to_string_lossy().to_string());
-        }
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        if let Ok(home) = std::env::var("HOME") {
-            let documents_path = std::path::Path::new(&home)
-                .join("Documents")
-                .join("Trueears");
-            log::info!("get_default_log_directory: {}", documents_path.display());
-            return Ok(documents_path.to_string_lossy().to_string());
-        }
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        if let Ok(home) = std::env::var("HOME") {
-            let documents_path = std::path::Path::new(&home)
-                .join("Documents")
-                .join("Trueears");
-            log::info!("get_default_log_directory: {}", documents_path.display());
-            return Ok(documents_path.to_string_lossy().to_string());
-        }
-    }
-
-    Err("Could not determine default log directory".to_string())
+pub async fn get_default_log_directory(app: tauri::AppHandle) -> Result<String, AppError> {
+    let documents_path = default_log_directory_path(&app)?;
+    log::info!("get_default_log_directory: {}", documents_path.display());
+    Ok(documents_path.to_string_lossy().to_string())
 }
 
 /// Check if a path has an allowed extension
@@ -97,8 +78,7 @@ fn contains_traversal(path: &str) -> bool {
 /// # Returns
 /// * `Ok(())` on success
 /// * `Err(String)` with error code on failure
-#[tauri::command]
-pub async fn append_to_file(path: String, content: String) -> Result<(), String> {
+fn append_to_file_sync(path: String, content: String) -> Result<(), AppError> {
     log::info!(
         "append_to_file: path={}, content_len={}",
         path,
@@ -107,15 +87,15 @@ pub async fn append_to_file(path: String, content: String) -> Result<(), String>
 
     // Validate path format
     if !is_absolute_path(&path) {
-        return Err("INVALID_PATH: Path must be absolute".to_string());
+        return Err("INVALID_PATH: Path must be absolute".into());
     }
 
     if contains_traversal(&path) {
-        return Err("INVALID_PATH: Path contains traversal sequences".to_string());
+        return Err("INVALID_PATH: Path contains traversal sequences".into());
     }
 
     if !has_allowed_extension(&path) {
-        return Err("INVALID_EXTENSION: Only .md, .txt, .log files allowed".to_string());
+        return Err("INVALID_EXTENSION: Only .md, .txt, .log files allowed".into());
     }
 
     let file_path = Path::new(&path);
@@ -170,6 +150,13 @@ pub async fn append_to_file(path: String, content: String) -> Result<(), String>
     Ok(())
 }
 
+#[tauri::command]
+pub async fn append_to_file(path: String, content: String) -> Result<(), AppError> {
+    tauri::async_runtime::spawn_blocking(move || append_to_file_sync(path, content))
+        .await
+        .map_err(|e| format!("append_to_file task failed: {}", e))?
+}
+
 /// Validates a file path for use as a log destination (does not create the file).
 ///
 /// # Arguments
@@ -177,8 +164,7 @@ pub async fn append_to_file(path: String, content: String) -> Result<(), String>
 ///
 /// # Returns
 /// * `Ok(PathValidation)` with validation details
-#[tauri::command]
-pub async fn validate_log_path(path: String) -> Result<PathValidation, String> {
+fn validate_log_path_sync(path: String) -> Result<PathValidation, AppError> {
     log::info!("validate_log_path: path={}", path);
 
     // Check path format
@@ -256,6 +242,13 @@ pub async fn validate_log_path(path: String) -> Result<PathValidation, String> {
     })
 }
 
+#[tauri::command]
+pub async fn validate_log_path(path: String) -> Result<PathValidation, AppError> {
+    tauri::async_runtime::spawn_blocking(move || validate_log_path_sync(path))
+        .await
+        .map_err(|e| format!("validate_log_path task failed: {}", e))?
+}
+
 /// Open the file explorer and select the file at the given path.
 ///
 /// # Arguments
@@ -265,24 +258,23 @@ pub async fn validate_log_path(path: String) -> Result<PathValidation, String> {
 /// * `Ok(())` on success
 /// * `Err(String)` on failure
 #[tauri::command]
-pub async fn open_log_file(path: String) -> Result<(), String> {
+pub async fn open_log_file(path: String) -> Result<(), AppError> {
     log::info!("open_log_file: path={}", path);
 
-    // Validate path exists before trying to open
-    let p = std::path::Path::new(&path);
-    if !p.exists() {
-        return Err("FILE_NOT_FOUND: File does not exist".to_string());
-    }
-
-    // Use `open` crate to open the file with default associated application
-    // or select it in explorer
-    match open::that(&path) {
-        Ok(_) => Ok(()),
-        Err(e) => {
-            log::error!("Failed to open file: {}", e);
-            Err(format!("OPEN_FAILED: {}", e))
+    tauri::async_runtime::spawn_blocking(move || {
+        // Validate path exists before trying to open
+        let p = std::path::Path::new(&path);
+        if !p.exists() {
+            return Err("FILE_NOT_FOUND: File does not exist".into());
         }
-    }
+
+        tauri_plugin_opener::open_path(&path, None::<&str>).map_err(|e| {
+            log::error!("Failed to open file: {}", e);
+            format!("OPEN_FAILED: {}", e).into()
+        })
+    })
+    .await
+    .map_err(|e| format!("open_log_file task failed: {}", e))?
 }
 
 #[cfg(test)]

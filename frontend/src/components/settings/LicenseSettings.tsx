@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { paymentService } from '../../services/paymentService';
-import { open } from '@tauri-apps/plugin-shell';
+import { openUrl } from '@tauri-apps/plugin-opener';
 
 interface LicenseSettingsProps {
   theme: 'light' | 'dark';
@@ -87,7 +87,7 @@ export const LicenseSettings: React.FC<LicenseSettingsProps> = ({
       const checkoutUrl = await paymentService.createCheckout(variantId);
 
       // Open checkout in browser
-      await open(checkoutUrl);
+      await openUrl(checkoutUrl);
 
       setSuccess('Checkout opened in browser. Complete your purchase and return here to activate your license.');
     } catch (err: any) {

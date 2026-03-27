@@ -1,7 +1,6 @@
-import { listen, emit } from '@tauri-apps/api/event';
+import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { Store } from '@tauri-apps/plugin-store';
 import { ActiveWindowInfo } from '../types/appProfile';
 import { PathValidation } from '../types/logMode';
 
@@ -13,6 +12,25 @@ export interface ShortcutPressedPayload {
 export interface CursorPosition {
     x: number;
     y: number;
+}
+
+export interface SettingsChangedPayload {
+    keys: string[];
+}
+
+export interface SettingsSnapshot {
+    groqApiKey: string | null;
+    groqModel: string | null;
+    llmEnabled: string | null;
+    llmApiKey: string | null;
+    llmModel: string | null;
+    defaultSystemPrompt: string | null;
+    onboardingComplete: string | null;
+    theme: string | null;
+    language: string | null;
+    autoDetectLanguage: string | null;
+    recordingMode: string | null;
+    microphoneId: string | null;
 }
 
 console.log('[tauriAPI] Module loaded');
@@ -254,21 +272,27 @@ export const tauriAPI = {
         }
     },
 
-    emitSettingsChanged: async (): Promise<void> => {
-        // Event is now emitted from backend
-    },
-
     onSettingsChanged: async (callback: () => void) => {
         try {
             if (!isTauri()) return () => {};
-            const unlisten = await listen('settings-changed', () => {
-                console.log('[tauriAPI] settings-changed event received');
+            const unlisten = await listen<SettingsChangedPayload>('settings-changed', (event) => {
+                console.log('[tauriAPI] settings-changed event received', event.payload);
                 callback();
             });
             return unlisten;
         } catch (error) {
             console.error('[tauriAPI] Failed to register settings-changed listener:', error);
             return () => {};
+        }
+    },
+
+    getSettingsSnapshot: async (): Promise<SettingsSnapshot | null> => {
+        try {
+            if (!isTauri()) return null;
+            return await invoke<SettingsSnapshot>('get_settings_snapshot');
+        } catch (error) {
+            console.error('[tauriAPI] Failed to get settings snapshot:', error);
+            return null;
         }
     },
 
@@ -394,15 +418,15 @@ export const tauriAPI = {
         console.log('[tauriAPI] Getting default log directory');
         try {
             if (!isTauri()) {
-                console.warn('[tauriAPI] Not in Tauri context, returning fallback');
-                return 'C:\\Documents\\Trueears';
+                console.warn('[tauriAPI] Not in Tauri context, returning empty default directory');
+                return '';
             }
             const result = await invoke<string>('get_default_log_directory');
             console.log('[tauriAPI] Default log directory:', result);
             return result;
         } catch (error) {
             console.error('[tauriAPI] Failed to get default log directory:', error);
-            return 'C:\\Documents\\Trueears';
+            return '';
         }
     },
 

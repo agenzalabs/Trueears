@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { UserInfo } from '../../services/authService';
 import { paymentService } from '../../services/paymentService';
-import { open } from '@tauri-apps/plugin-shell';
+import { openUrl } from '@tauri-apps/plugin-opener';
 
 interface AccountSectionProps {
     theme: 'light' | 'dark';
@@ -145,7 +145,7 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
         try {
             setIsUpgrading(true);
             const checkoutUrl = await paymentService.createCheckout(PRO_VARIANT_ID);
-            await open(checkoutUrl);
+            await openUrl(checkoutUrl);
             setUpgradeSuccess(
                 'Checkout opened in browser. After purchase, click Refresh Plan Status.'
             );

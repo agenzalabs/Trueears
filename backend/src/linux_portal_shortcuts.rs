@@ -15,6 +15,8 @@ use tauri::AppHandle;
 #[cfg(target_os = "linux")]
 use uuid::Uuid;
 
+use crate::error::AppError;
+
 #[cfg(target_os = "linux")]
 const PORTAL_BUS_NAME: &str = "org.freedesktop.portal.Desktop";
 #[cfg(target_os = "linux")]
@@ -37,14 +39,14 @@ static RECORDING_SHORTCUT_ACTIVE: AtomicBool = AtomicBool::new(false);
 static SETTINGS_SHORTCUT_ACTIVE: AtomicBool = AtomicBool::new(false);
 
 #[cfg(target_os = "linux")]
-pub fn register_wayland_shortcuts(app: &AppHandle) -> Result<(), String> {
+pub fn register_wayland_shortcuts(app: &AppHandle) -> Result<(), AppError> {
     let app_handle = app.clone();
     let (ready_tx, ready_rx) = std::sync::mpsc::sync_channel(1);
 
     std::thread::spawn(move || {
         let context = MainContext::new();
         let ready_tx_for_success = ready_tx.clone();
-        let startup = context.with_thread_default(|| -> Result<(), String> {
+        let startup = context.with_thread_default(|| -> Result<(), AppError> {
             let runtime = PortalShortcutRuntime::new(app_handle, context.clone())?;
             let _ = ready_tx_for_success.send(Ok(()));
             runtime.run();
@@ -57,7 +59,7 @@ pub fn register_wayland_shortcuts(app: &AppHandle) -> Result<(), String> {
                 let _ = ready_tx.send(Err(err));
             }
             Err(err) => {
-                let _ = ready_tx.send(Err(err.to_string()));
+                let _ = ready_tx.send(Err(err.to_string().into()));
             }
         }
     });
@@ -68,8 +70,8 @@ pub fn register_wayland_shortcuts(app: &AppHandle) -> Result<(), String> {
 }
 
 #[cfg(not(target_os = "linux"))]
-pub fn register_wayland_shortcuts(_app: &AppHandle) -> Result<(), String> {
-    Err("Wayland portal shortcuts are only available on Linux".to_string())
+pub fn register_wayland_shortcuts(_app: &AppHandle) -> Result<(), AppError> {
+    Err("Wayland portal shortcuts are only available on Linux".into())
 }
 
 #[cfg(target_os = "linux")]
@@ -85,7 +87,7 @@ struct PortalShortcutRuntime {
 
 #[cfg(target_os = "linux")]
 impl PortalShortcutRuntime {
-    fn new(app: AppHandle, context: MainContext) -> Result<Self, String> {
+    fn new(app: AppHandle, context: MainContext) -> Result<Self, AppError> {
         let connection = gio::bus_get_sync(BusType::Session, None::<&gio::Cancellable>)
             .map_err(|err| format!("Failed to connect to the session bus: {err}"))?;
         let app_id = app.config().identifier.clone();
@@ -140,7 +142,7 @@ impl PortalShortcutRuntime {
 }
 
 #[cfg(target_os = "linux")]
-fn create_session(connection: &DBusConnection, context: &MainContext) -> Result<String, String> {
+fn create_session(connection: &DBusConnection, context: &MainContext) -> Result<String, AppError> {
     let handle_token = new_token("request");
     let session_token = new_token("session");
     let request_path = request_path(connection, &handle_token)?;
@@ -172,7 +174,8 @@ fn create_session(connection: &DBusConnection, context: &MainContext) -> Result<
             return Err(format!(
                 "Portal returned an unexpected CreateSession request path: {}",
                 returned_request_path.as_str()
-            ));
+            )
+            .into());
         }
     }
 
@@ -181,7 +184,8 @@ fn create_session(connection: &DBusConnection, context: &MainContext) -> Result<
         return Err(format!(
             "CreateSession was rejected by the desktop portal (status {}, details {:?})",
             response.status, response.results
-        ));
+        )
+        .into());
     }
 
     let Some(response_session_path) = response.results.get("session_handle").and_then(|value| {
@@ -189,7 +193,7 @@ fn create_session(connection: &DBusConnection, context: &MainContext) -> Result<
             .get::<String>()
             .or_else(|| value.get::<ObjectPath>().map(|path| path.to_string()))
     }) else {
-        return Err("CreateSession succeeded but no session_handle was returned".to_string());
+        return Err("CreateSession succeeded but no session_handle was returned".into());
     };
 
     if response_session_path != session_path {
@@ -208,7 +212,7 @@ fn bind_shortcuts(
     connection: &DBusConnection,
     context: &MainContext,
     session_path: &str,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let handle_token = new_token("bind");
     let request_path = request_path(connection, &handle_token)?;
     let pending_response = subscribe_request_response(connection, context, &request_path);
@@ -239,7 +243,8 @@ fn bind_shortcuts(
             return Err(format!(
                 "Portal returned an unexpected BindShortcuts request path: {}",
                 returned_request_path.as_str()
-            ));
+            )
+            .into());
         }
     }
 
@@ -253,7 +258,8 @@ fn bind_shortcuts(
         return Err(format!(
             "BindShortcuts was rejected by the desktop portal (status {}, details {:?})",
             response.status, response.results
-        ));
+        )
+        .into());
     }
 
     if let Some(bound_shortcuts) = bound_shortcuts {
@@ -416,7 +422,7 @@ fn build_shortcuts_variant() -> Variant {
 }
 
 #[cfg(target_os = "linux")]
-fn register_host_app(connection: &DBusConnection, app_id: &str) -> Result<(), String> {
+fn register_host_app(connection: &DBusConnection, app_id: &str) -> Result<(), AppError> {
     let options = VariantDict::default();
     let parameters = Variant::tuple_from_iter([app_id.to_variant(), options.end()]);
 
@@ -449,14 +455,14 @@ fn build_request_options(handle_token: &str) -> Variant {
 }
 
 #[cfg(target_os = "linux")]
-fn object_path_variant(path: &str) -> Result<Variant, String> {
+fn object_path_variant(path: &str) -> Result<Variant, AppError> {
     ObjectPath::try_from(path)
         .map(|object_path| object_path.to_variant())
-        .map_err(|_| format!("Invalid DBus object path: {path}"))
+        .map_err(|_| -> AppError { format!("Invalid DBus object path: {path}").into() })
 }
 
 #[cfg(target_os = "linux")]
-fn request_path(connection: &DBusConnection, token: &str) -> Result<String, String> {
+fn request_path(connection: &DBusConnection, token: &str) -> Result<String, AppError> {
     let sender = connection
         .unique_name()
         .map(|name| sanitize_bus_name(name.as_str()))
@@ -467,7 +473,7 @@ fn request_path(connection: &DBusConnection, token: &str) -> Result<String, Stri
 }
 
 #[cfg(target_os = "linux")]
-fn session_path(connection: &DBusConnection, token: &str) -> Result<String, String> {
+fn session_path(connection: &DBusConnection, token: &str) -> Result<String, AppError> {
     let sender = connection
         .unique_name()
         .map(|name| sanitize_bus_name(name.as_str()))
@@ -529,14 +535,14 @@ fn wait_for_request_response(
     connection: &DBusConnection,
     request_path: &str,
     pending_response: PendingRequestResponse,
-) -> Result<PortalRequestResponse, String> {
+) -> Result<PortalRequestResponse, AppError> {
     pending_response.response_loop.run();
     connection.signal_unsubscribe(pending_response.subscription_id);
 
-    pending_response
+    Ok(pending_response
         .receiver
         .recv_timeout(Duration::from_secs(20))
-        .map_err(|_| format!("Timed out waiting for portal response on {request_path}"))
+        .map_err(|_| format!("Timed out waiting for portal response on {request_path}"))?)
 }
 
 #[cfg(target_os = "linux")]

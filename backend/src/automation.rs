@@ -2,6 +2,7 @@ use arboard::Clipboard;
 use enigo::{Direction, Enigo, Key, Keyboard, Settings};
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
+#[cfg(target_os = "linux")]
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
@@ -11,11 +12,14 @@ use std::{
 };
 use walkdir::{DirEntry, WalkDir};
 
+use crate::error::AppError;
+
 enum TextSegment {
     Plain(String),
     CursorMention(String),
 }
 
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 pub enum PasteOutcome {
     Pasted,
     ClipboardFallback { message: String },
@@ -49,11 +53,12 @@ pub fn restore_linux_target_window_focus() -> bool {
 }
 
 #[cfg(not(target_os = "linux"))]
+#[allow(dead_code)]
 pub fn restore_linux_target_window_focus() -> bool {
     false
 }
 
-pub async fn paste_text(app: &tauri::AppHandle, text: &str) -> Result<PasteOutcome, String> {
+pub fn paste_text(app: &tauri::AppHandle, text: &str) -> Result<PasteOutcome, AppError> {
     log::info!("Transcription received: {}", text);
 
     let segments = split_into_segments(text);
@@ -93,7 +98,7 @@ pub async fn paste_text(app: &tauri::AppHandle, text: &str) -> Result<PasteOutco
     Ok(PasteOutcome::Pasted)
 }
 
-fn paste_full_text(app: &tauri::AppHandle, text: &str) -> Result<PasteOutcome, String> {
+fn paste_full_text(_app: &tauri::AppHandle, text: &str) -> Result<PasteOutcome, AppError> {
     log::info!("Writing transcription to clipboard (single paste)...");
     let mut clipboard =
         Clipboard::new().map_err(|e| format!("Failed to access clipboard: {}", e))?;
@@ -111,7 +116,7 @@ fn paste_full_text(app: &tauri::AppHandle, text: &str) -> Result<PasteOutcome, S
 
     #[cfg(target_os = "linux")]
     if is_wayland_session() {
-        match crate::linux_remote_desktop::paste_via_remote_desktop(app) {
+        match crate::linux_remote_desktop::paste_via_remote_desktop(_app) {
             Ok(true) => {
                 clear_clipboard(&mut clipboard)?;
                 return Ok(PasteOutcome::Pasted);
@@ -149,7 +154,7 @@ fn paste_plain_chunk(
     clipboard: &mut Clipboard,
     enigo: &mut Enigo,
     text: &str,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     if text.is_empty() {
         return Ok(());
     }
@@ -167,7 +172,7 @@ fn insert_cursor_mention(
     clipboard: &mut Clipboard,
     enigo: &mut Enigo,
     file_hint: &str,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     if file_hint.is_empty() {
         paste_plain_chunk(clipboard, enigo, "@")?;
         return Ok(());
@@ -200,7 +205,7 @@ fn insert_cursor_mention(
     Ok(())
 }
 
-fn clear_clipboard(clipboard: &mut Clipboard) -> Result<(), String> {
+fn clear_clipboard(clipboard: &mut Clipboard) -> Result<(), AppError> {
     thread::sleep(Duration::from_millis(100));
     clipboard
         .clear()
@@ -209,7 +214,7 @@ fn clear_clipboard(clipboard: &mut Clipboard) -> Result<(), String> {
     Ok(())
 }
 
-fn send_paste(enigo: &mut Enigo) -> Result<(), String> {
+fn send_paste(enigo: &mut Enigo) -> Result<(), AppError> {
     #[cfg(target_os = "macos")]
     {
         enigo
@@ -294,7 +299,7 @@ fn is_wayland_session() -> bool {
     ) || env::var_os("WAYLAND_DISPLAY").is_some()
 }
 
-fn send_copy(enigo: &mut Enigo) -> Result<(), String> {
+fn send_copy(enigo: &mut Enigo) -> Result<(), AppError> {
     #[cfg(target_os = "macos")]
     {
         enigo
@@ -324,7 +329,7 @@ fn send_copy(enigo: &mut Enigo) -> Result<(), String> {
     Ok(())
 }
 
-pub fn copy_selected_text() -> Result<Option<String>, String> {
+pub fn copy_selected_text() -> Result<Option<String>, AppError> {
     log::info!("Attempting to copy selected text...");
 
     let mut clipboard =

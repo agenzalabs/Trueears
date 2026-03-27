@@ -1,9 +1,16 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
-import { SettingsWindow } from './components/SettingsWindow';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+
+const SettingsWindow = lazy(async () => ({
+  default: (await import('./components/SettingsWindow')).SettingsWindow,
+}));
+
+const windowFallback = (
+  <div style={{ width: '100vw', height: '100vh', backgroundColor: '#ffffff' }} />
+);
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -68,7 +75,9 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <ErrorBoundary>
-      {renderApp()}
+      <Suspense fallback={windowFallback}>
+        {renderApp()}
+      </Suspense>
     </ErrorBoundary>
   </React.StrictMode>
 );
