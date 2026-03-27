@@ -237,17 +237,14 @@ pub fn get_active_window_info() -> Option<ActiveWindowInfo> {
             PWSTR(exe_path.as_mut_ptr()),
             &mut size,
         ) {
-            Ok(_) => {
-                let path = String::from_utf16_lossy(&exe_path[..size as usize]);
-                path
-            }
+            Ok(_) => String::from_utf16_lossy(&exe_path[..size as usize]),
             Err(_) => String::new(),
         };
 
         // Extract app name from path
         let app_name = exe_path_str
             .split('\\')
-            .last()
+            .next_back()
             .unwrap_or("Unknown")
             .to_string();
 

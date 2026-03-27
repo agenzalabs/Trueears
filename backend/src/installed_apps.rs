@@ -23,12 +23,12 @@ pub struct InstalledApp {
 }
 
 #[cfg(target_os = "linux")]
-pub fn init_cache() {
+pub fn init_cache<R: tauri::Runtime>(_app: &tauri::AppHandle<R>) {
     log::info!("initialized Linux installed_apps detector");
 }
 
 #[cfg(target_os = "linux")]
-pub fn force_refresh_cache() {
+pub fn force_refresh_cache<R: tauri::Runtime>(_app: &tauri::AppHandle<R>) {
     log::info!("installed_apps Linux cache refresh requested (on-demand scan)");
 }
 
@@ -137,12 +137,12 @@ fn find_first_binary_in_path(candidates: &[&str]) -> Option<String> {
 }
 
 #[cfg(all(not(target_os = "windows"), not(target_os = "linux")))]
-pub fn init_cache() {
+pub fn init_cache<R: tauri::Runtime>(_app: &tauri::AppHandle<R>) {
     log::info!("installed_apps cache disabled on this platform");
 }
 
 #[cfg(all(not(target_os = "windows"), not(target_os = "linux")))]
-pub fn force_refresh_cache() {
+pub fn force_refresh_cache<R: tauri::Runtime>(_app: &tauri::AppHandle<R>) {
     log::info!("installed_apps refresh is a no-op on this platform");
 }
 

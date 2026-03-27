@@ -4,7 +4,8 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::RwLock;
+use std::sync::{OnceLock, RwLock};
+use tauri::Manager;
 use walkdir::WalkDir;
 use windows::core::PCWSTR;
 use windows::Win32::Storage::FileSystem::FILE_FLAGS_AND_ATTRIBUTES;
@@ -23,6 +24,7 @@ static INSTALLED_APPS_CACHE: Lazy<RwLock<Option<Vec<InstalledApp>>>> =
 
 /// Flag to track if background refresh is running
 static REFRESH_IN_PROGRESS: Lazy<RwLock<bool>> = Lazy::new(|| RwLock::new(false));
+static CACHE_ROOT_DIR: OnceLock<PathBuf> = OnceLock::new();
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InstalledApp {
@@ -147,13 +149,22 @@ const APP_ALIASES: &[(&str, &str)] = &[
 
 /// Get the cache file path
 fn get_cache_path() -> Option<PathBuf> {
-    let app_data = std::env::var("APPDATA").ok()?;
-    let mut path = PathBuf::from(app_data);
-    path.push("com.Trueears");
-    // Ensure directory exists
-    std::fs::create_dir_all(&path).ok()?;
+    let mut path = CACHE_ROOT_DIR.get()?.clone();
     path.push(CACHE_FILENAME);
     Some(path)
+}
+
+fn initialize_cache_path<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<(), String> {
+    let cache_root = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| format!("Could not determine installed-app cache directory: {}", e))?;
+
+    std::fs::create_dir_all(&cache_root)
+        .map_err(|e| format!("Failed to create installed-app cache directory: {}", e))?;
+
+    let _ = CACHE_ROOT_DIR.get_or_init(|| cache_root);
+    Ok(())
 }
 
 /// Load apps from file cache
@@ -194,10 +205,16 @@ fn save_to_file_cache(apps: &[InstalledApp]) {
 
 /// Initialize cache on app startup - call this from lib.rs setup
 /// This is fully async and does NOT block app startup
-pub fn init_cache() {
+pub fn init_cache<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    let app_handle = app.clone();
+
     // Spawn everything in background thread - no blocking
-    std::thread::spawn(|| {
+    std::thread::spawn(move || {
         log::info!("Initializing installed apps cache in background");
+
+        if let Err(err) = initialize_cache_path(&app_handle) {
+            log::warn!("Installed apps cache path unavailable: {}", err);
+        }
 
         // First, try to load from file cache into memory
         if let Some(apps) = load_from_file_cache() {
@@ -387,7 +404,11 @@ pub fn get_installed_popular_apps() -> Vec<InstalledApp> {
 
 /// Force refresh the cache (call when user clicks "Refresh" button)
 #[allow(dead_code)]
-pub fn force_refresh_cache() {
+pub fn force_refresh_cache<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    if let Err(err) = initialize_cache_path(app) {
+        log::warn!("Installed apps cache path unavailable: {}", err);
+    }
+
     // Clear memory cache
     if let Ok(mut cache) = INSTALLED_APPS_CACHE.write() {
         *cache = None;
@@ -611,7 +632,7 @@ fn resolve_lnk_target_inner(lnk_path: &std::path::Path) -> Option<String> {
         if let Some(working_dir) = shell_link.working_dir() {
             let full_path = PathBuf::from(working_dir).join(relative_path);
             if full_path.exists() {
-                return full_path.to_str().map(|s| expand_env_vars(s));
+                return full_path.to_str().map(expand_env_vars);
             }
         }
     }
@@ -722,9 +743,7 @@ fn extract_icon_high_quality(path: &str) -> Option<String> {
         let image_list: IImageList = SHGetImageList(SHIL_JUMBO as i32).ok()?;
 
         // Get the icon from the image list
-        let hicon: HICON = image_list
-            .GetIcon(shfi.iIcon, ILD_TRANSPARENT.0 as u32)
-            .ok()?;
+        let hicon: HICON = image_list.GetIcon(shfi.iIcon, ILD_TRANSPARENT.0).ok()?;
 
         if hicon.is_invalid() {
             return None;
@@ -789,7 +808,7 @@ fn icon_to_png_base64(
         bmi.bmiHeader.biHeight = -size; // Top-down
         bmi.bmiHeader.biPlanes = 1;
         bmi.bmiHeader.biBitCount = 32;
-        bmi.bmiHeader.biCompression = BI_RGB.0 as u32;
+        bmi.bmiHeader.biCompression = BI_RGB.0;
 
         let mut buffer = vec![0u8; (size * size * 4) as usize];
         GetDIBits(

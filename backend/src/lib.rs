@@ -126,21 +126,6 @@ fn configure_wayland_overlay_panel(window: &tauri::WebviewWindow) {
 #[cfg(not(target_os = "linux"))]
 fn configure_wayland_overlay_panel(_window: &tauri::WebviewWindow) {}
 
-fn load_env_with_workspace_fallback() {
-    // Load shared workspace env first, overriding stale exported shell values.
-    // This keeps local dev deterministic when multiple services share JWT/API vars.
-    match dotenvy::from_filename_override("../.env") {
-        Ok(path) => log::info!("Loaded workspace env from {:?}", path),
-        Err(e) => log::debug!("Workspace env not loaded: {}", e),
-    }
-
-    // Then load backend-local env only for missing values.
-    match dotenvy::from_filename(".env") {
-        Ok(path) => log::info!("Loaded backend env fallback from {:?}", path),
-        Err(e) => log::debug!("Backend env fallback not loaded: {}", e),
-    }
-}
-
 fn is_sensitive_store_key(key: &str) -> bool {
     let k = key.to_ascii_uppercase();
     k.contains("KEY") || k.contains("TOKEN") || k.contains("SECRET") || k.contains("PASSWORD")
@@ -357,9 +342,9 @@ async fn search_installed_apps(
 }
 
 #[tauri::command]
-async fn refresh_installed_apps_cache() -> Result<(), AppError> {
+async fn refresh_installed_apps_cache(app: tauri::AppHandle) -> Result<(), AppError> {
     log::info!("refresh_installed_apps_cache called");
-    tauri::async_runtime::spawn_blocking(installed_apps::force_refresh_cache)
+    tauri::async_runtime::spawn_blocking(move || installed_apps::force_refresh_cache(&app))
         .await
         .map_err(|e| format!("refresh_installed_apps_cache worker failed: {}", e))?;
     Ok(())
@@ -431,7 +416,7 @@ async fn start_google_login(app: tauri::AppHandle) -> Result<(), AppError> {
 
     // Load config from environment
     let config =
-        auth::OAuthConfig::from_env().ok_or("Missing GOOGLE_CLIENT_ID environment variable")?;
+        auth::OAuthConfig::from_app(&app).ok_or("Missing GOOGLE_CLIENT_ID environment variable")?;
 
     auth::start_google_oauth(app, config).await
 }
@@ -447,8 +432,7 @@ async fn get_auth_state(app: tauri::AppHandle) -> Result<auth::AuthState, AppErr
 async fn logout(app: tauri::AppHandle) -> Result<(), AppError> {
     log::info!("logout command called");
 
-    let api_url = std::env::var("API_URL")
-        .unwrap_or_else(|_| "https://trueears-backend.vercel.app".to_string());
+    let api_url = auth::api_url_from_app(&app);
 
     auth::logout(&app, &api_url).await
 }
@@ -480,13 +464,13 @@ pub fn run() {
         .setup(|app| {
             use tauri::Manager;
 
-            load_env_with_workspace_fallback();
-
-            // Migrate any legacy auth storage to the consolidated path
-            auth::migrate_legacy_auth_file(app.handle());
+            let app_for_auth_migration = app.handle().clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                auth::migrate_legacy_auth_file(&app_for_auth_migration);
+            });
 
             // Initialize installed apps cache in background
-            installed_apps::init_cache();
+            installed_apps::init_cache(app.handle());
 
             // Always enable logging (logs to file in AppData/com.Trueears/logs)
             app.handle().plugin(
@@ -562,15 +546,24 @@ pub fn run() {
             // Register global shortcuts
             shortcuts::register_shortcuts(app.handle())?;
 
-            let force_open_settings_on_start = std::env::var("TRUEEARS_OPEN_SETTINGS_ON_START")
-                .map(|v| {
-                    let value = v.trim().to_ascii_lowercase();
-                    value == "1" || value == "true" || value == "yes" || value == "on"
-                })
-                .unwrap_or(false);
-
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
+                let app_for_env = app_handle.clone();
+                let force_open_settings_on_start = tauri::async_runtime::spawn_blocking(move || {
+                    auth::load_runtime_env(&app_for_env);
+                    std::env::var("TRUEEARS_OPEN_SETTINGS_ON_START")
+                        .map(|v| {
+                            let value = v.trim().to_ascii_lowercase();
+                            value == "1"
+                                || value == "true"
+                                || value == "yes"
+                                || value == "on"
+                        })
+                        .unwrap_or(false)
+                })
+                .await
+                .unwrap_or(false);
+
                 let app_for_read = app_handle.clone();
                 let onboarding_complete = match tauri::async_runtime::spawn_blocking(move || {
                     read_onboarding_complete_sync(&app_for_read)

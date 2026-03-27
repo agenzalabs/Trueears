@@ -3,15 +3,18 @@
 
 use crate::error::AppError;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::Once;
 use std::thread;
 use tauri::{Emitter, Manager};
 
 // File storage for auth data (more reliable than keyring on Windows)
 const AUTH_FILE_NAME: &str = "auth.json";
+static RUNTIME_ENV_LOADED: Once = Once::new();
 
 /// User info stored in auth file
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,10 +58,10 @@ pub struct OAuthConfig {
 }
 
 impl OAuthConfig {
-    pub fn from_env() -> Option<Self> {
+    pub fn from_app<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<Self> {
+        load_runtime_env(app);
         let google_client_id = std::env::var("GOOGLE_CLIENT_ID").ok()?;
-        let api_url = std::env::var("API_URL")
-            .unwrap_or_else(|_| "https://trueears-backend.vercel.app".to_string());
+        let api_url = api_url_from_app(app);
 
         Some(OAuthConfig {
             google_client_id,
@@ -66,6 +69,83 @@ impl OAuthConfig {
             callback_port: 8585,
         })
     }
+}
+
+fn discover_env_paths<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Vec<PathBuf> {
+    fn push_unique(paths: &mut Vec<PathBuf>, seen: &mut HashSet<PathBuf>, path: PathBuf) {
+        if seen.insert(path.clone()) {
+            paths.push(path);
+        }
+    }
+
+    let mut paths = Vec::new();
+    let mut seen = HashSet::new();
+
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        let workspace_root = resource_dir.ancestors().find(|ancestor| {
+            ancestor.join("backend").join("Cargo.toml").is_file()
+                && ancestor.join("package.json").is_file()
+        });
+
+        if let Some(root) = workspace_root {
+            push_unique(&mut paths, &mut seen, root.join(".env"));
+            push_unique(&mut paths, &mut seen, root.join("backend").join(".env"));
+        } else {
+            let backend_dir = resource_dir
+                .ancestors()
+                .find(|ancestor| ancestor.join("Cargo.toml").is_file());
+
+            if let Some(dir) = backend_dir {
+                if let Some(parent) = dir.parent() {
+                    push_unique(&mut paths, &mut seen, parent.join(".env"));
+                }
+                push_unique(&mut paths, &mut seen, dir.join(".env"));
+            }
+        }
+    }
+
+    if let Ok(config_dir) = app.path().app_config_dir() {
+        push_unique(&mut paths, &mut seen, config_dir.join(".env"));
+    }
+
+    paths
+}
+
+pub fn load_runtime_env<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    RUNTIME_ENV_LOADED.call_once(|| {
+        let mut loaded_any = false;
+
+        for path in discover_env_paths(app) {
+            if !path.is_file() {
+                continue;
+            }
+
+            let result = if loaded_any {
+                dotenvy::from_path(&path)
+            } else {
+                dotenvy::from_path_override(&path)
+            };
+
+            match result {
+                Ok(loaded_path) => {
+                    loaded_any = true;
+                    log::info!("Loaded runtime env from {:?}", loaded_path);
+                }
+                Err(err) => {
+                    log::warn!("Failed to load env file {:?}: {}", path, err);
+                }
+            }
+        }
+
+        if !loaded_any {
+            log::debug!("No runtime env files found via Tauri path discovery");
+        }
+    });
+}
+
+pub fn api_url_from_app<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> String {
+    load_runtime_env(app);
+    std::env::var("API_URL").unwrap_or_else(|_| "https://trueears-backend.vercel.app".to_string())
 }
 
 // ============ File-based Token Storage ============
