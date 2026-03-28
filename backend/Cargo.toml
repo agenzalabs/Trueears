@@ -1,6 +1,6 @@
 [package]
 name = "Trueears"
-version = "0.3.0"
+version = "0.3.2"
 description = "Minimalist AI dictation"
 authors = ["Shayan Khan"]
 license = "AGPL-3.0-or-later"

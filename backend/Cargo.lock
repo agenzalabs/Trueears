@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "Trueears"
-version = "0.3.0"
+version = "0.3.2"
 dependencies = [
  "arboard",
  "base64 0.22.1",
