@@ -20,22 +20,28 @@ pub async fn auth_middleware(
         .get(header::AUTHORIZATION)
         .and_then(|value| value.to_str().ok())
         .ok_or_else(|| {
-            (StatusCode::UNAUTHORIZED, "Missing authorization header".to_string())
+            (
+                StatusCode::UNAUTHORIZED,
+                "Missing authorization header".to_string(),
+            )
         })?;
 
     // Extract Bearer token
-    let token = auth_header
-        .strip_prefix("Bearer ")
-        .ok_or_else(|| {
-            (StatusCode::UNAUTHORIZED, "Invalid authorization format".to_string())
-        })?;
+    let token = auth_header.strip_prefix("Bearer ").ok_or_else(|| {
+        (
+            StatusCode::UNAUTHORIZED,
+            "Invalid authorization format".to_string(),
+        )
+    })?;
 
     // Validate token
-    let claims = state.jwt.validate_access_token(token)
-        .map_err(|e| {
-            tracing::warn!("Invalid access token: {}", e);
-            (StatusCode::UNAUTHORIZED, "Invalid or expired token".to_string())
-        })?;
+    let claims = state.jwt.validate_access_token(token).map_err(|e| {
+        tracing::warn!("Invalid access token: {}", e);
+        (
+            StatusCode::UNAUTHORIZED,
+            "Invalid or expired token".to_string(),
+        )
+    })?;
 
     // Add user_id to request extensions for handlers to use
     request.extensions_mut().insert(claims.sub);

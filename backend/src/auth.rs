@@ -223,7 +223,7 @@ pub fn load_runtime_env<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
 
 pub fn api_url_from_app<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> String {
     load_runtime_env(app);
-    std::env::var("API_URL").unwrap_or_else(|_| "https://trueears-backend.vercel.app".to_string())
+    std::env::var("API_URL").unwrap_or_else(|_| "https://trueears.onrender.com".to_string())
 }
 
 // ============ File-based Token Storage ============

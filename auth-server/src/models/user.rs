@@ -68,7 +68,7 @@ pub struct GoogleTokenResponse {
 /// Google ID token claims (decoded JWT payload)
 #[derive(Debug, Deserialize)]
 pub struct GoogleIdTokenClaims {
-    pub sub: String,        // Google user ID
+    pub sub: String, // Google user ID
     pub email: String,
     #[serde(default)]
     pub email_verified: bool,
@@ -76,8 +76,8 @@ pub struct GoogleIdTokenClaims {
     pub name: Option<String>,
     #[serde(default)]
     pub picture: Option<String>,
-    pub aud: String,        // Should match our client ID
-    pub iss: String,        // Should be accounts.google.com
+    pub aud: String, // Should match our client ID
+    pub iss: String, // Should be accounts.google.com
     pub exp: i64,
     pub iat: i64,
 }
@@ -97,7 +97,7 @@ pub struct RefreshRequest {
 /// JWT claims for our access token
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AccessTokenClaims {
-    pub sub: String,        // User ID
+    pub sub: String, // User ID
     pub email: String,
     pub exp: i64,
     pub iat: i64,
@@ -106,8 +106,8 @@ pub struct AccessTokenClaims {
 /// JWT claims for our refresh token
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RefreshTokenClaims {
-    pub sub: String,        // User ID
-    pub jti: String,        // Unique token ID
+    pub sub: String, // User ID
+    pub jti: String, // Unique token ID
     pub exp: i64,
     pub iat: i64,
 }
