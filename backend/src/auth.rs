@@ -140,8 +140,16 @@ fn discover_env_paths<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Vec<PathB
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     if let Some(workspace_root) = manifest_dir.parent() {
         push_unique(&mut paths, &mut seen, workspace_root.join(".env"));
-        push_unique(&mut paths, &mut seen, workspace_root.join("auth-server").join(".env"));
-        push_unique(&mut paths, &mut seen, workspace_root.join("frontend").join(".env"));
+        push_unique(
+            &mut paths,
+            &mut seen,
+            workspace_root.join("auth-server").join(".env"),
+        );
+        push_unique(
+            &mut paths,
+            &mut seen,
+            workspace_root.join("frontend").join(".env"),
+        );
     }
     push_unique(&mut paths, &mut seen, manifest_dir.join(".env"));
 
@@ -744,7 +752,8 @@ async fn exchange_code_for_tokens(api_url: &str, code: &str) -> Result<AuthRespo
         last_error = format!("Authentication failed via {}: {}", endpoint, error_text);
         log::error!("{}", last_error);
 
-        let retryable = status.is_server_error() || error_text.contains("FUNCTION_INVOCATION_FAILED");
+        let retryable =
+            status.is_server_error() || error_text.contains("FUNCTION_INVOCATION_FAILED");
         if cfg!(debug_assertions) && retryable && idx + 1 < endpoints.len() {
             log::warn!(
                 "Retrying OAuth token exchange with local fallback endpoint after server-side error"
