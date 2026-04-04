@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 description = "Authentication API server for Trueears"
 
+[[bin]]
+name = "auth-vercel"
+path = "api/auth.rs"
+
 [dependencies]
 # Web framework
 axum = { version = "0.7", features = ["macros"] }
@@ -34,3 +38,9 @@ rand = "0.8"
 thiserror = "1.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+vercel_runtime = { version = "2", features = ["axum"] }
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+opt-level = 3
