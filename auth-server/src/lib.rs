@@ -35,24 +35,8 @@ pub fn init_tracing() {
 }
 
 pub fn load_env_with_workspace_fallback() {
-    // Clear known config vars so a stale shell session cannot override file-based values.
-    for key in [
-        "DATABASE_URL",
-        "GOOGLE_CLIENT_ID",
-        "GOOGLE_CLIENT_SECRET",
-        "JWT_SECRET",
-        "JWT_ACCESS_EXPIRY_SECONDS",
-        "JWT_REFRESH_EXPIRY_SECONDS",
-        "API_HOST",
-        "API_PORT",
-        "PORT",
-        "API_URL",
-        "OAUTH_REDIRECT_URI",
-        "RUST_ENV",
-    ] {
-        std::env::remove_var(key);
-    }
-
+    // Keep runtime-provided environment variables (Render/Vercel/etc.) intact.
+    // Local .env files only backfill missing values or intentionally override when present.
     load_env_file(Path::new("../.env"), false, "workspace");
     load_env_file(Path::new(".env"), true, "auth-server");
 }
