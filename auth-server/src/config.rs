@@ -45,7 +45,8 @@ impl Config {
                 .parse()
                 .unwrap_or(2592000),
             api_host: env::var("API_HOST").unwrap_or_else(|_| "0.0.0.0".to_string()),
-            api_port: env::var("API_PORT")
+            api_port: env::var("PORT")
+                .or_else(|_| env::var("API_PORT"))
                 .unwrap_or_else(|_| "3001".to_string())
                 .parse()
                 .unwrap_or(3001),
