@@ -116,6 +116,39 @@ cargo run
 cargo test
 ```
 
+## Deploying to Vercel (Rust Runtime)
+
+This service now includes a Vercel Rust function entrypoint at `api/auth.rs`.
+
+### Required project settings in Vercel
+
+- Root Directory: `auth-server`
+- Build Command: `cargo build --release`
+- Start Command: *(leave empty for Vercel serverless functions)*
+
+`vercel.json` rewrites all incoming paths to `/api/auth`, so routes like:
+
+- `/auth/google`
+- `/auth/refresh`
+- `/auth/logout`
+- `/auth/user`
+- `/health`
+
+continue working through a single serverless function.
+
+### Environment variables
+
+Set these in the Vercel dashboard:
+
+- `DATABASE_URL`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `JWT_SECRET`
+- `JWT_ACCESS_EXPIRY_SECONDS`
+- `JWT_REFRESH_EXPIRY_SECONDS`
+- `OAUTH_REDIRECT_URI`
+- `API_URL` (public URL of this deployed service)
+
 ## Dependencies
 
 | Crate | Purpose |

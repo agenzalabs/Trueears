@@ -1,4 +1,5 @@
 use std::io;
+use tower::ServiceBuilder;
 use vercel_runtime::axum::VercelLayer;
 use vercel_runtime::Error;
 
@@ -10,7 +11,7 @@ async fn main() -> Result<(), Error> {
         .await
         .map_err(io::Error::other)?;
 
-    let app = app.layer(VercelLayer::new());
+    let app = ServiceBuilder::new().layer(VercelLayer::new()).service(app);
 
     vercel_runtime::run(app).await
 }

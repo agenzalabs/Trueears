@@ -24,10 +24,14 @@ impl JwtManager {
     }
 
     /// Generate an access token for API authentication
-    pub fn generate_access_token(&self, user_id: &str, email: &str) -> Result<String, jsonwebtoken::errors::Error> {
+    pub fn generate_access_token(
+        &self,
+        user_id: &str,
+        email: &str,
+    ) -> Result<String, jsonwebtoken::errors::Error> {
         let now = Utc::now();
         let expiry = now + Duration::seconds(self.access_expiry_seconds);
-        
+
         let claims = AccessTokenClaims {
             sub: user_id.to_string(),
             email: email.to_string(),
@@ -39,11 +43,14 @@ impl JwtManager {
     }
 
     /// Generate a refresh token with a unique ID
-    pub fn generate_refresh_token(&self, user_id: &str) -> Result<(String, String, i64), jsonwebtoken::errors::Error> {
+    pub fn generate_refresh_token(
+        &self,
+        user_id: &str,
+    ) -> Result<(String, String, i64), jsonwebtoken::errors::Error> {
         let now = Utc::now();
         let expiry = now + Duration::seconds(self.refresh_expiry_seconds);
         let jti = Uuid::new_v4().to_string();
-        
+
         let claims = RefreshTokenClaims {
             sub: user_id.to_string(),
             jti: jti.clone(),
@@ -56,22 +63,22 @@ impl JwtManager {
     }
 
     /// Validate an access token and return the claims
-    pub fn validate_access_token(&self, token: &str) -> Result<AccessTokenClaims, jsonwebtoken::errors::Error> {
-        let token_data = decode::<AccessTokenClaims>(
-            token,
-            &self.decoding_key,
-            &Validation::default(),
-        )?;
+    pub fn validate_access_token(
+        &self,
+        token: &str,
+    ) -> Result<AccessTokenClaims, jsonwebtoken::errors::Error> {
+        let token_data =
+            decode::<AccessTokenClaims>(token, &self.decoding_key, &Validation::default())?;
         Ok(token_data.claims)
     }
 
     /// Validate a refresh token and return the claims
-    pub fn validate_refresh_token(&self, token: &str) -> Result<RefreshTokenClaims, jsonwebtoken::errors::Error> {
-        let token_data = decode::<RefreshTokenClaims>(
-            token,
-            &self.decoding_key,
-            &Validation::default(),
-        )?;
+    pub fn validate_refresh_token(
+        &self,
+        token: &str,
+    ) -> Result<RefreshTokenClaims, jsonwebtoken::errors::Error> {
+        let token_data =
+            decode::<RefreshTokenClaims>(token, &self.decoding_key, &Validation::default())?;
         Ok(token_data.claims)
     }
 

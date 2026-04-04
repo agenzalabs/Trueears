@@ -211,7 +211,10 @@ async fn get_user_with_auth(
         .await
         .map_err(|e| {
             tracing::error!("Database error: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Database error".to_string())
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Database error".to_string(),
+            )
         })?
         .ok_or_else(|| (StatusCode::NOT_FOUND, "User not found".to_string()))?;
 
