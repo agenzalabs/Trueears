@@ -115,8 +115,8 @@ Copy `.env.example` to `.env` and fill in the required values:
 # (Can also be set in-app via Settings > API Key)
 # No .env entry needed if you set it through the UI -- it's stored in the Tauri store.
 
-# Auth server URL (defaults to https://trueears-backend.vercel.app)
-API_URL=https://trueears-backend.vercel.app
+# Auth server URL (defaults to https://trueears.onrender.com)
+API_URL=https://trueears.onrender.com
 GOOGLE_CLIENT_ID=your_google_client_id
 JWT_SECRET=change_me
 

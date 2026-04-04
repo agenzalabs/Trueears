@@ -30,7 +30,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: http:; media-src 'self' blob: mediastream:; connect-src 'self' https://api.groq.com https://*.vercel.app http://localhost:* http://127.0.0.1:*",
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: http:; media-src 'self' blob: mediastream:; connect-src 'self' https://api.groq.com https://trueears.onrender.com https://*.onrender.com https://*.vercel.app http://localhost:* http://127.0.0.1:*",
       "capabilities": [
         "main-window",
         "settings-window"
