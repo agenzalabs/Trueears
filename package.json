@@ -9,7 +9,7 @@
     "type": "git",
     "url": "https://github.com/devv-shayan/Trueears.git"
   },
-  "version": "0.3.3",
+  "version": "0.3.4",
   "type": "module",
   "scripts": {
     "sync-version": "node scripts/sync-version.js",
