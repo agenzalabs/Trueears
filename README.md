@@ -3,13 +3,13 @@
 A minimalist, context-aware AI voice dictation application built with Tauri, React, and Rust. Uses Groq's Whisper models for fast speech-to-text and LLM-powered post-processing to format your words intelligently based on the active application.
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
-[![CI](https://github.com/devv-shayan/Trueears/actions/workflows/ci.yml/badge.svg)](https://github.com/devv-shayan/Trueears/actions/workflows/ci.yml)
-[![Release](https://github.com/devv-shayan/Trueears/actions/workflows/release.yml/badge.svg)](https://github.com/devv-shayan/Trueears/actions/workflows/release.yml)
-[![GitHub release](https://img.shields.io/github/v/release/devv-shayan/Trueears)](https://github.com/devv-shayan/Trueears/releases/latest)
+[![CI](https://github.com/agenzalabs/Trueears/actions/workflows/ci.yml/badge.svg)](https://github.com/agenzalabs/Trueears/actions/workflows/ci.yml)
+[![Release](https://github.com/agenzalabs/Trueears/actions/workflows/release.yml/badge.svg)](https://github.com/agenzalabs/Trueears/actions/workflows/release.yml)
+[![GitHub release](https://img.shields.io/github/v/release/devv-shayan/Trueears)](https://github.com/agenzalabs/Trueears/releases/latest)
 [![Bundle Size](https://img.shields.io/badge/bundle-~15MB-green)](docs/guides/deployment.md)
 [![Tauri](https://img.shields.io/badge/tauri-2.x-blue)](https://tauri.app)
 
-> **[Contributing Guide](CONTRIBUTING.md)** | **[Downloads](https://github.com/devv-shayan/Trueears/releases/latest)**
+> **[Contributing Guide](https://github.com/agenzalabs/Trueears/blob/main/CONTRIBUTING.md)** | **[Downloads](https://github.com/agenzalabs/Trueears/releases/)**
 
 
 ## Why Trueears Matters
@@ -32,7 +32,7 @@ Trueears detects the active application and applies profile-aware formatting dir
 ```bash
 # Prerequisites: Node.js 20.19+ (or 22.12+), Rust, Groq API Key
 
-git clone <repository-url>
+git clone https://github.com/agenzalabs/Trueears.git
 cd Trueears
 npm install
 cp .env.example .env
