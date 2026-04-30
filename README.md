@@ -11,6 +11,13 @@ A minimalist, context-aware AI voice dictation application built with Tauri, Rea
 
 > **[Contributing Guide](CONTRIBUTING.md)** | **[Downloads](https://github.com/devv-shayan/Trueears/releases/latest)**
 
+
+## Why Trueears Matters
+
+Most voice dictation software is closed-source, cloud-heavy, or unaware of where users are writing. Trueears is an open, local-first alternative designed for developers and knowledge workers who need fast, context-aware speech-to-text across desktop apps.
+
+Trueears detects the active application and applies profile-aware formatting directly in tools such as Cursor, Slack, Outlook, Notion, and Discord. This improves accessibility, multilingual writing, and day-to-day productivity without locking users into a proprietary editor.
+
 ## Features
 
 - **Global Hotkey Recording** - `Ctrl+Shift+K` with Auto, Toggle, or Push-to-Talk modes
