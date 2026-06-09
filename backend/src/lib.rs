@@ -101,6 +101,82 @@ fn configure_linux_webview_media(window: &tauri::WebviewWindow) {
 #[cfg(not(target_os = "linux"))]
 fn configure_linux_webview_media(_window: &tauri::WebviewWindow) {}
 
+#[cfg(target_os = "windows")]
+fn configure_windows_webview_media(window: &tauri::WebviewWindow) {
+    use webview2_com::Microsoft::Web::WebView2::Win32::{
+        ICoreWebView2, COREWEBVIEW2_PERMISSION_KIND_MICROPHONE,
+        COREWEBVIEW2_PERMISSION_KIND_UNKNOWN_PERMISSION, COREWEBVIEW2_PERMISSION_STATE_ALLOW,
+    };
+    use webview2_com::PermissionRequestedEventHandler;
+
+    let window_label = window.label().to_string();
+    let label_for_setup = window_label.clone();
+    if let Err(err) = window.with_webview(move |webview| {
+        // `with_webview` runs on the WebView2 UI thread, which is where these
+        // COM calls must happen.
+        let controller = webview.controller();
+        let core: ICoreWebView2 = match unsafe { controller.CoreWebView2() } {
+            Ok(core) => core,
+            Err(e) => {
+                log::error!(
+                    "Failed to get ICoreWebView2 for '{}': {}",
+                    label_for_setup,
+                    e
+                );
+                return;
+            }
+        };
+
+        // Auto-allow the microphone permission so getUserMedia resolves without a
+        // native prompt. The overlay window is click-through / unfocused, so the
+        // default WebView2 prompt could never be answered and the request hung.
+        let handler_label = label_for_setup.clone();
+        let handler = PermissionRequestedEventHandler::create(Box::new(move |_sender, args| {
+            if let Some(args) = args {
+                let mut kind = COREWEBVIEW2_PERMISSION_KIND_UNKNOWN_PERMISSION;
+                unsafe { args.PermissionKind(&mut kind)? };
+                if kind == COREWEBVIEW2_PERMISSION_KIND_MICROPHONE {
+                    log::info!(
+                        "Allowing Windows microphone permission for '{}'",
+                        handler_label
+                    );
+                    unsafe { args.SetState(COREWEBVIEW2_PERMISSION_STATE_ALLOW)? };
+                }
+            }
+            Ok(())
+        }));
+
+        let mut token = 0;
+        match unsafe { core.add_PermissionRequested(&handler, &mut token) } {
+            Ok(()) => log::info!(
+                "Registered Windows WebView2 microphone permission handler for '{}'",
+                label_for_setup
+            ),
+            Err(e) => log::error!(
+                "Failed to register PermissionRequested handler for '{}': {}",
+                label_for_setup,
+                e
+            ),
+        }
+    }) {
+        log::error!(
+            "Failed to configure Windows webview media permissions for '{}': {}",
+            window_label,
+            err
+        );
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn configure_windows_webview_media(_window: &tauri::WebviewWindow) {}
+
+/// Configure platform-specific WebView media permissions so microphone capture
+/// works without a prompt the overlay window cannot interact with.
+fn configure_webview_media(window: &tauri::WebviewWindow) {
+    configure_linux_webview_media(window);
+    configure_windows_webview_media(window);
+}
+
 #[cfg(target_os = "linux")]
 fn is_linux_wayland_session() -> bool {
     matches!(
@@ -390,7 +466,7 @@ async fn open_settings_window(app: tauri::AppHandle) -> Result<(), AppError> {
     .initialization_script("document.documentElement.style.background = '#f8fafc'; document.body.style.background = '#f8fafc';")
     .build()?;
 
-    configure_linux_webview_media(&settings_window);
+    configure_webview_media(&settings_window);
 
     // Ensure the window is interactive
     settings_window.set_ignore_cursor_events(false)?;
@@ -511,7 +587,7 @@ pub fn run() {
             // Resize main window to span all monitors
             // Add padding to account for Windows display scaling issues
             if let Some(window) = app.get_webview_window("main") {
-                configure_linux_webview_media(&window);
+                configure_webview_media(&window);
 
                 if is_linux_wayland_session() {
                     log::info!("Configuring main window for Linux Wayland panel overlay");
