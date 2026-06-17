@@ -68,6 +68,6 @@ winreg = "0.52"
 webview2-com = "0.38"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-gio = "0.18"
+gio = "0.21"
 glib = "0.18"
 webkit2gtk = "2.0"
