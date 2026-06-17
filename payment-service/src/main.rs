@@ -8,7 +8,7 @@ mod services;
 mod utils;
 
 use axum::{
-    http::HeaderValue,
+    http::{header, HeaderValue, Method},
     middleware::from_fn_with_state,
     routing::{get, post},
     Router,
@@ -16,6 +16,7 @@ use axum::{
 use config::Config;
 use handlers::{
     checkout::create_checkout,
+    health::{health_check, readiness_check},
     license::{activate_license, deactivate_license, get_license_status},
     orders::get_my_orders,
     webhooks::handle_lemonsqueezy_webhook,
@@ -111,7 +112,10 @@ async fn main() {
         }
     );
     tracing::info!("LemonSqueezy test mode: {}", config.lemonsqueezy_test_mode);
-    tracing::info!("Payment DB target: {}", db_target_summary(&config.database_url));
+    tracing::info!(
+        "Payment DB target: {}",
+        db_target_summary(&config.database_url)
+    );
 
     // Create database pool
     let pool = db::create_pool(&config.database_url)
@@ -129,20 +133,25 @@ async fn main() {
         config: config.clone(),
     };
 
-    // Configure CORS
+    // Configure CORS. In production, restrict methods and headers to what the
+    // desktop client actually sends; origins are already restricted via
+    // PAYMENT_ALLOWED_ORIGINS. Development stays fully permissive.
     let cors = if config.is_production {
         let origins = config
             .payment_allowed_origins
             .iter()
             .filter_map(|origin| HeaderValue::from_str(origin).ok())
             .collect::<Vec<_>>();
+        let cors = CorsLayer::new()
+            .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+            .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION]);
         if origins.is_empty() {
-            CorsLayer::new().allow_methods(Any).allow_headers(Any)
+            tracing::warn!(
+                "PAYMENT_ALLOWED_ORIGINS is empty in production; browser cross-origin requests will be blocked"
+            );
+            cors
         } else {
-            CorsLayer::new()
-                .allow_origin(origins)
-                .allow_methods(Any)
-                .allow_headers(Any)
+            cors.allow_origin(origins)
         }
     } else {
         CorsLayer::new()
@@ -162,6 +171,7 @@ async fn main() {
     // Build router
     let app = Router::new()
         .route("/health", get(health_check))
+        .route("/ready", get(readiness_check))
         .route("/webhooks/lemonsqueezy", post(handle_lemonsqueezy_webhook))
         .merge(protected_routes)
         .layer(cors)
@@ -183,9 +193,4 @@ async fn main() {
 pub struct AppState {
     pub pool: sqlx::PgPool,
     pub config: Config,
-}
-
-/// Health check endpoint
-async fn health_check() -> &'static str {
-    "OK"
 }
