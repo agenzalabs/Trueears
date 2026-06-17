@@ -1,13 +1,59 @@
 version: 2
+
+# Grouping strategy:
+# - patch + minor updates are grouped into a single PR per ecosystem/directory
+#   to cut routine churn (one PR instead of a dozen).
+# - major updates stay ungrouped so each lands as its own reviewable PR — they
+#   often carry breaking changes and deserve individual scrutiny.
 updates:
+  # --- Frontend (npm, repo root) ---
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
+    groups:
+      npm-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
 
+  # --- Tauri backend (cargo) ---
   - package-ecosystem: "cargo"
     directory: "/backend"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
+    groups:
+      cargo-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+
+  # --- Payment service (cargo) ---
+  - package-ecosystem: "cargo"
+    directory: "/payment-service"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      cargo-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+
+  # --- Auth server (cargo) ---
+  - package-ecosystem: "cargo"
+    directory: "/auth-server"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      cargo-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
