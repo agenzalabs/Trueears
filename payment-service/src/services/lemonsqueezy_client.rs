@@ -59,6 +59,64 @@ impl LemonSqueezyClient {
         }
     }
 
+    /// Execute a request with bounded retries and exponential backoff.
+    ///
+    /// Retries on transient transport errors (connect/timeout) and on HTTP 429
+    /// / 5xx responses. 4xx responses (other than 429) are returned immediately
+    /// so the caller can surface the API error body. The failing response is
+    /// returned after the final attempt rather than swallowed.
+    async fn send_with_retry(
+        &self,
+        request: reqwest::Request,
+    ) -> Result<reqwest::Response, PaymentError> {
+        const MAX_ATTEMPTS: u32 = 3;
+        let mut delay = std::time::Duration::from_millis(250);
+        let mut last_transport_err: Option<reqwest::Error> = None;
+
+        for attempt in 1..=MAX_ATTEMPTS {
+            let attempt_request = request.try_clone().ok_or_else(|| {
+                PaymentError::Internal("LemonSqueezy request body is not cloneable".to_string())
+            })?;
+
+            match self.client.execute(attempt_request).await {
+                Ok(response) => {
+                    let status = response.status();
+                    let retryable = status.as_u16() == 429 || status.is_server_error();
+                    if retryable && attempt < MAX_ATTEMPTS {
+                        tracing::warn!(
+                            %status, attempt, max = MAX_ATTEMPTS,
+                            "LemonSqueezy request returned retryable status; backing off"
+                        );
+                        tokio::time::sleep(delay).await;
+                        delay *= 2;
+                        continue;
+                    }
+                    return Ok(response);
+                }
+                Err(err) => {
+                    let retryable = err.is_timeout() || err.is_connect();
+                    if retryable && attempt < MAX_ATTEMPTS {
+                        tracing::warn!(
+                            error = %err, attempt, max = MAX_ATTEMPTS,
+                            "LemonSqueezy request transport error; backing off"
+                        );
+                        last_transport_err = Some(err);
+                        tokio::time::sleep(delay).await;
+                        delay *= 2;
+                        continue;
+                    }
+                    return Err(PaymentError::LemonSqueezyRequest(err));
+                }
+            }
+        }
+
+        Err(last_transport_err
+            .map(PaymentError::LemonSqueezyRequest)
+            .unwrap_or_else(|| {
+                PaymentError::LemonSqueezyApi("LemonSqueezy retry loop exhausted".to_string())
+            }))
+    }
+
     pub async fn create_checkout(
         &self,
         store_id: &str,
@@ -98,15 +156,15 @@ impl LemonSqueezyClient {
         });
 
         let url = format!("{}/checkouts", self.base_url);
-        let response = self
+        let request = self
             .client
             .post(&url)
             .header("Accept", "application/vnd.api+json")
             .header("Content-Type", "application/vnd.api+json")
             .bearer_auth(&self.api_key)
             .json(&payload)
-            .send()
-            .await?;
+            .build()?;
+        let response = self.send_with_retry(request).await?;
 
         let status = response.status();
         let body = response.text().await?;
@@ -132,7 +190,7 @@ impl LemonSqueezyClient {
         license_key: &str,
         instance_name: &str,
     ) -> Result<LicenseActivationResult, PaymentError> {
-        let response = self
+        let request = self
             .client
             .post(format!("{}/licenses/activate", self.base_url))
             .header("Accept", "application/json")
@@ -141,8 +199,8 @@ impl LemonSqueezyClient {
                 ("license_key", license_key.to_string()),
                 ("instance_name", instance_name.to_string()),
             ])
-            .send()
-            .await?;
+            .build()?;
+        let response = self.send_with_retry(request).await?;
 
         let status = response.status();
         let body = response.text().await?;
@@ -218,7 +276,7 @@ impl LemonSqueezyClient {
         license_key: &str,
         instance_id: &str,
     ) -> Result<LicenseDeactivationResult, PaymentError> {
-        let response = self
+        let request = self
             .client
             .post(format!("{}/licenses/deactivate", self.base_url))
             .header("Accept", "application/json")
@@ -227,8 +285,8 @@ impl LemonSqueezyClient {
                 ("license_key", license_key.to_string()),
                 ("instance_id", instance_id.to_string()),
             ])
-            .send()
-            .await?;
+            .build()?;
+        let response = self.send_with_retry(request).await?;
 
         let status = response.status();
         let body = response.text().await?;
@@ -269,14 +327,14 @@ impl LemonSqueezyClient {
         ];
 
         for query in query_variants {
-            let response = self
+            let request = self
                 .client
                 .get(format!("{}/orders", self.base_url))
                 .header("Accept", "application/vnd.api+json")
                 .bearer_auth(&self.api_key)
                 .query(&query)
-                .send()
-                .await?;
+                .build()?;
+            let response = self.send_with_retry(request).await?;
 
             let status = response.status();
             let body = response.text().await?;
@@ -310,14 +368,14 @@ impl LemonSqueezyClient {
         ];
 
         for query in query_variants {
-            let response = self
+            let request = self
                 .client
                 .get(format!("{}/orders", self.base_url))
                 .header("Accept", "application/vnd.api+json")
                 .bearer_auth(&self.api_key)
                 .query(&query)
-                .send()
-                .await?;
+                .build()?;
+            let response = self.send_with_retry(request).await?;
 
             let status = response.status();
             let body = response.text().await?;
@@ -348,9 +406,9 @@ fn as_i64(value: &Value) -> Option<i64> {
 }
 
 fn parse_order_summaries(parsed: &Value) -> Result<Vec<LemonOrderSummary>, PaymentError> {
-    let data = parsed["data"]
-        .as_array()
-        .ok_or_else(|| PaymentError::LemonSqueezyApi("Missing data array in orders response".to_string()))?;
+    let data = parsed["data"].as_array().ok_or_else(|| {
+        PaymentError::LemonSqueezyApi("Missing data array in orders response".to_string())
+    })?;
 
     let mut orders = Vec::with_capacity(data.len());
     for item in data {
