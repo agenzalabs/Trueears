@@ -65,7 +65,7 @@ winreg = "0.52"
 # WebView2 COM bindings (matches the version pulled in by wry) so we can
 # auto-grant the microphone permission request instead of showing a prompt
 # the click-through overlay window cannot answer.
-webview2-com = "0.38"
+webview2-com = "0.39"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gio = "0.18"
