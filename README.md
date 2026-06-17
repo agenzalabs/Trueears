@@ -1,22 +1,23 @@
-# Trueears
+# Trueears — Open-Source AI Voice Dictation for Windows & Linux
 
-A minimalist, context-aware AI voice dictation application built with Tauri, React, and Rust. Uses Groq's Whisper models for fast speech-to-text and LLM-powered post-processing to format your words intelligently based on the active application.
+**Trueears is a free, open-source, context-aware voice dictation app** that turns speech into formatted text anywhere on your desktop. It uses Groq's Whisper models for fast, accurate speech-to-text and LLM-powered post-processing to format your words intelligently based on the app you're writing in — a local-first alternative to dictation tools like Dragon, Wispr Flow, and Otter.
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
 [![CI](https://github.com/agenzalabs/Trueears/actions/workflows/ci.yml/badge.svg)](https://github.com/agenzalabs/Trueears/actions/workflows/ci.yml)
 [![Release](https://github.com/agenzalabs/Trueears/actions/workflows/release.yml/badge.svg)](https://github.com/agenzalabs/Trueears/actions/workflows/release.yml)
-[![GitHub release](https://img.shields.io/github/v/release/devv-shayan/Trueears)](https://github.com/agenzalabs/Trueears/releases/latest)
+[![GitHub release](https://img.shields.io/github/v/release/agenzalabs/Trueears)](https://github.com/agenzalabs/Trueears/releases/latest)
 [![Bundle Size](https://img.shields.io/badge/bundle-~15MB-green)](docs/guides/deployment.md)
 [![Tauri](https://img.shields.io/badge/tauri-2.x-blue)](https://tauri.app)
 
-> **[Contributing Guide](https://github.com/agenzalabs/Trueears/blob/main/CONTRIBUTING.md)** | **[Downloads](https://github.com/agenzalabs/Trueears/releases/)**
+> **[Website](https://www.trueearsai.com)** | **[Download](https://github.com/agenzalabs/Trueears/releases/latest)** | **[Contributing Guide](CONTRIBUTING.md)**
 
+**Keywords:** voice dictation · speech-to-text · dictation app · voice typing · open-source Dragon alternative · AI transcription · Whisper · Windows dictation · context-aware speech recognition
 
 ## Why Trueears Matters
 
-Most voice dictation software is closed-source, cloud-heavy, or unaware of where users are writing. Trueears is an open, local-first alternative designed for developers and knowledge workers who need fast, context-aware speech-to-text across desktop apps.
+Most voice dictation and speech-to-text software is closed-source, cloud-heavy, or unaware of *where* you are writing. Trueears is an open, local-first dictation app built for developers and knowledge workers who need fast, accurate, context-aware voice typing across every desktop application.
 
-Trueears detects the active application and applies profile-aware formatting directly in tools such as Cursor, Slack, Outlook, Notion, and Discord. This improves accessibility, multilingual writing, and day-to-day productivity without locking users into a proprietary editor.
+Trueears detects the active application and applies profile-aware formatting directly in tools such as Cursor, VS Code, Slack, Outlook, Notion, and Discord. This improves accessibility, multilingual writing, and day-to-day productivity without locking you into a proprietary editor — making it a practical open-source alternative to Dragon NaturallySpeaking, Wispr Flow, Otter, and Windows Voice Typing.
 
 ## Features
 
@@ -44,6 +45,17 @@ Press `Ctrl+Shift+S` to configure your Groq API key, then `Ctrl+Shift+K` to star
 Use the workspace root `.env` as the centralized config for frontend, backend, and payment-service.
 
 [Full Getting Started Guide](docs/guides/getting-started.md)
+
+## Trueears vs. Other Dictation Software
+
+| | Trueears | Dragon | Wispr Flow | Windows Voice Typing |
+|---|---|---|---|---|
+| **Open source** | ✅ AGPL-3.0 | ❌ | ❌ | ❌ |
+| **Free** | ✅ | ❌ | Freemium | ✅ |
+| **Context-aware formatting** | ✅ Per-app profiles | ❌ | Partial | ❌ |
+| **Local-first / privacy** | ✅ | ✅ | Cloud | Cloud |
+| **Lightweight** | ✅ ~15MB | ❌ | — | Built-in |
+| **Bring-your-own AI key** | ✅ Groq | ❌ | ❌ | ❌ |
 
 ## Keyboard Shortcuts
 
@@ -108,9 +120,29 @@ See [Architecture Overview](docs/architecture/overview.md) for detailed componen
 
 Download the latest release for your platform:
 
-**[Latest Release](https://github.com/devv-shayan/Trueears/releases/latest)**
+**[Latest Release](https://github.com/agenzalabs/Trueears/releases/latest)**
 
-Available for Windows and Linux. Check the [releases page](https://github.com/devv-shayan/Trueears/releases/latest) for platform-specific installers.
+Available for Windows and Linux. Check the [releases page](https://github.com/agenzalabs/Trueears/releases/latest) for platform-specific installers.
+
+## Frequently Asked Questions
+
+### What is Trueears?
+Trueears is a free, open-source AI voice dictation app for Windows and Linux. It converts speech to text anywhere on your desktop and automatically formats the result based on the app you're writing in.
+
+### Is Trueears a good open-source alternative to Dragon or Wispr Flow?
+Yes. Trueears is a free, local-first dictation tool that offers context-aware, per-app formatting — features typically locked behind paid, closed-source products like Dragon NaturallySpeaking and Wispr Flow.
+
+### How accurate is the speech-to-text?
+Trueears uses Groq's Whisper models, which deliver fast and accurate transcription across many languages, including multilingual dictation.
+
+### Is my voice data private?
+Trueears is local-first and uses your own Groq API key. Audio is sent only to the speech-to-text provider you configure — there is no proprietary cloud account in between.
+
+### What languages does Trueears support?
+Trueears supports multilingual dictation and per-app language overrides (for example, Spanish in WhatsApp and English in VS Code).
+
+### How do I start dictating?
+Install Trueears, press `Ctrl+Shift+S` to add your Groq API key, then press `Ctrl+Shift+K` to dictate into any application.
 
 ## Contributing
 
