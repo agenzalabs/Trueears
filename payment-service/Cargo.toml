@@ -19,7 +19,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
 # JWT validation (shared secret with auth-server)
-jsonwebtoken = "9"
+jsonwebtoken = "10"
 
 # HTTP client (LemonSqueezy API calls)
 reqwest = { version = "0.12", features = ["json"] }
