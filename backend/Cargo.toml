@@ -39,7 +39,7 @@ lnk = "0.5"
 
 # OAuth and authentication
 keyring = "3"                           # OS keychain for secure token storage
-reqwest = { version = "0.12", features = ["json"] }  # HTTP client for API calls
+reqwest = { version = "0.13", features = ["json"] }  # HTTP client for API calls
 tiny_http = "0.12"                      # Local server for OAuth callback
 url = "2.5"                             # URL parsing
 uuid = { version = "1.6", features = ["v4"] }  # Unique IDs
