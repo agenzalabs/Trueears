@@ -51,10 +51,16 @@ impl Config {
         } else {
             url
         };
-        let after_auth = after_scheme.rsplit_once('@').map_or(after_scheme, |(_, rest)| rest);
+        let after_auth = after_scheme
+            .rsplit_once('@')
+            .map_or(after_scheme, |(_, rest)| rest);
         let host_port = after_auth.split('/').next()?;
         let host = host_port.split(':').next()?;
-        if host.is_empty() { None } else { Some(host) }
+        if host.is_empty() {
+            None
+        } else {
+            Some(host)
+        }
     }
 
     fn choose_database_url() -> Option<String> {
@@ -91,19 +97,20 @@ impl Config {
     pub fn from_env() -> Result<Self, ConfigError> {
         let api_host = env::var("PAYMENT_API_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
 
-        let api_port = env::var("PAYMENT_API_PORT")
+        // Render (and most PaaS hosts) inject the listen port via $PORT. Prefer
+        // it, then the service-specific override, then the local default.
+        let api_port = env::var("PORT")
+            .or_else(|_| env::var("PAYMENT_API_PORT"))
             .unwrap_or_else(|_| "3002".to_string())
             .parse::<u16>()
             .map_err(|_| {
                 ConfigError::InvalidEnvVar(
-                    "PAYMENT_API_PORT must be a valid port number".to_string(),
+                    "PORT/PAYMENT_API_PORT must be a valid port number".to_string(),
                 )
             })?;
 
         let database_url = Self::choose_database_url().ok_or_else(|| {
-            ConfigError::MissingEnvVar(
-                "PAYMENT_DATABASE_URL (or shared DATABASE_URL)".to_string(),
-            )
+            ConfigError::MissingEnvVar("PAYMENT_DATABASE_URL (or shared DATABASE_URL)".to_string())
         })?;
 
         let payment_require_neon = env::var("PAYMENT_REQUIRE_NEON")

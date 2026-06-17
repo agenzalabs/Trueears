@@ -28,22 +28,19 @@ pub async fn auth_middleware(
             PaymentError::MissingAuthHeader
         })?;
 
-    let token = auth_header
-        .strip_prefix("Bearer ")
-        .ok_or_else(|| {
-            tracing::warn!("Invalid Authorization format on protected route");
-            PaymentError::Unauthorized
-        })?;
+    let token = auth_header.strip_prefix("Bearer ").ok_or_else(|| {
+        tracing::warn!("Invalid Authorization format on protected route");
+        PaymentError::Unauthorized
+    })?;
 
     let claims = validate_access_token(token, &state.config.jwt_secret).map_err(|e| {
         tracing::warn!(error = %e, "JWT validation failed in payment auth middleware");
         e
     })?;
-    let user_id = Uuid::parse_str(&claims.sub)
-        .map_err(|_| {
-            tracing::warn!("JWT sub claim is not a valid UUID");
-            PaymentError::InvalidToken("Invalid user ID in token".to_string())
-        })?;
+    let user_id = Uuid::parse_str(&claims.sub).map_err(|_| {
+        tracing::warn!("JWT sub claim is not a valid UUID");
+        PaymentError::InvalidToken("Invalid user ID in token".to_string())
+    })?;
 
     request.extensions_mut().insert(AuthenticatedUser {
         user_id,
