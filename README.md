@@ -33,7 +33,7 @@ Trueears detects the active application and applies profile-aware formatting dir
 ```bash
 # Prerequisites: Node.js 20.19+ (or 22.12+), Rust, Groq API Key
 
-git clone <repository-url>
+git clone https://github.com/agenzalabs/Trueears.git
 cd Trueears
 npm install
 cp .env.example .env
