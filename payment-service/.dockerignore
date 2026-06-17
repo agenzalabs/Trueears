@@ -1,0 +1,7 @@
+target/
+.env
+.env.*
+!.env.example
+*.log
+service.pid
+test-ui.html

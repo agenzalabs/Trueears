@@ -1,0 +1,44 @@
+# Render Blueprint for the Trueears payment-service.
+#
+# Usage: Render auto-detects render.yaml at the repository root. For this
+# monorepo, either (a) create a Web Service in the dashboard with Root
+# Directory = payment-service and Docker runtime, or (b) copy/symlink this file
+# to the repo root to drive a Blueprint. Secrets (sync: false) are set in the
+# Render dashboard, never committed.
+services:
+  - type: web
+    name: trueears-payment-service
+    runtime: docker
+    rootDir: payment-service
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    region: oregon
+    plan: starter
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      # Non-secret configuration
+      - key: IS_PRODUCTION
+        value: "true"
+      - key: PAYMENT_REQUIRE_NEON
+        value: "true"
+      - key: LEMONSQUEEZY_TEST_MODE
+        value: "true" # flip to "false" for live charges
+      - key: PAYMENT_ALLOWED_ORIGINS
+        value: "tauri://localhost,http://localhost:1420,http://127.0.0.1:1420"
+      # Secrets — set these in the Render dashboard
+      - key: PAYMENT_DATABASE_URL
+        sync: false
+      - key: LEMONSQUEEZY_API_KEY
+        sync: false
+      - key: LEMONSQUEEZY_STORE_ID
+        sync: false
+      - key: LEMONSQUEEZY_WEBHOOK_SECRET
+        sync: false
+      - key: LEMONSQUEEZY_VARIANT_ID_BASIC
+        sync: false
+      - key: LEMONSQUEEZY_VARIANT_ID_PRO
+        sync: false
+      - key: JWT_SECRET # MUST byte-match the auth-server's JWT_SECRET
+        sync: false
