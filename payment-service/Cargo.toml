@@ -8,7 +8,7 @@ description = "Payment & subscription service for Trueears (LemonSqueezy)"
 # Web framework
 axum = { version = "0.7", features = ["macros"] }
 tokio = { version = "1", features = ["full"] }
-tower = "0.4"
+tower = "0.5"
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 
 # Database
