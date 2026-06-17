@@ -12,15 +12,18 @@ Standalone payment and subscription service for Trueears, built with Axum (Rust)
 
 ## Features
 
-- ✅ Checkout session creation
-- ✅ Webhook signature verification (HMAC-SHA256)
-- ✅ Subscription lifecycle management (create, update, cancel, pause, resume)
+- ✅ Checkout session creation (one-time license purchases)
+- ✅ Webhook signature verification (HMAC-SHA256, timing-safe)
+- ✅ License key activation / deactivation (per-device, via LemonSqueezy Licensing)
 - ✅ Order tracking and refund handling
 - ✅ JWT authentication (shared secret with auth-server)
-- ✅ Customer portal integration
 - ✅ Test mode support
 - ✅ Idempotent webhook processing
 - ✅ Full audit trail
+
+> **Product model:** Trueears sells **one-time license keys**, not recurring
+> subscriptions. The `subscriptions` table exists in the schema for historical
+> reasons but is unused; there are no subscription endpoints or webhook handlers.
 
 ## Prerequisites
 
@@ -90,14 +93,11 @@ curl http://localhost:3002/health
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/checkout` | POST | Create checkout session |
-| `/api/subscriptions/me` | GET | Get current user's subscription |
-| `/api/subscriptions/me/cancel` | POST | Cancel subscription |
-| `/api/subscriptions/me/pause` | POST | Pause subscription |
-| `/api/subscriptions/me/resume` | POST | Resume subscription |
-| `/api/subscriptions/me/change-plan` | POST | Upgrade/downgrade plan |
-| `/api/subscriptions/me/portal` | GET | Get customer portal URL |
-| `/api/plans` | GET | List available plans |
+| `/api/checkout` | POST | Create a checkout session for a license variant |
+| `/api/license/status` | GET | Resolve the current user's license entitlement |
+| `/api/license/activate` | POST | Activate a license key on this device |
+| `/api/license/deactivate` | POST | Deactivate a license key instance |
+| `/api/orders/me` | GET | List the current user's orders |
 
 ## LemonSqueezy Setup
 
@@ -198,39 +198,43 @@ Set `LEMONSQUEEZY_TEST_MODE=true` in `.env` to use LemonSqueezy's test mode. Thi
 
 ## Deployment
 
-### Docker
+Deployed to **Render** as a Docker web service. The repo ships a multi-stage
+[`Dockerfile`](./Dockerfile) and a [`render.yaml`](./render.yaml) Blueprint.
 
-```dockerfile
-FROM rust:1.77-slim AS builder
-WORKDIR /app
-COPY . .
-RUN cargo build --release
+### Render
 
-FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /app/target/release/payment-service /usr/local/bin/
-EXPOSE 3002
-CMD ["payment-service"]
-```
+1. In the Render dashboard, create a **Web Service** from this repo with
+   **Root Directory** = `payment-service` and **Runtime** = Docker (or apply the
+   `render.yaml` Blueprint).
+2. Set the secret env vars (marked `sync: false` in `render.yaml`):
+   `PAYMENT_DATABASE_URL`, `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`,
+   `LEMONSQUEEZY_WEBHOOK_SECRET`, `LEMONSQUEEZY_VARIANT_ID_BASIC`,
+   `LEMONSQUEEZY_VARIANT_ID_PRO`, and `JWT_SECRET`.
+   > `JWT_SECRET` **must byte-match the auth-server's** or every authed request
+   > returns 401. The startup log prints a secret fingerprint to confirm parity.
+3. Health check path is `/health`; `/ready` additionally verifies the database.
+4. Render injects `$PORT`; the service binds it automatically (host is forced to
+   `0.0.0.0` in the container).
+5. Auto-deploy on push to `main` is enabled in the Blueprint.
 
-Build and run:
+### Local Docker
 
 ```bash
-docker build -t payment-service .
-docker run -p 3002:3002 --env-file .env payment-service
+docker build -t payment-service ./payment-service
+docker run -p 3002:3002 --env-file payment-service/.env payment-service
+curl localhost:3002/health   # -> OK
+curl -i localhost:3002/ready # -> 200 when the DB is reachable
 ```
 
 ### Production Checklist
 
 - [ ] Set `IS_PRODUCTION=true`
-- [ ] Set `LEMONSQUEEZY_TEST_MODE=false`
+- [ ] Set `LEMONSQUEEZY_TEST_MODE=false` (when ready for live charges)
 - [ ] Use production LemonSqueezy API key
-- [ ] Configure CORS to restrict to app domain
-- [ ] Set up HTTPS/TLS termination (load balancer or reverse proxy)
-- [ ] Configure database connection pooling
-- [ ] Set up monitoring and alerting
-- [ ] Configure log aggregation
-- [ ] Set up database backups
+- [ ] Set `PAYMENT_ALLOWED_ORIGINS` to the desktop app origins
+- [ ] Point the LemonSqueezy webhook at `https://<render-url>/webhooks/lemonsqueezy`
+- [ ] Confirm `JWT_SECRET` matches the auth-server
+- [ ] Set up monitoring/alerting and database backups (Neon)
 - [ ] Document secrets rotation procedure
 
 ## Microservice Extraction

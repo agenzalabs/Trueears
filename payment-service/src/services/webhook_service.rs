@@ -150,14 +150,32 @@ pub async fn process_webhook_event(
             Ok(outcome)
         }
         Err(err) => {
-            tracing::error!(
-                event_name = %event_name,
-                event_id = ?event_id,
-                error = %err,
-                "Webhook event failed"
-            );
             let _ = WebhookEvent::mark_failed(pool, event_record.id, &err.to_string()).await;
-            Err(err)
+            match err {
+                // Permanent: the event can never be mapped to an order/user (bad
+                // or missing data). Ack with 200 so LemonSqueezy stops retrying;
+                // the failure is recorded in webhook_events for forensics.
+                PaymentError::WebhookProcessingFailed(msg) => {
+                    tracing::warn!(
+                        event_name = %event_name,
+                        event_id = ?event_id,
+                        error = %msg,
+                        "Webhook permanently unprocessable; acking to stop retries"
+                    );
+                    Ok(WebhookOutcome::Ignored)
+                }
+                // Transient (e.g. database error): return an error so the 5xx
+                // prompts LemonSqueezy to redeliver.
+                other => {
+                    tracing::error!(
+                        event_name = %event_name,
+                        event_id = ?event_id,
+                        error = %other,
+                        "Webhook event failed (transient); will be retried"
+                    );
+                    Err(other)
+                }
+            }
         }
     }
 }
@@ -316,33 +334,47 @@ async fn handle_license_key_event(
     Ok(WebhookOutcome::Processed)
 }
 
+/// Resolve an order's status from its cumulative refunded amount.
+///
+/// LemonSqueezy reports `refunded_amount` as the running total refunded against
+/// the order, so a fully-refunded order has `refunded >= total`.
+fn refund_status(refunded_total: i64, total: i64) -> &'static str {
+    if total > 0 && refunded_total >= total {
+        "refunded"
+    } else {
+        "partial_refund"
+    }
+}
+
 async fn handle_order_refunded(
     pool: &sqlx::PgPool,
     payload: &Value,
 ) -> Result<WebhookOutcome, PaymentError> {
+    // For an `order_refunded` event the data object IS the order, so its id is
+    // the order id and `refunded_amount` is the cumulative total refunded.
     let order_id = get_i64(payload, "/data/attributes/order_id")
         .or_else(|| get_i64(payload, "/data/id"))
         .ok_or_else(|| {
             PaymentError::WebhookProcessingFailed("Missing order ID for refund".to_string())
         })?;
-    let refunded = get_i64(payload, "/data/attributes/refund_amount")
-        .or_else(|| get_i64(payload, "/data/attributes/refunded_amount"))
-        .unwrap_or(0);
+    let refunded_total = get_i64(payload, "/data/attributes/refunded_amount").unwrap_or(0);
+    let total = get_i64(payload, "/data/attributes/total").unwrap_or(0);
+    let status = refund_status(refunded_total, total);
 
+    // SET (not add) the cumulative amount so repeated partial refunds don't
+    // double-count, and derive the status from the cumulative total.
     let updated = sqlx::query(
         r#"
         UPDATE orders
-        SET refunded_amount = COALESCE(refunded_amount, 0) + $2,
-            status = CASE
-                WHEN (COALESCE(refunded_amount, 0) + $2) >= total THEN 'refunded'::order_status
-                ELSE 'partial_refund'::order_status
-            END,
+        SET refunded_amount = $2,
+            status = $3::order_status,
             updated_at = NOW()
         WHERE ls_order_id = $1
         "#,
     )
     .bind(order_id)
-    .bind(refunded)
+    .bind(refunded_total)
+    .bind(status)
     .execute(pool)
     .await?
     .rows_affected();
@@ -378,5 +410,26 @@ mod tests {
         let body = br#"{"meta":{"event_name":"order_created"}}"#;
         let result = verify_webhook_signature(secret, body, "bad-signature");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn refund_status_tracks_cumulative_total() {
+        let order_total = 1000;
+
+        // First partial refund: cumulative 300 of 1000 -> partial.
+        assert_eq!(refund_status(300, order_total), "partial_refund");
+        // Second partial refund: LemonSqueezy sends the running total (700),
+        // not a 400 delta. Must still be partial, not double-counted past total.
+        assert_eq!(refund_status(700, order_total), "partial_refund");
+        // Final refund completing the order: cumulative equals total -> refunded.
+        assert_eq!(refund_status(1000, order_total), "refunded");
+        // Over-refund (e.g. fees) still resolves to refunded.
+        assert_eq!(refund_status(1200, order_total), "refunded");
+    }
+
+    #[test]
+    fn refund_status_handles_missing_total() {
+        // A missing/zero payload total must not be treated as fully refunded.
+        assert_eq!(refund_status(500, 0), "partial_refund");
     }
 }

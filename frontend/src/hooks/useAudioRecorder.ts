@@ -20,6 +20,35 @@ const MEDIA_RECORDER_MIME_CANDIDATES = [
   'audio/mp4',
 ];
 const IS_LINUX = navigator.userAgent.toLowerCase().includes('linux');
+const IS_WINDOWS = navigator.userAgent.toLowerCase().includes('windows');
+
+// Translate raw getUserMedia failures into actionable messages. The WebView
+// permission prompt is auto-granted in the Rust layer, so a denial here means
+// the OS-level microphone privacy setting is blocking access (which the app
+// cannot override programmatically).
+const mapMicrophoneError = (err: unknown): Error => {
+  if (!(err instanceof DOMException)) {
+    return err instanceof Error ? err : new Error(String(err));
+  }
+
+  switch (err.name) {
+    case 'NotAllowedError':
+    case 'SecurityError':
+      return new Error(
+        IS_WINDOWS
+          ? 'Microphone access is blocked. Open Windows Settings → Privacy & security → Microphone and enable access for desktop apps, then try again.'
+          : 'Microphone access is blocked. Allow microphone access in your system settings, then try again.'
+      );
+    case 'NotFoundError':
+    case 'DevicesNotFoundError':
+      return new Error('No microphone was found. Connect a microphone and try again.');
+    case 'NotReadableError':
+    case 'TrackStartError':
+      return new Error('The microphone is in use by another app. Close it and try again.');
+    default:
+      return new Error(`Microphone error: ${err.message || err.name}`);
+  }
+};
 
 export const useAudioRecorder = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -200,7 +229,7 @@ export const useAudioRecorder = () => {
       await startWavRecorder(stream);
     } catch (err) {
       console.error("[useAudioRecorder] Microphone error:", err);
-      throw err;
+      throw mapMicrophoneError(err);
     }
   };
 

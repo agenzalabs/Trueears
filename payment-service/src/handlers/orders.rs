@@ -2,8 +2,8 @@ use axum::{extract::State, Extension, Json};
 use serde::Serialize;
 
 use crate::{
-    errors::PaymentError, middleware::AuthenticatedUser, services::order_sync_service::sync_orders_for_user,
-    AppState,
+    errors::PaymentError, middleware::AuthenticatedUser,
+    services::order_sync_service::sync_orders_for_user, AppState,
 };
 
 #[derive(Debug, Serialize)]
@@ -42,24 +42,17 @@ pub async fn get_my_orders(
     let orders = rows
         .into_iter()
         .map(
-            |(
-                id,
-                status,
-                total,
-                currency,
-                license_key,
-                variant_id,
-                license_status,
-                created_at,
-            )| OrderDto {
-                id: id.to_string(),
-                status,
-                total,
-                currency,
-                license_key,
-                variant_id: variant_id.map(|v| v.to_string()),
-                license_status,
-                created_at,
+            |(id, status, total, currency, license_key, variant_id, license_status, created_at)| {
+                OrderDto {
+                    id: id.to_string(),
+                    status,
+                    total,
+                    currency,
+                    license_key,
+                    variant_id: variant_id.map(|v| v.to_string()),
+                    license_status,
+                    created_at,
+                }
             },
         )
         .collect::<Vec<_>>();

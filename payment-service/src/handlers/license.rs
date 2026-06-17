@@ -2,7 +2,8 @@ use axum::{extract::State, Extension, Json};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    errors::PaymentError, middleware::AuthenticatedUser,
+    errors::PaymentError,
+    middleware::AuthenticatedUser,
     services::{lemonsqueezy_client::LemonSqueezyClient, order_sync_service::sync_orders_for_user},
     AppState,
 };
