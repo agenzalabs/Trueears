@@ -23,6 +23,12 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+      # The @tauri-apps npm packages must stay on the same major.minor as the
+      # Rust `tauri` crate (2.9.x) or the Tauri CLI aborts the build with a
+      # "version mismatched Tauri packages" error. Upgrade them together with
+      # the Rust crate, deliberately — not via a drive-by minor bump.
+      - dependency-name: "@tauri-apps/api"
+      - dependency-name: "@tauri-apps/cli"
 
   # --- Tauri backend (cargo) ---
   - package-ecosystem: "cargo"
