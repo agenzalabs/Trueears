@@ -1,10 +1,12 @@
 version: 2
 
-# Grouping strategy:
+# Strategy:
 # - patch + minor updates are grouped into a single PR per ecosystem/directory
 #   to cut routine churn (one PR instead of a dozen).
-# - major updates stay ungrouped so each lands as its own reviewable PR — they
-#   often carry breaking changes and deserve individual scrutiny.
+# - MAJOR updates are ignored. They carry breaking changes (especially for the
+#   payment-service and auth-server crates) and must be upgraded deliberately,
+#   with testing, when we choose to — not auto-raised one PR at a time. Bump a
+#   major manually and remove its ignore entry if/when we adopt it.
 updates:
   # --- Frontend (npm, repo root) ---
   - package-ecosystem: "npm"
@@ -18,6 +20,9 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   # --- Tauri backend (cargo) ---
   - package-ecosystem: "cargo"
@@ -31,6 +36,17 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+      # Tauri's runtime crates must stay in lockstep with the pinned `tauri`
+      # version — bumping them independently breaks the build (trait mismatch
+      # against tauri 2.9.x). They update when `tauri` itself is bumped.
+      # webview2-com is coupled too (must match the version wry pulls in).
+      - dependency-name: "wry"
+      - dependency-name: "tauri-runtime"
+      - dependency-name: "tauri-runtime-wry"
+      - dependency-name: "webview2-com"
 
   # --- Payment service (cargo) ---
   - package-ecosystem: "cargo"
@@ -44,6 +60,9 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   # --- Auth server (cargo) ---
   - package-ecosystem: "cargo"
@@ -57,3 +76,6 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
