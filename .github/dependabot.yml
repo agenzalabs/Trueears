@@ -57,6 +57,12 @@ updates:
       - dependency-name: "tauri-runtime"
       - dependency-name: "tauri-runtime-wry"
       - dependency-name: "webview2-com"
+      # The tauri-plugin-* crates and webkit2gtk are part of the same stack:
+      # bumping a plugin minor transitively drags tauri-runtime-wry ahead of the
+      # pinned tauri 2.9, which breaks the build (missing `eval_script_with_callback`).
+      # Freeze them too; they move with the deliberate Tauri upgrade.
+      - dependency-name: "tauri-plugin-*"
+      - dependency-name: "webkit2gtk"
 
   # --- Payment service (cargo) ---
   - package-ecosystem: "cargo"
