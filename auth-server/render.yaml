@@ -1,0 +1,32 @@
+# Render Blueprint for the Trueears auth-server.
+#
+# Usage: Create a Web Service in the Render dashboard with:
+#   - Root Directory: auth-server
+#   - Runtime: Docker
+# Or place this file at the repo root to use Blueprint deploy.
+services:
+  - type: web
+    name: trueears-auth-server
+    runtime: docker
+    rootDir: auth-server
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    region: oregon
+    plan: starter
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: RUST_ENV
+        value: "production"
+      - key: OAUTH_REDIRECT_URI
+        value: "http://localhost:8585/callback"
+      # Secrets — set these in the Render dashboard
+      - key: DATABASE_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: JWT_SECRET  # MUST byte-match the payment-service's JWT_SECRET
+        sync: false
