@@ -1,11 +1,10 @@
 # ── Build stage ──────────────────────────────────────────────────────────────
-FROM rust:1.78-slim AS builder
+FROM rust:1.88-slim AS builder
 
 # System deps for sqlx (native-tls) and linking
-RUN apt-get update && apt-get install -y \
-    pkg-config \
-    libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update -o Acquire::Check-Valid-Until=false -o Acquire::Check-Date=false && \
+    apt-get install -y pkg-config libssl-dev && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
