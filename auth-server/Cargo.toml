@@ -3,6 +3,7 @@ name = "auth-server"
 version = "0.1.0"
 edition = "2021"
 description = "Authentication API server for Trueears"
+default-run = "auth-server"
 
 [[bin]]
 name = "auth-vercel"
