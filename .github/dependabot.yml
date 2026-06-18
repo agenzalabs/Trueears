@@ -45,10 +45,14 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
-      # Tauri's runtime crates must stay in lockstep with the pinned `tauri`
-      # version — bumping them independently breaks the build (trait mismatch
-      # against tauri 2.9.x). They update when `tauri` itself is bumped.
-      # webview2-com is coupled too (must match the version wry pulls in).
+      # The whole Tauri stack must move together, deliberately. Pin the Rust
+      # `tauri`/`tauri-build` crates to 2.9.x so a minor bump can't push them
+      # ahead of the npm @tauri-apps packages (which are frozen at 2.9 in the
+      # npm block) — that mismatch aborts the build. The runtime crates
+      # (wry/tauri-runtime/tauri-runtime-wry) and webview2-com are coupled too
+      # and resolve from whatever `tauri` requires. Upgrade as one unit.
+      - dependency-name: "tauri"
+      - dependency-name: "tauri-build"
       - dependency-name: "wry"
       - dependency-name: "tauri-runtime"
       - dependency-name: "tauri-runtime-wry"
