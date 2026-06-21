@@ -1,0 +1,46 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit configuration — https://docs.coderabbit.ai/getting-started/yaml-configuration
+language: "en-US"
+early_access: false
+
+reviews:
+  # "chill" = focused, lower-noise feedback. Switch to "assertive" for more thorough nitpicks.
+  profile: "chill"
+  # Post review comments without forcing a GitHub "Request changes" that blocks merge.
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+
+  auto_review:
+    enabled: true
+    # Re-review automatically as new commits are pushed to an open PR.
+    auto_incremental_review: true
+    # Don't review draft PRs until they're marked ready.
+    drafts: false
+    # Auto-review PRs targeting these branches (in addition to the default branch).
+    base_branches:
+      - "main"
+      - "dev"
+      - "release/.*"
+    # Skip work-in-progress PRs by title.
+    ignore_title_keywords:
+      - "WIP"
+      - "[skip review]"
+    # Don't auto-review bot-authored dependency PRs.
+    ignore_usernames:
+      - "dependabot[bot]"
+      - "renovate[bot]"
+
+  # Keep generated, vendored, and bookkeeping files out of reviews.
+  path_filters:
+    - "!**/Cargo.lock"
+    - "!**/package-lock.json"
+    - "!**/dist/**"
+    - "!**/target/**"
+    - "!history/**"
+    - "!.specify/**"
+
+chat:
+  auto_reply: true
