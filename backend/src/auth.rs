@@ -14,6 +14,17 @@ use tauri::{Emitter, Manager};
 // File storage for auth data (more reliable than keyring on Windows)
 const AUTH_FILE_NAME: &str = "auth.json";
 
+/// Public Google OAuth client ID for the desktop (installed) app.
+///
+/// Per Google's OAuth 2.0 for installed apps, the client ID is **not** a secret:
+/// it is embedded in the authorization URL and visible to every user. Only the
+/// client *secret* is confidential, and that lives exclusively on the auth-server
+/// (Render). Baking this default in guarantees released installers can start the
+/// sign-in flow without any local `.env` file. A `GOOGLE_CLIENT_ID` env var or
+/// compile-time override still takes precedence when present.
+const DEFAULT_GOOGLE_CLIENT_ID: &str =
+    "562329723534-lac3sahdmq06lukc3dn7in8jbih1aabb.apps.googleusercontent.com";
+
 /// User info stored in auth file
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserInfo {
@@ -69,17 +80,15 @@ impl OAuthConfig {
                 // silently misses a key in the current runtime context.
                 find_env_value(&discovered, "GOOGLE_CLIENT_ID")
             })
-            .ok_or_else(|| {
-                let searched = discovered
-                    .iter()
-                    .map(|p| p.to_string_lossy().into_owned())
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                format!(
-                    "Missing GOOGLE_CLIENT_ID environment variable. Checked env paths: {}",
-                    searched
-                )
-            })?;
+            .or_else(|| {
+                // Compile-time override baked into the binary (e.g. CI release builds).
+                option_env!("GOOGLE_CLIENT_ID")
+                    .map(str::to_string)
+                    .filter(|value| !value.trim().is_empty())
+            })
+            // Final fallback: the public installed-app client ID. Ensures shipped
+            // installers work without any local configuration.
+            .unwrap_or_else(|| DEFAULT_GOOGLE_CLIENT_ID.to_string());
 
         // Ensure downstream code can rely on the process env key.
         std::env::set_var("GOOGLE_CLIENT_ID", &google_client_id);
