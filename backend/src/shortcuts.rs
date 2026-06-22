@@ -131,17 +131,24 @@ pub fn handle_recording_shortcut_pressed(app_handle: &AppHandle) {
     } else {
         get_active_window_info()
     };
-    let is_in_settings = window_info
-        .as_ref()
-        .map(|info| info.window_title.contains("Trueears Settings"))
-        .unwrap_or(false);
+    // The tutorial step renames the settings window (e.g. "Tutorial - Slack") so the
+    // recorder can detect tutorial mode, so the plain title check no longer matches.
+    // Treat tutorial mode as being inside our settings window as well.
+    let is_in_settings = in_tutorial
+        || window_info
+            .as_ref()
+            .map(|info| info.window_title.contains("Trueears Settings"))
+            .unwrap_or(false);
 
     if let Some(settings_window) = app_handle.get_webview_window("settings") {
-        if !is_in_settings {
+        // Only ever auto-close the settings window once onboarding is complete. During
+        // onboarding (including the dictation tutorial) the whole flow lives in this
+        // window, so closing it would drop the user back to the start of onboarding.
+        if !is_in_settings && onboarding_complete {
             log::info!("Closing settings window - user is in another app");
             let _ = settings_window.close();
         } else {
-            log::info!("Keeping settings window open - user is dictating into it");
+            log::info!("Keeping settings window open - user is dictating into it or onboarding");
         }
     }
 

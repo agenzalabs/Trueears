@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { tauriAPI } from '../../utils/tauriApi';
 
 interface StepProps {
@@ -58,6 +58,21 @@ export const StepTrigger: React.FC<StepProps> & { Visual: React.FC<TriggerVisual
     setActiveKeys(new Set());
     setSuccess(false);
   }, [setActiveKeys, setSuccess]);
+
+  // Keep a live ref to onNext so the auto-advance effect can depend only on `success`
+  // (avoids re-running/cancelling the timer when the parent re-renders onNext).
+  const onNextRef = useRef(onNext);
+  useEffect(() => {
+    onNextRef.current = onNext;
+  });
+
+  // Auto-advance to the next step once the shortcut has been detected, so the user
+  // doesn't have to also click Continue. The short delay lets the green key animation play.
+  useEffect(() => {
+    if (!success) return;
+    const timeout = setTimeout(() => onNextRef.current(), 700);
+    return () => clearTimeout(timeout);
+  }, [success]);
 
   useEffect(() => {
     tauriAPI.setOnboardingTriggerActive(true);
