@@ -373,6 +373,14 @@ export const RecorderOverlay: React.FC = () => {
       // Enable mouse events for setup screen
       tauriAPI.setIgnoreMouseEvents(false);
       await ensureOverlayWindowVisible();
+      // The overlay window is created with focus:false so it never steals focus from
+      // the user's text field during normal dictation. The setup prompt, however, needs
+      // real keyboard focus so the user can type AND paste their API key into it.
+      try {
+        await getCurrentWindow().setFocus();
+      } catch (e) {
+        console.error('[RecorderOverlay] Failed to focus window for setup:', e);
+      }
       return;
     }
 
