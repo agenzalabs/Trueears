@@ -1,9 +1,40 @@
 import React, { useState, useEffect } from 'react';
+import { openUrl as pluginOpenUrl } from '@tauri-apps/plugin-opener';
 
 interface StepProps {
   onNext: () => void;
   onPrev?: () => void;
 }
+
+interface MicSettingsTarget {
+  uri: string | null;
+  steps: string;
+}
+
+// Once the OS-level mic permission is denied it won't re-prompt, so point the user
+// at the right settings panel to re-enable it.
+const getMicSettings = (): MicSettingsTarget => {
+  const ua = navigator.userAgent.toLowerCase();
+  if (ua.includes('windows')) {
+    return {
+      uri: 'ms-settings:privacy-microphone',
+      steps:
+        'Open Windows Settings → Privacy & security → Microphone, turn on "Microphone access" and "Let desktop apps access your microphone", then click Try Again.',
+    };
+  }
+  if (ua.includes('mac os') || ua.includes('macintosh')) {
+    return {
+      uri: 'x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone',
+      steps:
+        'Open System Settings → Privacy & Security → Microphone, enable Trueears, then restart Trueears and click Try Again.',
+    };
+  }
+  return {
+    uri: null,
+    steps:
+      'Enable microphone access for Trueears in your system settings (and ensure PipeWire and xdg-desktop-portal are running), then click Try Again.',
+  };
+};
 
 const PermissionsVisual: React.FC = () => {
   return (
@@ -33,6 +64,8 @@ export const StepPermissions: React.FC<StepProps> & { Visual: React.FC } = ({ on
   const [granted, setGranted] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [blocked, setBlocked] = useState(false);
+  const micSettings = getMicSettings();
 
   useEffect(() => {
     let cancelled = false;
@@ -56,6 +89,10 @@ export const StepPermissions: React.FC<StepProps> & { Visual: React.FC } = ({ on
               setGranted(true);
               setErrorMessage(null);
               return;
+            }
+            if (!cancelled && result.state === 'denied') {
+              // Already denied: the prompt won't reappear, so surface recovery up front.
+              setBlocked(true);
             }
           } catch {
             // Ignore and continue with enumerate fallback.
@@ -94,6 +131,7 @@ export const StepPermissions: React.FC<StepProps> & { Visual: React.FC } = ({ on
       // Stop tracks immediately - we just needed the permission
       stream.getTracks().forEach(track => track.stop());
       setGranted(true);
+      setBlocked(false);
       setErrorMessage(null);
     } catch (err) {
       // User denied or error occurred - stay on this step
@@ -101,6 +139,7 @@ export const StepPermissions: React.FC<StepProps> & { Visual: React.FC } = ({ on
       let message = 'Could not access microphone. Please allow access and try again.';
       if (err instanceof DOMException) {
         if (err.name === 'NotAllowedError') {
+          setBlocked(true);
           message =
             'Microphone access was blocked. Click Allow in the permission prompt, then try again.';
         } else if (err.name === 'NotFoundError') {
@@ -121,6 +160,17 @@ export const StepPermissions: React.FC<StepProps> & { Visual: React.FC } = ({ on
       setErrorMessage(message);
     } finally {
       setVerifying(false);
+    }
+  };
+
+  const handleOpenMicSettings = async () => {
+    if (!micSettings.uri) return;
+    try {
+      // Best-effort deep-link into the OS settings panel; instructions remain visible
+      // as a fallback if the scheme isn't permitted in this build.
+      await pluginOpenUrl(micSettings.uri);
+    } catch (err) {
+      console.error('[StepPermissions] Failed to open microphone settings:', err);
     }
   };
 
@@ -151,10 +201,26 @@ export const StepPermissions: React.FC<StepProps> & { Visual: React.FC } = ({ on
                 disabled={verifying}
                 className="text-[11px] font-bold bg-white text-gray-900 border border-gray-200 px-3 py-1.5 rounded hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {verifying ? 'Requesting...' : 'Allow Microphone'}
+                {verifying ? 'Requesting...' : blocked ? 'Try Again' : 'Allow Microphone'}
               </button>
             )}
-            {!granted && errorMessage && (
+            {!granted && blocked && (
+              <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 space-y-2">
+                <p className="text-[11px] text-rose-700 leading-relaxed">
+                  Microphone access is blocked, so the system won't show the prompt
+                  again. {micSettings.steps}
+                </p>
+                {micSettings.uri && (
+                  <button
+                    onClick={handleOpenMicSettings}
+                    className="text-[11px] font-bold text-rose-700 underline hover:text-rose-900 cursor-pointer"
+                  >
+                    Open microphone settings ↗
+                  </button>
+                )}
+              </div>
+            )}
+            {!granted && !blocked && errorMessage && (
               <p className="mt-2 text-[11px] text-rose-600 leading-relaxed">{errorMessage}</p>
             )}
           </div>
