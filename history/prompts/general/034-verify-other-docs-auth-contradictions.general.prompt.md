@@ -1,5 +1,5 @@
 ---
-id: 031
+id: 034
 title: Verify Other Docs Auth Contradictions
 stage: general
 date: 2026-06-23
@@ -45,7 +45,7 @@ Verified-correct (no change): docs/guides/getting-started.md, docs/guides/deploy
 - ✅ Impact: All auth/storage statements across docs now match the code; removed keychain/keyring myths and a stale troubleshooting entry.
 - 🧪 Tests: none (docs only).
 - 📁 Files: ARCHITECTURE.md, reference/tauri-commands.md, DEVELOPMENT.md, troubleshooting/faq.md.
-- 🔁 Next prompts: optional commit of docs changes (029-031 PHRs + 6 doc files); implement the two known auth gaps.
+- 🔁 Next prompts: optional commit of docs changes (032-034 PHRs + 6 doc files); implement the two known auth gaps.
 - 🧠 Reflection: faq.md API-key claim was the most dangerous (security over-promise); store plugin is plaintext, not OS keychain.
 
 ## Evaluation notes (flywheel)

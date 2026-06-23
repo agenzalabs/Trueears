@@ -407,6 +407,25 @@ pub async fn start_google_oauth<R: tauri::Runtime>(
 
     log::info!("OAuth URL: {}", oauth_url);
 
+    // Pre-warm the auth-server (and its database) while the user is on Google's
+    // consent screen, so the token exchange afterwards hits a hot server instead
+    // of a cold one (the usual cause of "first sign-in fails, retry works").
+    // Best-effort: failures are logged and ignored.
+    let warm_api_url = config.api_url.clone();
+    tauri::async_runtime::spawn(async move {
+        let url = format!("{}/ready", warm_api_url.trim_end_matches('/'));
+        match reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+        {
+            Ok(client) => match client.get(&url).send().await {
+                Ok(resp) => log::info!("Auth-server warmup {} -> {}", url, resp.status()),
+                Err(e) => log::warn!("Auth-server warmup request failed: {}", e),
+            },
+            Err(e) => log::warn!("Failed to build warmup HTTP client: {}", e),
+        }
+    });
+
     // Start local callback server in a separate thread
     let app_clone = app.clone();
     let config_clone = config.clone();
@@ -689,9 +708,16 @@ fn extract_code_from_url(url: &str) -> Option<String> {
     None
 }
 
-/// Exchange authorization code for tokens via API server
+/// Exchange authorization code for tokens via API server.
+///
+/// Transient failures (cold serverless start, network errors, 5xx) are retried
+/// with backoff on every build. Non-transient failures (e.g. a 4xx for an
+/// already-used code) return immediately, since retrying the same code is futile.
 async fn exchange_code_for_tokens(api_url: &str, code: &str) -> Result<AuthResponse, AppError> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
 
     #[derive(Serialize)]
     struct CodeRequest {
@@ -711,73 +737,149 @@ async fn exchange_code_for_tokens(api_url: &str, code: &str) -> Result<AuthRespo
         }
     }
 
+    const MAX_ATTEMPTS: u32 = 3;
     let mut last_error = String::from("Authentication request failed");
 
     for (idx, endpoint) in endpoints.iter().enumerate() {
-        log::info!(
-            "Exchanging code with API server at: {}/auth/google",
+        let is_last_endpoint = idx + 1 >= endpoints.len();
+
+        for attempt in 1..=MAX_ATTEMPTS {
+            log::info!(
+                "Exchanging code with API server at {}/auth/google (attempt {}/{})",
+                endpoint,
+                attempt,
+                MAX_ATTEMPTS
+            );
+
+            match client
+                .post(format!("{}/auth/google", endpoint))
+                .json(&request_body)
+                .send()
+                .await
+            {
+                Ok(response) => {
+                    let status = response.status();
+                    log::info!("Response status from {}: {}", endpoint, status);
+
+                    if status.is_success() {
+                        let auth_response =
+                            response.json::<AuthResponse>().await.map_err(|e| {
+                                log::error!("Failed to parse response from {}: {}", endpoint, e);
+                                format!("Failed to parse response from {}: {}", endpoint, e)
+                            })?;
+
+                        log::info!(
+                            "Successfully got auth response for user: {}",
+                            auth_response.user.email
+                        );
+                        return Ok(auth_response);
+                    }
+
+                    let error_text = response.text().await.unwrap_or_default();
+                    last_error =
+                        format!("Authentication failed via {}: {}", endpoint, error_text);
+                    log::error!("{}", last_error);
+
+                    let retryable = status.is_server_error()
+                        || error_text.contains("FUNCTION_INVOCATION_FAILED");
+
+                    if !retryable {
+                        // 4xx etc.: the code is likely consumed/invalid; don't retry.
+                        return Err(last_error.into());
+                    }
+
+                    if attempt < MAX_ATTEMPTS {
+                        let backoff = std::time::Duration::from_millis(750 * attempt as u64);
+                        log::warn!("Retryable server error; retrying in {:?}", backoff);
+                        tokio::time::sleep(backoff).await;
+                        continue;
+                    }
+
+                    // Attempts exhausted for this endpoint.
+                    break;
+                }
+                Err(e) => {
+                    last_error = format!("Request to {} failed: {}", endpoint, e);
+                    log::error!("{}", last_error);
+
+                    if attempt < MAX_ATTEMPTS {
+                        let backoff = std::time::Duration::from_millis(750 * attempt as u64);
+                        log::warn!("Request error; retrying in {:?}", backoff);
+                        tokio::time::sleep(backoff).await;
+                        continue;
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        if is_last_endpoint {
+            return Err(last_error.into());
+        }
+
+        log::warn!(
+            "Exhausted retries for {}; falling back to next endpoint",
             endpoint
         );
-
-        let response = match client
-            .post(format!("{}/auth/google", endpoint))
-            .json(&request_body)
-            .send()
-            .await
-        {
-            Ok(response) => response,
-            Err(e) => {
-                last_error = format!("Request to {} failed: {}", endpoint, e);
-                log::error!("{}", last_error);
-
-                if cfg!(debug_assertions) && idx + 1 < endpoints.len() {
-                    log::warn!(
-                        "Retrying OAuth token exchange with fallback endpoint after request failure"
-                    );
-                    continue;
-                }
-
-                return Err(last_error.into());
-            }
-        };
-
-        let status = response.status();
-        log::info!("Response status from {}: {}", endpoint, status);
-
-        if status.is_success() {
-            let auth_response = response.json::<AuthResponse>().await.map_err(|e| {
-                log::error!("Failed to parse response from {}: {}", endpoint, e);
-                format!("Failed to parse response from {}: {}", endpoint, e)
-            })?;
-
-            log::info!(
-                "Successfully got auth response for user: {}",
-                auth_response.user.email
-            );
-            return Ok(auth_response);
-        }
-
-        let error_text = response.text().await.unwrap_or_default();
-        last_error = format!("Authentication failed via {}: {}", endpoint, error_text);
-        log::error!("{}", last_error);
-
-        let retryable =
-            status.is_server_error() || error_text.contains("FUNCTION_INVOCATION_FAILED");
-        if cfg!(debug_assertions) && retryable && idx + 1 < endpoints.len() {
-            log::warn!(
-                "Retrying OAuth token exchange with local fallback endpoint after server-side error"
-            );
-            continue;
-        }
-
-        return Err(last_error.into());
     }
 
     Err(last_error.into())
 }
 
+/// Decode a JWT's `exp` claim without verifying the signature. The desktop app
+/// cannot verify our JWTs (it has no signing secret), but it can read the expiry
+/// to decide whether to refresh.
+fn jwt_exp(token: &str) -> Option<i64> {
+    let parts: Vec<&str> = token.split('.').collect();
+    if parts.len() != 3 {
+        return None;
+    }
+    let payload =
+        base64::Engine::decode(&base64::engine::general_purpose::URL_SAFE_NO_PAD, parts[1]).ok()?;
+    let value: serde_json::Value = serde_json::from_slice(&payload).ok()?;
+    value.get("exp")?.as_i64()
+}
+
+fn now_unix() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
+
+/// Whether a JWT is expired, treating it as expired `leeway_secs` early so we
+/// refresh proactively rather than mid-request. Unparseable tokens are expired.
+fn token_expired(token: &str, leeway_secs: i64) -> bool {
+    match jwt_exp(token) {
+        Some(exp) => now_unix() + leeway_secs >= exp,
+        None => true,
+    }
+}
+
+/// Return a non-expired access token, refreshing it via the auth-server if the
+/// stored one is expired (or about to be). Returns `None` if no valid token can
+/// be obtained (e.g. the refresh token is also expired/revoked).
+pub async fn ensure_fresh_access_token(
+    app: &tauri::AppHandle<impl tauri::Runtime>,
+    api_url: &str,
+) -> Option<String> {
+    let token = get_access_token(app)?;
+    if !token_expired(&token, 60) {
+        return Some(token);
+    }
+
+    log::info!("Access token expired or near expiry; attempting refresh");
+    match refresh_tokens(app, api_url).await {
+        Ok(resp) => Some(resp.access_token),
+        Err(e) => {
+            log::warn!("Token refresh failed: {}", e);
+            None
+        }
+    }
+}
+
 /// Refresh access token using refresh token
-#[allow(dead_code)]
 pub async fn refresh_tokens(
     app: &tauri::AppHandle<impl tauri::Runtime>,
     api_url: &str,
@@ -785,7 +887,10 @@ pub async fn refresh_tokens(
     let refresh_token =
         get_refresh_token(app).ok_or_else(|| "No refresh token stored".to_string())?;
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
 
     #[derive(Serialize)]
     struct RefreshRequest {
@@ -848,26 +953,39 @@ pub async fn logout(
     Ok(())
 }
 
-/// Get current auth state
+/// Get current auth state.
+///
+/// The user is considered authenticated when we have stored user info AND either
+/// a non-expired access token or a non-expired refresh token (which can be used
+/// to obtain a new access token). This avoids reporting "signed in" while holding
+/// only a dead access token.
 pub fn get_auth_state(app: &tauri::AppHandle<impl tauri::Runtime>) -> AuthState {
     log::info!("Checking auth state from file storage");
 
-    match get_stored_user_info(app) {
-        Some(user) => {
-            log::info!("Found user info: {}", user.email);
-            if get_access_token(app).is_some() {
-                log::info!("Found access token, user is authenticated");
-                return AuthState {
-                    is_authenticated: true,
-                    user: Some(user),
-                };
-            } else {
-                log::warn!("User info exists but no access token");
-            }
+    if let Some(user) = get_stored_user_info(app) {
+        let access_valid = get_access_token(app)
+            .map(|t| !token_expired(&t, 0))
+            .unwrap_or(false);
+        let refresh_valid = get_refresh_token(app)
+            .map(|t| !token_expired(&t, 0))
+            .unwrap_or(false);
+
+        if access_valid || refresh_valid {
+            log::info!(
+                "User {} authenticated (access_valid={}, refresh_valid={})",
+                user.email,
+                access_valid,
+                refresh_valid
+            );
+            return AuthState {
+                is_authenticated: true,
+                user: Some(user),
+            };
         }
-        None => {
-            log::info!("No user info found in storage");
-        }
+
+        log::info!("Stored tokens are expired; treating user as signed out");
+    } else {
+        log::info!("No user info found in storage");
     }
 
     AuthState {

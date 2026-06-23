@@ -3,6 +3,8 @@
  * Handles communication with the payment-service backend for LemonSqueezy integration
  */
 
+import { authService } from './authService';
+
 interface CheckoutRequest {
   variant_id: string;
 }
@@ -83,15 +85,44 @@ class PaymentService {
   }
 
   /**
+   * Fetch wrapper that attaches auth headers and, on a 401, transparently
+   * refreshes the access token via the auth-server and retries once.
+   * @param path - path relative to baseUrl (e.g. "/api/license/status")
+   */
+  private async authedFetch(path: string, init: RequestInit = {}): Promise<Response> {
+    const url = `${this.baseUrl}${path}`;
+    const doFetch = () =>
+      fetch(url, {
+        ...init,
+        headers: { ...this.getHeaders(), ...(init.headers as Record<string, string> | undefined) },
+      });
+
+    let response = await doFetch();
+
+    if (response.status === 401) {
+      try {
+        const newToken = await authService.refreshToken();
+        if (newToken) {
+          this.setAuthToken(newToken);
+          response = await doFetch();
+        }
+      } catch (error) {
+        console.error('[PaymentService] Token refresh attempt failed:', error);
+      }
+    }
+
+    return response;
+  }
+
+  /**
    * Create a checkout session for a product variant
    * @param variantId - LemonSqueezy variant ID
    * @returns Checkout URL to redirect user to
    */
   async createCheckout(variantId: string): Promise<string> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/checkout`, {
+      const response = await this.authedFetch('/api/checkout', {
         method: 'POST',
-        headers: this.getHeaders(),
         body: JSON.stringify({ variant_id: variantId }),
       });
 
@@ -123,9 +154,8 @@ class PaymentService {
    */
   async checkLicenseStatus(): Promise<LicenseStatus> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/license/status`, {
+      const response = await this.authedFetch('/api/license/status', {
         method: 'GET',
-        headers: this.getHeaders(),
       });
 
       if (!response.ok) {
@@ -155,9 +185,8 @@ class PaymentService {
    */
   async getOrders(): Promise<OrderResponse[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/orders/me`, {
+      const response = await this.authedFetch('/api/orders/me', {
         method: 'GET',
-        headers: this.getHeaders(),
       });
 
       if (!response.ok) {
@@ -183,9 +212,8 @@ class PaymentService {
     deviceName?: string
   ): Promise<ActivateLicenseResponse> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/license/activate`, {
+      const response = await this.authedFetch('/api/license/activate', {
         method: 'POST',
-        headers: this.getHeaders(),
         body: JSON.stringify({
           license_key: licenseKey,
           device_name: deviceName,
@@ -210,9 +238,8 @@ class PaymentService {
    */
   async deactivateLicense(): Promise<{ success: boolean }> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/license/deactivate`, {
+      const response = await this.authedFetch('/api/license/deactivate', {
         method: 'POST',
-        headers: this.getHeaders(),
         body: JSON.stringify({}),
       });
 

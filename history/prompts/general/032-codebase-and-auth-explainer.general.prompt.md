@@ -1,5 +1,5 @@
 ---
-id: 029
+id: 032
 title: Codebase And Auth Explainer
 stage: explainer
 date: 2026-06-23

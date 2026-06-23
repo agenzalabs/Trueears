@@ -1,5 +1,5 @@
 ---
-id: 030
+id: 033
 title: Fix Auth Architecture Docs
 stage: general
 date: 2026-06-23
