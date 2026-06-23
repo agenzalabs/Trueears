@@ -89,12 +89,15 @@ class PaymentService {
    * refreshes the access token via the auth-server and retries once.
    * @param path - path relative to baseUrl (e.g. "/api/license/status")
    */
-  private async authedFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  private async authedFetch(
+    path: string,
+    init: { method?: string; body?: string; headers?: Record<string, string> } = {}
+  ): Promise<Response> {
     const url = `${this.baseUrl}${path}`;
     const doFetch = () =>
       fetch(url, {
         ...init,
-        headers: { ...this.getHeaders(), ...(init.headers as Record<string, string> | undefined) },
+        headers: { ...this.getHeaders(), ...init.headers },
       });
 
     let response = await doFetch();

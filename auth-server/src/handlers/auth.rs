@@ -98,7 +98,10 @@ pub async fn google_auth(
     let mut tries: u64 = 0;
     while user_attempt.is_err() && tries < 2 {
         tries += 1;
-        tracing::warn!("upsert_user failed (retry {}/2), waking the database", tries);
+        tracing::warn!(
+            "upsert_user failed (retry {}/2), waking the database",
+            tries
+        );
         tokio::time::sleep(std::time::Duration::from_millis(500 * tries)).await;
         user_attempt = upsert_user(&state.pool, &claims).await;
     }

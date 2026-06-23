@@ -762,11 +762,10 @@ async fn exchange_code_for_tokens(api_url: &str, code: &str) -> Result<AuthRespo
                     log::info!("Response status from {}: {}", endpoint, status);
 
                     if status.is_success() {
-                        let auth_response =
-                            response.json::<AuthResponse>().await.map_err(|e| {
-                                log::error!("Failed to parse response from {}: {}", endpoint, e);
-                                format!("Failed to parse response from {}: {}", endpoint, e)
-                            })?;
+                        let auth_response = response.json::<AuthResponse>().await.map_err(|e| {
+                            log::error!("Failed to parse response from {}: {}", endpoint, e);
+                            format!("Failed to parse response from {}: {}", endpoint, e)
+                        })?;
 
                         log::info!(
                             "Successfully got auth response for user: {}",
@@ -776,8 +775,7 @@ async fn exchange_code_for_tokens(api_url: &str, code: &str) -> Result<AuthRespo
                     }
 
                     let error_text = response.text().await.unwrap_or_default();
-                    last_error =
-                        format!("Authentication failed via {}: {}", endpoint, error_text);
+                    last_error = format!("Authentication failed via {}: {}", endpoint, error_text);
                     log::error!("{}", last_error);
 
                     let retryable = status.is_server_error()
