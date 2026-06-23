@@ -191,12 +191,12 @@ sequenceDiagram
 | Layer | Technology | Version |
 |-------|------------|---------|
 | Frontend | React | 19.x |
-| Language (Frontend) | TypeScript | 5.8+ |
+| Language (Frontend) | TypeScript | 5.9.x |
 | Styling | TailwindCSS | 4.x |
-| Build Tool | Vite | 6.x |
-| Desktop Framework | Tauri | 2.x |
-| Backend Language | Rust | 1.70+ |
-| Auth Server | Axum | 0.7.x |
+| Build Tool | Vite | 8.x |
+| Desktop Framework | Tauri | 2.9.x |
+| Backend Language | Rust | 1.77+ |
+| Auth Server | Axum | 0.8.x |
 | Database | PostgreSQL (Neon) | 14+ |
 | STT | Groq Whisper | whisper-large-v3-turbo |
 | LLM | Groq Chat | Configurable |
@@ -205,12 +205,12 @@ sequenceDiagram
 
 ```mermaid
 graph TB
-    subgraph Secure["Secure Storage"]
+    subgraph Storage["Local Storage"]
         Store[Tauri Store Plugin]
-        Keychain[OS Keychain]
+        File[auth.json file<br/>app data dir]
     end
 
-    subgraph Protected["Protected Data"]
+    subgraph Protected["Stored Data"]
         API[API Keys]
         Tokens[Auth Tokens]
     end
@@ -221,17 +221,23 @@ graph TB
     end
 
     API --> Store
-    Tokens --> Keychain
+    Tokens --> File
     Audio --> |Cleared after use| Transient
     Clipboard --> |Minimal access| Transient
 ```
 
 **Security Principles:**
-- API keys stored in Tauri secure store, not localStorage
+- API keys stored via the Tauri Store plugin, not localStorage
 - Audio buffers cleared after transcription
 - Clipboard access only when user initiates action
-- JWT tokens in OS keychain
+- JWT tokens stored in a plaintext `auth.json` file in the app data directory
+  (the `keyring` crate is present but currently unused — OS keychain storage is a
+  future improvement)
+- Refresh tokens are stored server-side as SHA-256 hashes and can be revoked
 - LLM prompts include injection prevention
+
+> See [Auth System — As-Built](./auth-system.md) for the verified authentication flow,
+> including known gaps (ID-token signature verification and token refresh).
 
 ## Related Documentation
 

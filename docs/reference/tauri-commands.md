@@ -268,10 +268,12 @@ await invoke('start_google_login');
 **Behavior:**
 1. Opens Google OAuth URL in default browser
 2. Starts local callback server
-3. Exchanges code for tokens
-4. Stores tokens in secure storage
+3. Exchanges code for tokens (via the auth-server)
+4. Stores tokens in a local `auth.json` file in the app data directory
 
-**Requires:** `GOOGLE_CLIENT_ID` environment variable
+**Configuration:** A public `GOOGLE_CLIENT_ID` is baked into the app, so no env var is
+required. Set the `GOOGLE_CLIENT_ID` env var only to override it. The confidential client
+*secret* lives exclusively on the auth-server.
 
 ---
 

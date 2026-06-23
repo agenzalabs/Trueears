@@ -16,7 +16,7 @@ Trueears is a desktop AI dictation application built with Tauri v2. It captures 
 │  │  - Settings UI   │    │  - Window detection      │  │
 │  │  - Audio capture │    │  - Clipboard/paste       │  │
 │  │  - Groq API calls│    │  - Installed apps cache  │  │
-│  │  - App profiles  │    │  - Auth (OAuth/keyring)  │  │
+│  │  - App profiles  │    │  - Auth (OAuth/file)     │  │
 │  └──────────────────┘    └────────────────────────┘  │
 │                                                      │
 │           ┌──────────────────────┐                   │
@@ -81,7 +81,7 @@ The Rust backend lives in `backend/` and uses Tauri 2.9 as its framework. It doe
 | `window.rs` | Active window detection, cursor position (Win32 `GetCursorPos` / X11 `xdotool`) |
 | `automation.rs` | Clipboard write + simulated paste keystroke via `enigo` and `arboard` crates |
 | `installed_apps.rs` | Installed application discovery and caching (delegates to `installed_apps/windows_impl.rs` on Windows) |
-| `auth.rs` | Google OAuth flow, token storage via OS keyring, JWT handling |
+| `auth.rs` | Google OAuth flow, token storage in a local `auth.json` file, JWT handling |
 | `log_mode.rs` | File-based logging for dictation output |
 | `linux_portal_shortcuts.rs` | Wayland-specific shortcut registration via XDG Desktop Portal |
 | `linux_remote_desktop.rs` | Wayland remote desktop portal integration |

@@ -37,7 +37,7 @@ Nothing is persisted to disk or any server you don't control.
 
 ### Where are my API keys stored?
 
-API keys are stored in Tauri's secure store plugin, which uses the operating system's secure credential storage (Windows Credential Manager, macOS Keychain, etc.). They are never stored in plain text or localStorage.
+API keys are stored via the Tauri Store plugin in a `settings.json` file in the app's data directory (e.g. `%APPDATA%/com.Trueears/` on Windows, `~/.local/share/com.Trueears/` on Linux). This keeps them out of the browser/localStorage, but note the file is **not** encrypted and does not use the OS credential manager — treat it like any other local config file.
 
 ### Is my voice data sent anywhere besides Groq?
 
