@@ -39,7 +39,6 @@ const getMicSettings = (): MicSettingsTarget => {
 const PermissionsVisual: React.FC = () => {
   return (
     <div className="relative w-80">
-      {/* Dialog */}
       <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-2xl animate-[floatUp_0.6s_ease-out]">
         <div className="w-12 h-12 bg-emerald-500/10 rounded-lg flex items-center justify-center mb-4">
           <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" className="text-emerald-500" viewBox="0 0 24 24">
@@ -47,12 +46,17 @@ const PermissionsVisual: React.FC = () => {
             <path d="M19 10v2a7 7 0 01-14 0v-2"></path>
           </svg>
         </div>
-        <h3 className="text-gray-800 font-bold text-sm mb-1">"Trueears" wants to use your microphone</h3>
-        <p className="text-gray-400 text-xs mb-6 leading-relaxed">Click "Allow" when your browser asks.</p>
+        <h3 className="text-gray-800 font-bold text-sm mb-1">One click, no pop-ups</h3>
+        <p className="text-gray-400 text-xs mb-6 leading-relaxed">
+          Click <span className="font-semibold text-gray-600">Allow Microphone</span> and Trueears
+          enables your mic directly — there's no system prompt to confirm.
+        </p>
 
-        <div className="flex justify-end gap-2">
-          <div className="text-xs text-gray-400 font-medium py-2 px-3">Block</div>
-          <div className="px-5 py-2 bg-emerald-500 rounded-lg text-white text-xs font-bold shadow-lg shadow-emerald-500/30 animate-[pulse_1.5s_ease-in-out_infinite] ring-2 ring-emerald-400 ring-offset-2">Allow</div>
+        <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 px-4 py-2.5">
+          <svg className="w-4 h-4 text-emerald-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          <span className="text-xs font-bold text-emerald-600">Handled automatically</span>
         </div>
       </div>
 
