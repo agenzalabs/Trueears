@@ -72,6 +72,33 @@ pub fn handle_recording_shortcut_pressed(app_handle: &AppHandle) {
         return;
     }
 
+    // Race-proof guard: while onboarding is incomplete, never summon the recorder
+    // overlay (which would otherwise pop up the Groq API-key prompt when the user is
+    // just testing the shortcut). The ONBOARDING_TRIGGER_ACTIVE flag above is set via
+    // an async IPC call and can lag behind a key press, so we additionally consult the
+    // persisted onboarding state here. The interactive tutorial step is the one part of
+    // onboarding that needs the real recorder; it advertises itself via TUTORIAL_MODE.
+    let onboarding_complete =
+        crate::read_store_value_sync(app_handle, "Trueears_ONBOARDING_COMPLETE")
+            .ok()
+            .flatten()
+            .map(|value| value == "true")
+            .unwrap_or(false);
+    let in_tutorial = crate::read_store_value_sync(app_handle, "Trueears_TUTORIAL_MODE")
+        .ok()
+        .flatten()
+        .map(|value| !value.is_empty())
+        .unwrap_or(false);
+    if !onboarding_complete && !in_tutorial {
+        log::info!(
+            "Onboarding in progress (non-tutorial) - routing shortcut to onboarding-trigger instead of recorder"
+        );
+        if let Some(window) = app_handle.get_webview_window("main") {
+            let _ = window.emit("onboarding-trigger", ());
+        }
+        return;
+    }
+
     let is_wayland = is_wayland_session();
 
     if !is_wayland {
@@ -104,17 +131,24 @@ pub fn handle_recording_shortcut_pressed(app_handle: &AppHandle) {
     } else {
         get_active_window_info()
     };
-    let is_in_settings = window_info
-        .as_ref()
-        .map(|info| info.window_title.contains("Trueears Settings"))
-        .unwrap_or(false);
+    // The tutorial step renames the settings window (e.g. "Tutorial - Slack") so the
+    // recorder can detect tutorial mode, so the plain title check no longer matches.
+    // Treat tutorial mode as being inside our settings window as well.
+    let is_in_settings = in_tutorial
+        || window_info
+            .as_ref()
+            .map(|info| info.window_title.contains("Trueears Settings"))
+            .unwrap_or(false);
 
     if let Some(settings_window) = app_handle.get_webview_window("settings") {
-        if !is_in_settings {
+        // Only ever auto-close the settings window once onboarding is complete. During
+        // onboarding (including the dictation tutorial) the whole flow lives in this
+        // window, so closing it would drop the user back to the start of onboarding.
+        if !is_in_settings && onboarding_complete {
             log::info!("Closing settings window - user is in another app");
             let _ = settings_window.close();
         } else {
-            log::info!("Keeping settings window open - user is dictating into it");
+            log::info!("Keeping settings window open - user is dictating into it or onboarding");
         }
     }
 

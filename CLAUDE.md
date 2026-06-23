@@ -123,6 +123,12 @@ You are not expected to solve every problem autonomously. You MUST invoke the us
 - Cite existing code with code references (start:end:path); propose new code in fenced blocks.
 - Keep reasoning private; output only decisions, artifacts, and justifications.
 
+### Versioning for new builds (must follow)
+- Whenever a new build/release is requested, bump the version in `package.json` (the single source of truth) before building. Use semantic versioning: patch for fixes, minor for features, major for breaking changes.
+- Before choosing the new version, check it does not already exist: inspect `git tag` and `git log --all --grep="<version>"` (including `release/*` branches). Pick the next unused version — never reuse one that already has a tag, commit, or release branch.
+- Run `node scripts/sync-version.js` after bumping so `backend/tauri.conf.json` and `backend/Cargo.toml` stay in sync (the `build`/`vite:build` scripts also run this automatically).
+- Never hand-edit the version in `tauri.conf.json` or `Cargo.toml` directly; change `package.json` and let the sync script propagate it.
+
 ### Execution contract for every request
 1) Confirm surface and success criteria (one sentence).
 2) List constraints, invariants, non‑goals.
