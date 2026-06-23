@@ -8,6 +8,7 @@ import { StepTutorial } from './StepTutorial';
 import { StepSignIn } from './StepSignIn';
 import { StepSuccess } from './StepSuccess';
 import { useSettings } from '../../hooks/useSettings';
+import { tauriAPI } from '../../utils/tauriApi';
 
 type Step =
   | 'signin'
@@ -19,28 +20,40 @@ type Step =
   | 'tutorial'
   | 'success';
 
+const ONBOARDING_STEPS: Step[] = [
+  'signin',
+  'connect',
+  'language',
+  'permissions',
+  'mic-check',
+  'trigger',
+  'tutorial',
+  'success',
+];
+
+// Persisted resume point so closing the app mid-onboarding doesn't restart from step 1.
+const ONBOARDING_STEP_STORAGE_KEY = 'Trueears_ONBOARDING_STEP';
+
+const isValidStep = (value: string | null | undefined): value is Step =>
+  value != null && (ONBOARDING_STEPS as string[]).includes(value);
+
 export interface OnboardingWizardProps {
   initialStep?: Step;
 }
 
-export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ initialStep = 'signin' }) => {
-  const [currentStep, setCurrentStep] = useState<Step>(initialStep);
+export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ initialStep }) => {
+  // A resume run is a fresh onboarding (no explicit step requested). When the caller
+  // asks for a specific step (e.g. 'permissions' after a later permission revocation)
+  // we honour it and skip the resume/persist logic.
+  const shouldResume = initialStep == null;
+  const [currentStep, setCurrentStep] = useState<Step>(initialStep ?? 'signin');
+  const [isHydrated, setIsHydrated] = useState(!shouldResume);
   const [triggerActiveKeys, setTriggerActiveKeys] = useState<Set<string>>(() => new Set());
   const [triggerSuccess, setTriggerSuccess] = useState(false);
   const [tutorialActiveTab, setTutorialActiveTab] = useState(0);
   const { markOnboardingComplete } = useSettings();
 
-  const steps: Step[] = [
-    'signin',
-    'connect',
-    'language',
-    'permissions',
-    'mic-check',
-    'trigger',
-    'tutorial',
-    'success',
-  ];
-  const currentIndex = steps.indexOf(currentStep);
+  const currentIndex = ONBOARDING_STEPS.indexOf(currentStep);
 
   useEffect(() => {
     if (currentStep === 'trigger') {
@@ -53,24 +66,65 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ initialStep 
     }
   }, [currentStep]);
 
+  // Restore a persisted resume point on mount (fresh onboarding only).
+  useEffect(() => {
+    if (!shouldResume) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const saved = await tauriAPI.getStoreValue(ONBOARDING_STEP_STORAGE_KEY);
+        if (!cancelled && isValidStep(saved)) {
+          setCurrentStep(saved);
+        }
+      } catch (err) {
+        console.error('[OnboardingWizard] Failed to restore onboarding step:', err);
+      } finally {
+        if (!cancelled) setIsHydrated(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [shouldResume]);
+
+  // Persist progress as the user advances so it survives an app restart.
+  useEffect(() => {
+    if (!shouldResume || !isHydrated) return;
+    void tauriAPI
+      .setStoreValue(ONBOARDING_STEP_STORAGE_KEY, currentStep)
+      .catch((err) => {
+        console.error('[OnboardingWizard] Failed to persist onboarding step:', err);
+      });
+  }, [shouldResume, isHydrated, currentStep]);
+
   const handleNext = () => {
-    if (currentIndex < steps.length - 1) {
-      setCurrentStep(steps[currentIndex + 1]);
+    if (currentIndex < ONBOARDING_STEPS.length - 1) {
+      setCurrentStep(ONBOARDING_STEPS[currentIndex + 1]);
       return;
     }
 
-    handleFinish();
+    void handleFinish();
   };
 
   const handlePrev = () => {
     if (currentIndex > 0) {
-      setCurrentStep(steps[currentIndex - 1]);
+      setCurrentStep(ONBOARDING_STEPS[currentIndex - 1]);
     }
   };
 
-  const handleFinish = () => {
-    markOnboardingComplete();
-    window.location.reload();
+  const handleFinish = async () => {
+    try {
+      // Persist completion BEFORE reloading. Previously this wasn't awaited, so the
+      // reload could race the async store write and re-show onboarding from step 1.
+      await markOnboardingComplete();
+      if (shouldResume) {
+        await tauriAPI.setStoreValue(ONBOARDING_STEP_STORAGE_KEY, '');
+      }
+    } catch (err) {
+      console.error('[OnboardingWizard] Failed to finalize onboarding:', err);
+    } finally {
+      window.location.reload();
+    }
   };
 
   const progressSteps = [
@@ -157,6 +211,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ initialStep 
   };
 
   const activeProgressIndex = getActiveProgressIndex();
+
+  // Avoid flashing step 1 before the persisted resume point loads.
+  if (!isHydrated) {
+    return <div className="min-h-screen bg-white" />;
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-white text-gray-800 font-sans overflow-hidden p-8">
