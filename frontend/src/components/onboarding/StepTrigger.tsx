@@ -84,6 +84,10 @@ export const StepTrigger: React.FC<StepProps> & { Visual: React.FC<TriggerVisual
   useEffect(() => {
     console.log('[StepTrigger] Setting up listeners...');
 
+    // Stays true until this effect is cleaned up. Guards the async listener setup so
+    // a listener that finishes registering *after* unmount is torn down immediately
+    // instead of leaking (and double-firing on the next mount).
+    let isActive = true;
     let shortcutAnimationTimeout: ReturnType<typeof setTimeout> | null = null;
     let unlistenTauri: (() => void) | undefined;
     let unlistenOnboarding: (() => void) | undefined;
@@ -95,6 +99,12 @@ export const StepTrigger: React.FC<StepProps> & { Visual: React.FC<TriggerVisual
       }
     };
 
+    // Authoritative success signal: the real global Ctrl+Shift+K hotkey (emitted by
+    // the backend as `onboarding-trigger`). When the user presses the combo in the
+    // natural order (modifiers first, then K) the OS claims the hotkey and swallows
+    // the "k" keydown, so the page-level key tracking below never sees it. This event
+    // is the only reliable confirmation of a natural-order press, so it both flips
+    // success and flashes all three keys green.
     const activateShortcut = () => {
       clearShortcutAnimationTimeout();
       setSuccess(true);
@@ -112,6 +122,9 @@ export const StepTrigger: React.FC<StepProps> & { Visual: React.FC<TriggerVisual
         if (e.key === 'Shift') next.add('Shift');
         if (e.key.toLowerCase() === 'k') next.add('k');
 
+        // Fallback path: only reachable when K is NOT swallowed by the OS hotkey
+        // (e.g. the user pressed K before the modifiers). The natural order is
+        // handled by activateShortcut via the global event above.
         if (TRIGGER_KEYS.every((key) => next.has(key))) {
           console.log('[StepTrigger] Combo detected via key tracking');
           setSuccess(true);
@@ -131,10 +144,24 @@ export const StepTrigger: React.FC<StepProps> & { Visual: React.FC<TriggerVisual
       });
     };
 
+    // Losing window focus can swallow the matching keyup (focus may jump to the
+    // overlay, or the OS consumes it as part of the hotkey), leaving modifier keys
+    // stuck "on" in the visual. Reset on blur so the keys don't linger green.
+    const handleBlur = () => setActiveKeys(new Set());
+
     const setupTauriListener = async () => {
       try {
-        unlistenTauri = await tauriAPI.onToggleRecording(activateShortcut);
-        unlistenOnboarding = await tauriAPI.onOnboardingTrigger(activateShortcut);
+        const offToggle = await tauriAPI.onToggleRecording(activateShortcut);
+        const offOnboarding = await tauriAPI.onOnboardingTrigger(activateShortcut);
+        // If the component unmounted while we were awaiting registration, tear the
+        // listeners down now instead of leaking them past this effect's lifetime.
+        if (!isActive) {
+          offToggle();
+          offOnboarding();
+          return;
+        }
+        unlistenTauri = offToggle;
+        unlistenOnboarding = offOnboarding;
       } catch (err) {
         console.error('[StepTrigger] Failed to setup Tauri listener:', err);
       }
@@ -142,13 +169,16 @@ export const StepTrigger: React.FC<StepProps> & { Visual: React.FC<TriggerVisual
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
     void setupTauriListener();
 
     return () => {
+      isActive = false;
       clearShortcutAnimationTimeout();
       setActiveKeys(new Set());
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
       if (unlistenTauri) unlistenTauri();
       if (unlistenOnboarding) unlistenOnboarding();
     };

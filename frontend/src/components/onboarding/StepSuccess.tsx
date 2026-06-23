@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { BrandLogo } from '../common/BrandLogo';
 
 interface StepProps {
   onNext: () => void;
@@ -140,9 +141,7 @@ export const StepSuccess: React.FC<StepProps> = ({ onNext }) => {
         {/* Logo Card */}
         <div className="relative z-10 flex flex-col items-center animate-[scaleIn_0.5s_cubic-bezier(0.2,0.8,0.2,1)]">
           <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center shadow-2xl mb-6">
-            <svg className="w-12 h-12 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-            </svg>
+            <BrandLogo className="w-14 h-14" />
           </div>
           <div className="text-4xl font-bold text-gray-800 tracking-tight">
             Trueears
