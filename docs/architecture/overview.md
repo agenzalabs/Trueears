@@ -236,8 +236,8 @@ graph TB
 - Refresh tokens are stored server-side as SHA-256 hashes and can be revoked
 - LLM prompts include injection prevention
 
-> See [Auth System — As-Built](./auth-system.md) for the verified authentication flow,
-> including known gaps (ID-token signature verification and token refresh).
+> See [Auth System — As-Built](./auth-system.md) for the verified authentication flow —
+> Google JWKS signature verification, token refresh, and cold-start handling.
 
 ## Related Documentation
 

@@ -48,6 +48,9 @@ interface ActivateLicenseResponse {
 class PaymentService {
   private baseUrl: string;
   private authToken: string | null = null;
+  // De-duplicates concurrent refreshes: parallel 401s share one in-flight refresh
+  // so we never send an already-rotated (revoked) refresh token twice.
+  private refreshInFlight: Promise<string | null> | null = null;
 
   constructor() {
     // Default to localhost for development
@@ -85,6 +88,20 @@ class PaymentService {
   }
 
   /**
+   * Refresh the access token, coalescing concurrent callers onto a single
+   * in-flight refresh. Without this, parallel 401s would each call refresh and
+   * the second would send an already-rotated (revoked) refresh token and fail.
+   */
+  private refreshOnce(): Promise<string | null> {
+    if (!this.refreshInFlight) {
+      this.refreshInFlight = authService.refreshToken().finally(() => {
+        this.refreshInFlight = null;
+      });
+    }
+    return this.refreshInFlight;
+  }
+
+  /**
    * Fetch wrapper that attaches auth headers and, on a 401, transparently
    * refreshes the access token via the auth-server and retries once.
    * @param path - path relative to baseUrl (e.g. "/api/license/status")
@@ -104,7 +121,7 @@ class PaymentService {
 
     if (response.status === 401) {
       try {
-        const newToken = await authService.refreshToken();
+        const newToken = await this.refreshOnce();
         if (newToken) {
           this.setAuthToken(newToken);
           response = await doFetch();

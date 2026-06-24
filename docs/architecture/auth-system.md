@@ -36,7 +36,7 @@ baked into the desktop binary as a public default (`DEFAULT_GOOGLE_CLIENT_ID` in
 
 ## Architecture
 
-```
+```text
 ┌───────────────────────────────────────────────┐
 │              TAURI DESKTOP APP                  │
 │  ┌────────────┐         ┌───────────────────┐  │
@@ -70,7 +70,7 @@ baked into the desktop binary as a public default (`DEFAULT_GOOGLE_CLIENT_ID` in
 2. `backend/src/auth.rs` starts a local HTTP server (`tiny_http`) on
    **`127.0.0.1:8585`** with a **5-minute timeout**, then opens the system browser
    (`tauri-plugin-opener`) to:
-   ```
+   ```text
    https://accounts.google.com/o/oauth2/v2/auth
      ?client_id=<public client id>
      &redirect_uri=http://localhost:8585/callback
@@ -85,14 +85,17 @@ baked into the desktop binary as a public default (`DEFAULT_GOOGLE_CLIENT_ID` in
    page (inline in `auth.rs`).
 5. The backend POSTs `{ "code": "…" }` to the auth-server at **`<API_URL>/auth/google`**.
    - `API_URL` default: **`https://trueears-1.onrender.com`** (override via `API_URL` env).
-   - In **debug builds only**, it also retries `http://127.0.0.1:3001` and
-     `http://localhost:3001` as fallbacks.
+   - The exchange has a 30 s timeout and retries transient `5xx`/network failures with
+     backoff on **all** builds. In **debug builds** it additionally falls back to
+     `http://127.0.0.1:3001` / `http://localhost:3001`.
+   - When the flow starts, the backend also fires a best-effort `GET <API_URL>/ready` to
+     **pre-warm** the server (and its DB) while the user is on Google's consent screen.
 6. The auth-server (`auth-server/src/handlers/auth.rs::google_auth`):
    1. Exchanges the code with Google (`https://oauth2.googleapis.com/token`) using the
       confidential `client_secret` and `oauth_redirect_uri`.
-   2. Decodes the Google **ID token** payload and reads `sub`, `email`, `name`, `picture`.
-      Validates **issuer, audience, and expiry**. *(Note: the JWT signature is **not**
-      cryptographically verified — see "Known gaps".)*
+   2. **Verifies the Google ID token's RS256 signature against Google's JWKS**
+      (`https://www.googleapis.com/oauth2/v3/certs`), then validates **issuer, audience,
+      and expiry** and reads `sub`, `email`, `name`, `picture`.
    3. If `name`/`picture` are missing, falls back to Google's userinfo endpoint
       (`https://openidconnect.googleapis.com/v1/userinfo`).
    4. Upserts the user into Postgres (`users`).
@@ -134,9 +137,10 @@ directory (resolved via Tauri's `app_data_dir()`), holding `access_token`,
 > Windows"*). On Windows there is also a one-time migration that moves a legacy
 > `Trueears/auth.json` into the current `com.Trueears/` app-data folder.
 
-`get_auth_state` reports `is_authenticated: true` when **both** stored user info and an
-access token string are present. It does **not** check whether the access token has
-expired.
+`get_auth_state` reports `is_authenticated: true` when stored user info exists **and**
+either the access token or the refresh token is still valid (it decodes each JWT's `exp`).
+On load, `useAuth` calls `get_valid_access_token`, which transparently refreshes an expired
+access token via `/auth/refresh` before handing it to `paymentService`.
 
 ---
 
@@ -149,7 +153,9 @@ Defined in `backend/src/lib.rs`, called via `frontend/src/services/authService.t
 | `start_google_login` | Begin the OAuth flow (opens browser + local callback server) |
 | `get_auth_state` | `{ is_authenticated, user }` from the stored file |
 | `get_user_info` | Stored `UserInfo` or `null` |
-| `get_access_token` | Stored access token or `null` |
+| `get_access_token` | Stored access token or `null` (raw, no expiry check) |
+| `get_valid_access_token` | Valid access token, auto-refreshing via `/auth/refresh` if expired |
+| `refresh_auth_token` | Force a refresh using the stored refresh token; returns the new access token |
 | `logout` | Revoke refresh token server-side (best effort) + delete `auth.json` |
 
 Frontend events: `auth-success` (payload = user) and `auth-error` (payload = message).
@@ -167,6 +173,7 @@ Routes are registered in `auth-server/src/lib.rs`:
 | POST | `/auth/logout` | refresh token | Mark the refresh token revoked |
 | GET | `/auth/user` | access token (Bearer) | Return current user |
 | GET | `/health` | none | Liveness check (`"OK"`) |
+| GET | `/ready` | none | Readiness check — pings the DB (`SELECT 1`); used to warm a cold server |
 
 CORS allows any origin for `GET/POST/OPTIONS` with `Content-Type` + `Authorization`
 headers.
@@ -241,21 +248,23 @@ the Render deployment.
   revoked (logout, rotation).
 - Code exchange with Google is server-to-server over HTTPS.
 
-### Known gaps (not yet implemented)
+### Recently hardened
 
-These are accurate as of the last verification date and are tracked as improvements:
+- **ID-token signature is verified** against Google's JWKS (RS256) before any claim is
+  trusted.
+- **Token refresh is wired up** — the desktop auto-refreshes an expired access token via
+  `/auth/refresh` (proactively on load, and reactively on a `401`).
+- **`get_auth_state` is expiry-aware** — it checks token validity, not mere presence.
+- **Cold-start resilience** — server: `/ready` + DB-pool `acquire_timeout` + retries on
+  the DB writes; desktop: request timeout + retries + a `/ready` pre-warm.
 
-1. **ID-token signature is not verified.** `decode_id_token` checks issuer, audience, and
-   expiry but does not validate the signature against Google's public keys (JWKS). Risk
-   is currently limited because the token is fetched server-to-server directly from
-   Google, but it should be hardened.
-2. **Token refresh is not wired up.** `refresh_tokens()` in `backend/src/auth.rs` exists
-   but is `#[allow(dead_code)]` and is never called; the frontend never refreshes. When
-   the 15-minute access token expires, payment-service calls return `401` until the user
-   signs out and back in. The `/auth/refresh` endpoint itself is fully implemented.
-3. **`get_auth_state` ignores token expiry**, so the app can report "authenticated" with
-   an already-expired access token.
-4. **Tokens are stored as plaintext JSON** (`auth.json`), not in the OS keychain.
+### Known gaps / future improvements
+
+1. **Tokens are stored as plaintext JSON** (`auth.json`), not in the OS keychain.
+2. **JWKS is fetched per sign-in** (no caching) — a cached key set with periodic refresh
+   would remove one network round-trip per login.
+3. **Cold start is mitigated, not eliminated** — the backend can still go cold (scale to
+   zero); a keep-warm pinger hitting `/ready` would prevent it entirely.
 
 ---
 

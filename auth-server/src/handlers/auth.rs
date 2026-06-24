@@ -308,12 +308,21 @@ pub async fn logout(
 
 // ============ Helper Functions ============
 
+/// HTTP client for outbound Google calls, with a timeout so a slow or hung
+/// endpoint can't block the sign-in handler indefinitely.
+fn google_http_client() -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))
+}
+
 /// Exchange authorization code for Google tokens
 async fn exchange_code_for_tokens(
     config: &Config,
     code: &str,
 ) -> Result<GoogleTokenResponse, String> {
-    let client = reqwest::Client::new();
+    let client = google_http_client()?;
 
     let params = [
         ("code", code),
@@ -350,7 +359,7 @@ struct GoogleUserInfoResponse {
 }
 
 async fn fetch_google_user_info(access_token: &str) -> Result<GoogleUserInfoResponse, String> {
-    let client = reqwest::Client::new();
+    let client = google_http_client()?;
 
     let response = client
         .get("https://openidconnect.googleapis.com/v1/userinfo")
@@ -379,7 +388,7 @@ async fn fetch_google_user_info(access_token: &str) -> Result<GoogleUserInfoResp
 /// These keys rotate occasionally; we fetch them per verification for simplicity.
 /// (A cached `JwkSet` with periodic refresh would avoid the extra request per login.)
 async fn fetch_google_jwks() -> Result<JwkSet, String> {
-    let client = reqwest::Client::new();
+    let client = google_http_client()?;
     let response = client
         .get("https://www.googleapis.com/oauth2/v3/certs")
         .send()
