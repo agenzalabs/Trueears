@@ -115,8 +115,9 @@ Copy `.env.example` to `.env` and fill in the required values:
 # (Can also be set in-app via Settings > API Key)
 # No .env entry needed if you set it through the UI -- it's stored in the Tauri store.
 
-# Auth server URL (defaults to https://trueears.onrender.com)
-API_URL=https://trueears.onrender.com
+# Auth server URL (the desktop app defaults to https://trueears-1.onrender.com)
+API_URL=https://trueears-1.onrender.com
+# Optional: a public client ID is baked into the app; only set this to override it
 GOOGLE_CLIENT_ID=your_google_client_id
 JWT_SECRET=change_me
 
@@ -202,9 +203,13 @@ Settings are stored via `tauri-plugin-store` in a `settings.json` file in the ap
 - Windows: `%APPDATA%/com.Trueears/`
 - Linux: `~/.local/share/com.Trueears/`
 
-### "Missing GOOGLE_CLIENT_ID" error
+### Google sign-in fails
 
-This only affects the OAuth login feature. If you don't need authentication, you can ignore it. Otherwise, set `GOOGLE_CLIENT_ID` in your `.env` file.
+The app ships with a built-in public `GOOGLE_CLIENT_ID`, so a "missing client ID" error
+should no longer occur. If sign-in fails, check connectivity to the auth-server
+(`API_URL`, default `https://trueears-1.onrender.com`) and that the OAuth callback on
+`http://localhost:8585/callback` is not blocked. Set `GOOGLE_CLIENT_ID` in `.env` only if
+you are overriding the default with your own Google project.
 
 ### Installed apps not showing in profiles
 

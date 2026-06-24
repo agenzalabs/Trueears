@@ -3,6 +3,8 @@
  * Handles communication with the payment-service backend for LemonSqueezy integration
  */
 
+import { authService } from './authService';
+
 interface CheckoutRequest {
   variant_id: string;
 }
@@ -46,6 +48,9 @@ interface ActivateLicenseResponse {
 class PaymentService {
   private baseUrl: string;
   private authToken: string | null = null;
+  // De-duplicates concurrent refreshes: parallel 401s share one in-flight refresh
+  // so we never send an already-rotated (revoked) refresh token twice.
+  private refreshInFlight: Promise<string | null> | null = null;
 
   constructor() {
     // Default to localhost for development
@@ -83,15 +88,61 @@ class PaymentService {
   }
 
   /**
+   * Refresh the access token, coalescing concurrent callers onto a single
+   * in-flight refresh. Without this, parallel 401s would each call refresh and
+   * the second would send an already-rotated (revoked) refresh token and fail.
+   */
+  private refreshOnce(): Promise<string | null> {
+    if (!this.refreshInFlight) {
+      this.refreshInFlight = authService.refreshToken().finally(() => {
+        this.refreshInFlight = null;
+      });
+    }
+    return this.refreshInFlight;
+  }
+
+  /**
+   * Fetch wrapper that attaches auth headers and, on a 401, transparently
+   * refreshes the access token via the auth-server and retries once.
+   * @param path - path relative to baseUrl (e.g. "/api/license/status")
+   */
+  private async authedFetch(
+    path: string,
+    init: { method?: string; body?: string; headers?: Record<string, string> } = {}
+  ): Promise<Response> {
+    const url = `${this.baseUrl}${path}`;
+    const doFetch = () =>
+      fetch(url, {
+        ...init,
+        headers: { ...this.getHeaders(), ...init.headers },
+      });
+
+    let response = await doFetch();
+
+    if (response.status === 401) {
+      try {
+        const newToken = await this.refreshOnce();
+        if (newToken) {
+          this.setAuthToken(newToken);
+          response = await doFetch();
+        }
+      } catch (error) {
+        console.error('[PaymentService] Token refresh attempt failed:', error);
+      }
+    }
+
+    return response;
+  }
+
+  /**
    * Create a checkout session for a product variant
    * @param variantId - LemonSqueezy variant ID
    * @returns Checkout URL to redirect user to
    */
   async createCheckout(variantId: string): Promise<string> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/checkout`, {
+      const response = await this.authedFetch('/api/checkout', {
         method: 'POST',
-        headers: this.getHeaders(),
         body: JSON.stringify({ variant_id: variantId }),
       });
 
@@ -123,9 +174,8 @@ class PaymentService {
    */
   async checkLicenseStatus(): Promise<LicenseStatus> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/license/status`, {
+      const response = await this.authedFetch('/api/license/status', {
         method: 'GET',
-        headers: this.getHeaders(),
       });
 
       if (!response.ok) {
@@ -155,9 +205,8 @@ class PaymentService {
    */
   async getOrders(): Promise<OrderResponse[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/orders/me`, {
+      const response = await this.authedFetch('/api/orders/me', {
         method: 'GET',
-        headers: this.getHeaders(),
       });
 
       if (!response.ok) {
@@ -183,9 +232,8 @@ class PaymentService {
     deviceName?: string
   ): Promise<ActivateLicenseResponse> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/license/activate`, {
+      const response = await this.authedFetch('/api/license/activate', {
         method: 'POST',
-        headers: this.getHeaders(),
         body: JSON.stringify({
           license_key: licenseKey,
           device_name: deviceName,
@@ -210,9 +258,8 @@ class PaymentService {
    */
   async deactivateLicense(): Promise<{ success: boolean }> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/license/deactivate`, {
+      const response = await this.authedFetch('/api/license/deactivate', {
         method: 'POST',
-        headers: this.getHeaders(),
         body: JSON.stringify({}),
       });
 

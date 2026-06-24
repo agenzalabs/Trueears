@@ -51,6 +51,22 @@ export const authService = {
   },
 
   /**
+   * Get a valid access token, transparently refreshing it if the stored one
+   * has expired. Returns null if no valid token can be obtained.
+   */
+  getValidAccessToken: async (): Promise<string | null> => {
+    return invoke('get_valid_access_token');
+  },
+
+  /**
+   * Force a token refresh using the stored refresh token.
+   * Returns the new access token, or null if refresh failed.
+   */
+  refreshToken: async (): Promise<string | null> => {
+    return invoke('refresh_auth_token');
+  },
+
+  /**
    * Listen for auth success event
    */
   onAuthSuccess: async (callback: (user: UserInfo) => void): Promise<() => void> => {

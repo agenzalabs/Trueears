@@ -8,6 +8,7 @@ pub mod utils;
 use axum::{
     extract::{Request, State},
     http::{header, Method, StatusCode},
+    response::IntoResponse,
     routing::{get, post},
     Router,
 };
@@ -146,6 +147,7 @@ pub async fn build_app_from_env() -> Result<(Router, Config), String> {
         .route("/auth/logout", post(logout))
         .route("/auth/user", get(get_user_with_auth))
         .route("/health", get(health_check))
+        .route("/ready", get(readiness_check))
         .layer(cors)
         .with_state(state);
 
@@ -154,6 +156,18 @@ pub async fn build_app_from_env() -> Result<(Router, Config), String> {
 
 async fn health_check() -> &'static str {
     "OK"
+}
+
+/// Readiness probe that also wakes the database. Desktop clients call this when
+/// the sign-in flow starts so the token exchange hits a warm server + DB.
+async fn readiness_check(State(state): State<AppState>) -> impl IntoResponse {
+    match db::ping(&state.pool).await {
+        Ok(_) => (StatusCode::OK, "ready"),
+        Err(e) => {
+            tracing::warn!("Readiness check failed: {}", e);
+            (StatusCode::SERVICE_UNAVAILABLE, "db not ready")
+        }
+    }
 }
 
 async fn get_user_with_auth(

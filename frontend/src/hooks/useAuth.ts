@@ -21,7 +21,7 @@ export const useAuth = (): UseAuthReturn => {
         try {
             const [state, accessToken] = await Promise.all([
                 authService.getAuthState(),
-                authService.getAccessToken().catch((error) => {
+                authService.getValidAccessToken().catch((error) => {
                     console.error('[useAuth] Failed to fetch access token:', error);
                     return null;
                 }),

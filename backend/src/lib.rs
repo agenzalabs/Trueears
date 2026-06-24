@@ -529,6 +529,30 @@ async fn get_access_token(app: tauri::AppHandle) -> Result<Option<String>, AppEr
     Ok(tauri::async_runtime::spawn_blocking(move || auth::get_access_token(&app_handle)).await?)
 }
 
+/// Return a valid access token, transparently refreshing it via the auth-server
+/// if the stored one has expired. Returns `None` if no valid token can be obtained.
+#[tauri::command]
+async fn get_valid_access_token(app: tauri::AppHandle) -> Result<Option<String>, AppError> {
+    log::info!("get_valid_access_token command called");
+    let api_url = auth::api_url_from_app(&app);
+    Ok(auth::ensure_fresh_access_token(&app, &api_url).await)
+}
+
+/// Force a token refresh using the stored refresh token. Returns the new access
+/// token on success, or `None` if refresh failed (e.g. refresh token expired).
+#[tauri::command]
+async fn refresh_auth_token(app: tauri::AppHandle) -> Result<Option<String>, AppError> {
+    log::info!("refresh_auth_token command called");
+    let api_url = auth::api_url_from_app(&app);
+    match auth::refresh_tokens(&app, &api_url).await {
+        Ok(resp) => Ok(Some(resp.access_token)),
+        Err(e) => {
+            log::warn!("refresh_auth_token failed: {}", e);
+            Ok(None)
+        }
+    }
+}
+
 #[tauri::command]
 async fn open_external_url(url: String) -> Result<(), AppError> {
     let target = url.trim();
@@ -715,6 +739,8 @@ pub fn run() {
             logout,
             get_user_info,
             get_access_token,
+            get_valid_access_token,
+            refresh_auth_token,
             open_external_url,
             // Log Mode commands
             log_mode::append_to_file,

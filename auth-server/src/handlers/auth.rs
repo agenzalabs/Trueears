@@ -1,5 +1,6 @@
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use chrono::{DateTime, Utc};
+use jsonwebtoken::{decode, decode_header, jwk::JwkSet, Algorithm, DecodingKey, Validation};
 use sqlx::PgPool;
 
 use crate::{
@@ -38,10 +39,11 @@ pub async fn google_auth(
             )
         })?;
 
-    // 2. Decode and validate the ID token
+    // 2. Verify the ID token signature and validate its claims
     let mut claims = decode_id_token(&google_tokens.id_token, &state.config.google_client_id)
+        .await
         .map_err(|e| {
-            tracing::error!("Failed to decode ID token: {}", e);
+            tracing::error!("Failed to verify ID token: {}", e);
             (StatusCode::BAD_REQUEST, format!("Invalid ID token: {}", e))
         })?;
 
@@ -91,8 +93,19 @@ pub async fn google_auth(
 
     tracing::info!("Google auth for user: {}", claims.email);
 
-    // 3. Create or update user in database
-    let user = upsert_user(&state.pool, &claims).await.map_err(|e| {
+    // 3. Create or update user in database (retry to tolerate a cold/sleeping DB)
+    let mut user_attempt = upsert_user(&state.pool, &claims).await;
+    let mut tries: u64 = 0;
+    while user_attempt.is_err() && tries < 2 {
+        tries += 1;
+        tracing::warn!(
+            "upsert_user failed (retry {}/2), waking the database",
+            tries
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(500 * tries)).await;
+        user_attempt = upsert_user(&state.pool, &claims).await;
+    }
+    let user = user_attempt.map_err(|e| {
         tracing::error!("Failed to upsert user: {}", e);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -123,16 +136,26 @@ pub async fn google_auth(
             )
         })?;
 
-    // 5. Store refresh token hash in database
-    store_refresh_token(&state.pool, user.id, &refresh_token, expires_at)
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to store refresh token: {}", e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Failed to store session".to_string(),
-            )
-        })?;
+    // 5. Store refresh token hash in database (retry to tolerate a cold/sleeping DB)
+    let mut store_attempt =
+        store_refresh_token(&state.pool, user.id, &refresh_token, expires_at).await;
+    let mut store_tries: u64 = 0;
+    while store_attempt.is_err() && store_tries < 2 {
+        store_tries += 1;
+        tracing::warn!(
+            "store_refresh_token failed (retry {}/2), waking the database",
+            store_tries
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(500 * store_tries)).await;
+        store_attempt = store_refresh_token(&state.pool, user.id, &refresh_token, expires_at).await;
+    }
+    store_attempt.map_err(|e| {
+        tracing::error!("Failed to store refresh token: {}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to store session".to_string(),
+        )
+    })?;
 
     tracing::info!("User {} authenticated successfully", user.email);
 
@@ -285,12 +308,21 @@ pub async fn logout(
 
 // ============ Helper Functions ============
 
+/// HTTP client for outbound Google calls, with a timeout so a slow or hung
+/// endpoint can't block the sign-in handler indefinitely.
+fn google_http_client() -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))
+}
+
 /// Exchange authorization code for Google tokens
 async fn exchange_code_for_tokens(
     config: &Config,
     code: &str,
 ) -> Result<GoogleTokenResponse, String> {
-    let client = reqwest::Client::new();
+    let client = google_http_client()?;
 
     let params = [
         ("code", code),
@@ -327,7 +359,7 @@ struct GoogleUserInfoResponse {
 }
 
 async fn fetch_google_user_info(access_token: &str) -> Result<GoogleUserInfoResponse, String> {
-    let client = reqwest::Client::new();
+    let client = google_http_client()?;
 
     let response = client
         .get("https://openidconnect.googleapis.com/v1/userinfo")
@@ -351,39 +383,61 @@ async fn fetch_google_user_info(access_token: &str) -> Result<GoogleUserInfoResp
         .map_err(|e| format!("Failed to parse Google userinfo response: {}", e))
 }
 
-/// Decode Google's ID token (JWT) to extract user claims
-/// Note: In production, you should also verify the signature using Google's public keys
-fn decode_id_token(id_token: &str, expected_audience: &str) -> Result<GoogleIdTokenClaims, String> {
-    // Split the JWT and decode the payload (middle part)
-    let parts: Vec<&str> = id_token.split('.').collect();
-    if parts.len() != 3 {
-        return Err("Invalid JWT format".to_string());
+/// Fetch Google's JSON Web Key Set (public keys) used to verify ID token signatures.
+///
+/// These keys rotate occasionally; we fetch them per verification for simplicity.
+/// (A cached `JwkSet` with periodic refresh would avoid the extra request per login.)
+async fn fetch_google_jwks() -> Result<JwkSet, String> {
+    let client = google_http_client()?;
+    let response = client
+        .get("https://www.googleapis.com/oauth2/v3/certs")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch Google JWKS: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "Google JWKS request failed with status {}",
+            response.status()
+        ));
     }
 
-    // Decode base64url payload
-    let payload =
-        base64::Engine::decode(&base64::engine::general_purpose::URL_SAFE_NO_PAD, parts[1])
-            .map_err(|e| format!("Failed to decode payload: {}", e))?;
+    response
+        .json::<JwkSet>()
+        .await
+        .map_err(|e| format!("Failed to parse Google JWKS: {}", e))
+}
 
-    let claims: GoogleIdTokenClaims =
-        serde_json::from_slice(&payload).map_err(|e| format!("Failed to parse claims: {}", e))?;
+/// Verify Google's ID token (JWT): checks the RS256 signature against Google's
+/// public keys and validates the audience, issuer, and expiry, then returns the
+/// claims. This prevents forged or tampered tokens from being trusted.
+async fn decode_id_token(
+    id_token: &str,
+    expected_audience: &str,
+) -> Result<GoogleIdTokenClaims, String> {
+    // The token header tells us which signing key (kid) Google used.
+    let header = decode_header(id_token).map_err(|e| format!("Invalid token header: {}", e))?;
+    let kid = header
+        .kid
+        .ok_or_else(|| "ID token is missing a key id (kid)".to_string())?;
 
-    // Validate issuer
-    if claims.iss != "https://accounts.google.com" && claims.iss != "accounts.google.com" {
-        return Err("Invalid issuer".to_string());
-    }
+    let jwks = fetch_google_jwks().await?;
+    let jwk = jwks
+        .find(&kid)
+        .ok_or_else(|| "No matching Google public key for the token's kid".to_string())?;
 
-    // Validate audience
-    if claims.aud != expected_audience {
-        return Err("Invalid audience".to_string());
-    }
+    let decoding_key =
+        DecodingKey::from_jwk(jwk).map_err(|e| format!("Invalid Google public key: {}", e))?;
 
-    // Check expiration
-    if claims.exp < Utc::now().timestamp() {
-        return Err("Token has expired".to_string());
-    }
+    let mut validation = Validation::new(Algorithm::RS256);
+    validation.set_audience(&[expected_audience]);
+    validation.set_issuer(&["https://accounts.google.com", "accounts.google.com"]);
+    // `exp` is validated by default.
 
-    Ok(claims)
+    let token_data = decode::<GoogleIdTokenClaims>(id_token, &decoding_key, &validation)
+        .map_err(|e| format!("ID token verification failed: {}", e))?;
+
+    Ok(token_data.claims)
 }
 
 /// Create or update user in database
