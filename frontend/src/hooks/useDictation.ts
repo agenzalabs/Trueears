@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAudioRecorder } from './useAudioRecorder';
 import { processTranscription, postProcessTranscription, finalizeDictation, transformSelectedText } from '../controllers/dictationController';
 import { ActiveWindowInfo } from '../types/appProfile';
@@ -22,8 +22,39 @@ export const useDictation = () => {
   const [pendingLogContent, setPendingLogContent] = useState<string | null>(null);
   const [pendingLogApp, setPendingLogApp] = useState<{ identifier: string; displayName: string } | null>(null);
 
+  // Every terminal state (success/error/cancelled/log-saved) schedules a delayed
+  // reset back to 'idle'. Those timers must never outlive their own session: a
+  // reset fired from the previous dictation used to flip the *current* recording
+  // back to 'idle', which then let the idle auto-hide pull the overlay off the
+  // screen while the microphone was still live.
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearPendingReset = useCallback(() => {
+    if (resetTimerRef.current) {
+      clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleReset = useCallback((reset: () => void, delayMs: number) => {
+    clearPendingReset();
+    resetTimerRef.current = setTimeout(() => {
+      resetTimerRef.current = null;
+      reset();
+    }, delayMs);
+  }, [clearPendingReset]);
+
   const startDictation = async (windowInfo?: ActiveWindowInfo | null, preSelectedText?: string | null, microphoneId?: string) => {
     debug.log('[useDictation] startDictation called with window info:', windowInfo, 'selected text:', preSelectedText ? `${preSelectedText.length} chars` : 'none');
+
+    // A new session supersedes whatever the previous one had queued. Apply that
+    // pending cleanup now instead of letting it land mid-recording.
+    clearPendingReset();
+    isProcessingRef.current = false;
+    isCancellingRef.current = false;
+    setPendingLogContent(null);
+    setPendingLogApp(null);
+
     try {
       if (windowInfo) {
         setActiveWindowInfo(windowInfo);
@@ -46,6 +77,9 @@ export const useDictation = () => {
     } catch (error) {
       console.error('[useDictation] Failed to start recording:', error);
       setStatus('error');
+      // Without this the hook stays in 'error' forever and every later press is
+      // rejected by the "still processing" guard in the overlay.
+      scheduleReset(() => setStatus('idle'), 2000);
       throw error;
     }
   };
@@ -125,9 +159,7 @@ export const useDictation = () => {
                 debug.log('[useDictation] Log saved to:', result.filePath);
                 playLogSavedSound();
                 setStatus('log-saved');
-                setTimeout(() => {
-                  resetState();
-                }, 2000);
+                scheduleReset(resetState, 2000);
                 return; // Exit - we handled Log Mode
               } else if (result.fallbackToClipboard) {
                 debug.log('[useDictation] Log copied to clipboard as fallback');
@@ -148,9 +180,7 @@ export const useDictation = () => {
                 // Or simpler: The RecorderOverlay can watch for status changes.
 
                 setStatus('log-saved');
-                setTimeout(() => {
-                  resetState();
-                }, 2000);
+                scheduleReset(resetState, 2000);
                 return;
               } else {
                 console.error('[useDictation] Log Mode failed:', result.error);
@@ -203,7 +233,7 @@ export const useDictation = () => {
           }
           setStatus('error');
           debug.log('[useDictation] Transform error, will reset to idle in 2s');
-          setTimeout(() => {
+          scheduleReset(() => {
             resetState();
             debug.log('[useDictation] Status reset to idle after transform error');
           }, 2000);
@@ -236,7 +266,7 @@ export const useDictation = () => {
         await finalizeDictation(finalText);
         setStatus('success');
         debug.log('[useDictation] Status set to success, will reset to idle in 1.5s');
-        setTimeout(() => {
+        scheduleReset(() => {
           resetState();
           debug.log('[useDictation] Status reset to idle, isProcessingRef reset');
         }, 1500);
@@ -252,12 +282,12 @@ export const useDictation = () => {
       }
       setStatus('error');
       debug.log('[useDictation] Status set to error, will reset to idle in 2s');
-      setTimeout(() => {
+      scheduleReset(() => {
         resetState();
         debug.log('[useDictation] Status reset to idle after error, isProcessingRef reset');
       }, 2000);
     }
-  }, [isRecording, stopRecording, activeWindowInfo, mode, selectedText]);
+  }, [isRecording, stopRecording, activeWindowInfo, mode, selectedText, scheduleReset]);
 
   const cancelDictation = useCallback(() => {
     debug.log('[useDictation] cancelDictation called, isRecording:', isRecording, 'status:', status);
@@ -287,7 +317,7 @@ export const useDictation = () => {
     playCancelSound();
 
     // Reset state after display duration (matches success/error timing)
-    setTimeout(() => {
+    scheduleReset(() => {
       setStatus('idle');
       setActiveWindowInfo(null);
       setMode('dictation');
@@ -295,7 +325,7 @@ export const useDictation = () => {
       isCancellingRef.current = false;
       debug.log('[useDictation] Status reset to idle after cancellation');
     }, 1500);
-  }, [isRecording, status, cancelRecording]);
+  }, [isRecording, status, cancelRecording, scheduleReset]);
 
   // ========== Log Mode Config Handlers ==========
 
@@ -325,34 +355,32 @@ export const useDictation = () => {
       // Now save the pending log entry
       const result = await logModeService.saveLogEntry(pendingLogContent, pendingLogApp.identifier);
 
+      const clearLogState = () => {
+        setStatus('idle');
+        setPendingLogContent(null);
+        setPendingLogApp(null);
+      };
+
       if (result.success || result.fallbackToClipboard) {
         debug.log('[useDictation] Log saved after config:', result.filePath);
         playLogSavedSound();
         setStatus('log-saved');
-        setTimeout(() => {
-          setStatus('idle');
-          setPendingLogContent(null);
-          setPendingLogApp(null);
-        }, 2000);
+        scheduleReset(clearLogState, 2000);
       } else {
         console.error('[useDictation] Failed to save log after config:', result.error);
         setStatus('error');
-        setTimeout(() => {
-          setStatus('idle');
-          setPendingLogContent(null);
-          setPendingLogApp(null);
-        }, 2000);
+        scheduleReset(clearLogState, 2000);
       }
     } catch (error) {
       console.error('[useDictation] Log config confirmation failed:', error);
       setStatus('error');
-      setTimeout(() => {
+      scheduleReset(() => {
         setStatus('idle');
         setPendingLogContent(null);
         setPendingLogApp(null);
       }, 2000);
     }
-  }, [pendingLogContent, pendingLogApp]);
+  }, [pendingLogContent, pendingLogApp, scheduleReset]);
 
   /**
    * Called when user cancels config in the ConfigPrompt.
@@ -372,7 +400,7 @@ export const useDictation = () => {
         // the user *just clicked* "Skip", so they know what happened.
         // If we want a specific toast "Copied to clipboard", we should expose a signal.
 
-        setTimeout(() => {
+        scheduleReset(() => {
           setStatus('idle');
           setPendingLogContent(null);
           setPendingLogApp(null);
@@ -393,14 +421,20 @@ export const useDictation = () => {
       setPendingLogApp(null);
       return false;
     }
-  }, [pendingLogContent]);
+  }, [pendingLogContent, scheduleReset]);
 
   // ========== End Log Mode Config Handlers ==========
+
+  // Never leave a reset timer running after unmount.
+  useEffect(() => clearPendingReset, [clearPendingReset]);
 
   return {
     status,
     mode,
     mediaStream,
+    // Live microphone state, straight from the recorder. The UI uses this as a
+    // hard guard so the overlay can never be hidden while audio is captured.
+    isRecording,
     startDictation,
     stopDictation,
     cancelDictation,

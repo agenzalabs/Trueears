@@ -153,6 +153,18 @@ pub fn handle_recording_shortcut_pressed(app_handle: &AppHandle) {
     }
 
     if let Some(window) = app_handle.get_webview_window("main") {
+        // Re-apply the full-desktop geometry before showing anything. A display
+        // change since the last activation (dock/undock, resolution or DPI switch,
+        // monitor sleep) can leave the overlay window covering nothing the user
+        // can see, which looks exactly like "the overlay never appeared" even
+        // though recording works fine.
+        //
+        // Linux is excluded on purpose: there the overlay is a small centred
+        // panel (the frontend resizes it to 560x220 on every activation), so
+        // re-expanding it to the whole desktop here would just fight that.
+        #[cfg(not(target_os = "linux"))]
+        crate::sync_overlay_geometry(&window);
+
         if window_info.is_none() && !is_in_settings && !is_wayland {
             log::warn!("No valid active window detected");
             let _ = window.emit("show-warning", "Please select a text box first");
@@ -165,9 +177,6 @@ pub fn handle_recording_shortcut_pressed(app_handle: &AppHandle) {
 
         if let Ok(visible) = window.is_visible() {
             log::info!("Window visible before: {}", visible);
-        }
-        if let Ok(size) = window.outer_size() {
-            log::info!("Window size: {}x{}", size.width, size.height);
         }
 
         let _ = window.unminimize();
@@ -192,9 +201,14 @@ pub fn handle_recording_shortcut_pressed(app_handle: &AppHandle) {
         };
         let _ = window.emit("shortcut-pressed", payload);
 
-        if let Ok(visible) = window.is_visible() {
-            log::info!("Window visible after: {}", visible);
-        }
+        // Log the geometry we ended up with so an invisible overlay can be
+        // diagnosed from the log file alone.
+        log::info!(
+            "Overlay window after show: visible={:?}, pos={:?}, size={:?}",
+            window.is_visible().ok(),
+            window.outer_position().ok().map(|p| (p.x, p.y)),
+            window.outer_size().ok().map(|s| (s.width, s.height)),
+        );
     }
 }
 
