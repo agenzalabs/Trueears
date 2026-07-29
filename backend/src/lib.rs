@@ -225,7 +225,10 @@ pub fn sync_overlay_geometry(window: &tauri::WebviewWindow) -> bool {
             return false;
         }
         Err(e) => {
-            log::warn!("Failed to enumerate monitors: {} - leaving overlay geometry untouched", e);
+            log::warn!(
+                "Failed to enumerate monitors: {} - leaving overlay geometry untouched",
+                e
+            );
             return false;
         }
     };
@@ -683,7 +686,9 @@ pub fn run() {
                 tauri_plugin_log::Builder::default()
                     .level(log::LevelFilter::Info)
                     .target(tauri_plugin_log::Target::new(
-                        tauri_plugin_log::TargetKind::LogDir { file_name: Some("Trueears.log".into()) }
+                        tauri_plugin_log::TargetKind::LogDir {
+                            file_name: Some("Trueears.log".into()),
+                        },
                     ))
                     .build(),
             )?;
@@ -714,20 +719,18 @@ pub fn run() {
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 let app_for_env = app_handle.clone();
-                let force_open_settings_on_start = tauri::async_runtime::spawn_blocking(move || {
-                    auth::load_runtime_env(&app_for_env);
-                    std::env::var("TRUEEARS_OPEN_SETTINGS_ON_START")
-                        .map(|v| {
-                            let value = v.trim().to_ascii_lowercase();
-                            value == "1"
-                                || value == "true"
-                                || value == "yes"
-                                || value == "on"
-                        })
-                        .unwrap_or(false)
-                })
-                .await
-                .unwrap_or(false);
+                let force_open_settings_on_start =
+                    tauri::async_runtime::spawn_blocking(move || {
+                        auth::load_runtime_env(&app_for_env);
+                        std::env::var("TRUEEARS_OPEN_SETTINGS_ON_START")
+                            .map(|v| {
+                                let value = v.trim().to_ascii_lowercase();
+                                value == "1" || value == "true" || value == "yes" || value == "on"
+                            })
+                            .unwrap_or(false)
+                    })
+                    .await
+                    .unwrap_or(false);
 
                 let app_for_read = app_handle.clone();
                 let onboarding_complete = match tauri::async_runtime::spawn_blocking(move || {
@@ -750,7 +753,9 @@ pub fn run() {
                     if force_open_settings_on_start {
                         log::info!("TRUEEARS_OPEN_SETTINGS_ON_START enabled. Opening settings.");
                     } else {
-                        log::info!("First run detected: onboarding not complete. Opening settings.");
+                        log::info!(
+                            "First run detected: onboarding not complete. Opening settings."
+                        );
                     }
 
                     // Small delay to ensure main window is ready
