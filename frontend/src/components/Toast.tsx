@@ -8,9 +8,11 @@ interface ToastProps {
   isVisible: boolean;
   onClose: () => void;
   bottomOffset?: number;
+  /** Horizontal centre of the toast within the overlay window (CSS px or a CSS length). */
+  leftOffset?: number | string;
 }
 
-export const Toast: React.FC<ToastProps> = ({ message, type, isVisible, onClose, bottomOffset }) => {
+export const Toast: React.FC<ToastProps> = ({ message, type, isVisible, onClose, bottomOffset, leftOffset }) => {
   useEffect(() => {
     if (isVisible) {
       const timer = setTimeout(() => {
@@ -30,8 +32,8 @@ export const Toast: React.FC<ToastProps> = ({ message, type, isVisible, onClose,
 
   return (
     <div
-      className="fixed left-1/2 -translate-x-1/2 z-[10000] animate-fadeIn"
-      style={{ bottom: bottomOffset ?? 48 }}
+      className="fixed -translate-x-1/2 z-[10000] animate-fadeIn"
+      style={{ bottom: bottomOffset ?? 48, left: leftOffset ?? '50%' }}
     >
       <div className={`${bgColors[type]} text-white px-4 py-2 rounded-lg shadow-lg backdrop-blur-sm flex items-center gap-2 text-xs font-medium`}>
         {type === 'error' && (

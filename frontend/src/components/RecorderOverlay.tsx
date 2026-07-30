@@ -13,13 +13,17 @@ import { ActiveWindowInfo } from '../types/appProfile';
 import { AppProfileService } from '../services/appProfileService';
 import { debug } from '../utils/debug';
 import { getCurrentWindow, PhysicalSize } from '@tauri-apps/api/window';
+import { useOverlayAnchor } from '../hooks/useOverlayAnchor';
+
+/** Upper bound on how long showing the overlay may wait for fresh window geometry. */
+const ANCHOR_REFRESH_TIMEOUT_MS = 250;
 
 export const RecorderOverlay: React.FC = () => {
   const isLinux = navigator.userAgent.toLowerCase().includes('linux');
   const [isVisible, setIsVisible] = useState(false);
   const [uiMode, setUiMode] = useState<'none' | 'setup' | 'warning'>('none');
   const [warningMessage, setWarningMessage] = useState('');
-  const [windowPadding, setWindowPadding] = useState(isLinux ? 12 : 250);
+  const { anchor, refreshAnchor } = useOverlayAnchor(isLinux);
   const [onboardingTriggerActive, setOnboardingTriggerActive] = useState(false);
   const [isConfigTransitioning, setIsConfigTransitioning] = useState(false);
   const [isConfigAppearing, setIsConfigAppearing] = useState(false);
@@ -50,6 +54,7 @@ export const RecorderOverlay: React.FC = () => {
     status: recordingStatus,
     mode,
     mediaStream,
+    isRecording: isCapturingAudio,
     startDictation,
     stopDictation,
     cancelDictation,
@@ -132,28 +137,6 @@ export const RecorderOverlay: React.FC = () => {
     }
   `;
 
-  // -- Effect: Calculate window padding from window position --
-  useEffect(() => {
-    const calculatePadding = async () => {
-      if (isLinux) {
-        setWindowPadding(12);
-        return;
-      }
-
-      try {
-        const window = getCurrentWindow();
-        const position = await window.outerPosition();
-        // Vertical padding is the absolute value of the negative Y position
-        const paddingY = Math.abs(Math.min(position.y, 0));
-        debug.log('[RecorderOverlay] Window position:', position, 'Calculated vertical padding:', paddingY);
-        setWindowPadding(paddingY);
-      } catch (e) {
-        console.error('[RecorderOverlay] Failed to get window position:', e);
-      }
-    };
-    calculatePadding();
-  }, [isLinux]);
-
   // -- Effect: Debug Tauri availability --
   useEffect(() => {
     debug.log('[RecorderOverlay] Checking Tauri availability...');
@@ -181,7 +164,9 @@ export const RecorderOverlay: React.FC = () => {
   useEffect(() => {
     // Check if we just transitioned FROM a finished state TO idle
     // OR if we are currently IN a finished state that should auto-hide
-    if ((prevRecordingStatus.current === 'success' || prevRecordingStatus.current === 'error' || prevRecordingStatus.current === 'cancelled' || prevRecordingStatus.current === 'log-saved') && recordingStatus === 'idle') {
+    // `isCapturingAudio` guards against a late reset from a previous session
+    // hiding the overlay while a new recording is already running.
+    if ((prevRecordingStatus.current === 'success' || prevRecordingStatus.current === 'error' || prevRecordingStatus.current === 'cancelled' || prevRecordingStatus.current === 'log-saved') && recordingStatus === 'idle' && !isCapturingAudio) {
       setIsVisible(false);
     }
 
@@ -193,7 +178,7 @@ export const RecorderOverlay: React.FC = () => {
     // BUT, we know that 'cancelLogConfig' sets status to 'log-saved'.
 
     prevRecordingStatus.current = recordingStatus;
-  }, [recordingStatus]);
+  }, [recordingStatus, isCapturingAudio]);
 
   // -- Effect: Manage mouse events based on UI mode and visibility --
   useEffect(() => {
@@ -290,15 +275,18 @@ export const RecorderOverlay: React.FC = () => {
 
   // -- Effect: Auto-hide idle state after 5 seconds --
   useEffect(() => {
-    // Only auto-hide if we're visible, in idle state, and uiMode is 'none'
-    if (isVisible && recordingStatus === 'idle' && uiMode === 'none' && !isStartingRecording) {
+    // Only auto-hide if we're visible, in idle state, uiMode is 'none', and the
+    // microphone is not actually capturing (a stale reset can report 'idle'
+    // while a recording is in flight - hiding then would leave the user
+    // dictating into an invisible overlay).
+    if (isVisible && recordingStatus === 'idle' && uiMode === 'none' && !isStartingRecording && !isCapturingAudio) {
       const timer = setTimeout(() => {
         setIsVisible(false);
       }, 5000); // 5 seconds
 
       return () => clearTimeout(timer);
     }
-  }, [isVisible, recordingStatus, uiMode, isStartingRecording]);
+  }, [isVisible, recordingStatus, uiMode, isStartingRecording, isCapturingAudio]);
 
   // -- Effect: Dynamically register/unregister Escape shortcut based on visibility --
   // This prevents the global Escape shortcut from interfering with other apps when Trueears is not visible
@@ -359,11 +347,40 @@ export const RecorderOverlay: React.FC = () => {
     }
   }, [isLinux]);
 
+  /**
+   * Re-read where the capsule has to be drawn before showing it. Bounded by a
+   * timeout so a slow IPC round trip can never delay the overlay.
+   */
+  const prepareOverlayPosition = useCallback(async () => {
+    await Promise.race([
+      refreshAnchor(),
+      new Promise<void>((resolve) => setTimeout(resolve, ANCHOR_REFRESH_TIMEOUT_MS)),
+    ]);
+  }, [refreshAnchor]);
+
+  /**
+   * Drop any leftover transient UI from the previous activation. Without this a
+   * warning shown moments earlier keeps `uiMode` on 'warning' - the capsule then
+   * renders the warning instead of the recorder and its pending 3s timer hides
+   * the overlay mid-recording.
+   */
+  const clearTransientUi = useCallback(() => {
+    if (warningHideTimeoutRef.current) {
+      clearTimeout(warningHideTimeoutRef.current);
+      warningHideTimeoutRef.current = null;
+    }
+    setWarningMessage('');
+    setUiMode('none');
+  }, []);
+
   // -- Action: Start Recording --
   const handleStartRecording = async (manualKey?: string, windowInfo?: ActiveWindowInfo | null, selectedText?: string | null) => {
     debug.log('[RecorderOverlay] handleStartRecording called with window info:', windowInfo, 'selected text:', selectedText ? `${selectedText.length} chars` : 'none');
     const effectiveKey = manualKey || apiKey;
     debug.log('[RecorderOverlay] Effective key exists:', !!effectiveKey);
+
+    clearTransientUi();
+    await prepareOverlayPosition();
 
     // If no API key, force setup mode
     if (!effectiveKey) {
@@ -797,11 +814,11 @@ export const RecorderOverlay: React.FC = () => {
 
   // -- Effect: Hide overlay after toast completes during config transition --
   useEffect(() => {
-    if (!isToastVisible && !isConfigTransitioning && recordingStatus === 'log-saved') {
+    if (!isToastVisible && !isConfigTransitioning && recordingStatus === 'log-saved' && !isCapturingAudio) {
       // Toast has finished showing, hide the overlay
       setIsVisible(false);
     }
-  }, [isToastVisible, isConfigTransitioning, recordingStatus]);
+  }, [isToastVisible, isConfigTransitioning, recordingStatus, isCapturingAudio]);
 
   // -- Effect: Trigger config appearing animation --
   const prevStatusForConfig = useRef(recordingStatus);
@@ -828,13 +845,14 @@ export const RecorderOverlay: React.FC = () => {
           type={toastType}
           isVisible={true}
           onClose={hideToast}
-          bottomOffset={windowPadding + 48}
+          bottomOffset={anchor.bottom}
+          leftOffset={anchor.left}
         />
       )}
       {isVisible && (
         <div
-          className="fixed z-9999 left-1/2 -translate-x-1/2 pointer-events-none flex flex-col items-center justify-end"
-          style={{ bottom: windowPadding + 48 }}
+          className="fixed z-9999 -translate-x-1/2 pointer-events-none flex flex-col items-center justify-end"
+          style={{ bottom: anchor.bottom, left: anchor.left }}
         >
           {/* 
         Capsule Container

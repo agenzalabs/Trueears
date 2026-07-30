@@ -202,6 +202,96 @@ fn configure_wayland_overlay_panel(window: &tauri::WebviewWindow) {
 #[cfg(not(target_os = "linux"))]
 fn configure_wayland_overlay_panel(_window: &tauri::WebviewWindow) {}
 
+/// Recompute the overlay window geometry so it spans every connected monitor.
+///
+/// The overlay is a full-desktop transparent window: the capsule is positioned
+/// with CSS inside it, so the window MUST cover the monitor the user is looking
+/// at. Display changes (docking, unplugging a monitor, resolution/DPI switches,
+/// RDP, monitor sleep) move/resize the window behind our back, which used to
+/// strand the capsule off-screen for the rest of the session while recording
+/// kept working. This runs at startup and again on every activation, and is a
+/// no-op when the geometry already matches.
+///
+/// Returns `true` when the geometry was actually changed.
+pub fn sync_overlay_geometry(window: &tauri::WebviewWindow) -> bool {
+    if is_linux_wayland_session() {
+        return false;
+    }
+
+    let monitors = match window.available_monitors() {
+        Ok(monitors) if !monitors.is_empty() => monitors,
+        Ok(_) => {
+            log::warn!("No monitors reported - leaving overlay geometry untouched");
+            return false;
+        }
+        Err(e) => {
+            log::warn!(
+                "Failed to enumerate monitors: {} - leaving overlay geometry untouched",
+                e
+            );
+            return false;
+        }
+    };
+
+    let mut min_x = i32::MAX;
+    let mut min_y = i32::MAX;
+    let mut max_x = i32::MIN;
+    let mut max_y = i32::MIN;
+
+    for monitor in &monitors {
+        let pos = monitor.position();
+        let size = monitor.size();
+        min_x = min_x.min(pos.x);
+        min_y = min_y.min(pos.y);
+        max_x = max_x.max(pos.x + size.width as i32);
+        max_y = max_y.max(pos.y + size.height as i32);
+    }
+
+    let max_scale_factor = monitors
+        .iter()
+        .map(|m| m.scale_factor())
+        .fold(1.0_f64, |a, b| a.max(b));
+
+    // Padding keeps the window edges outside the visible desktop so the capsule
+    // never touches a screen border.
+    let padding = (200.0 * max_scale_factor) as i32;
+    min_x -= padding;
+    min_y -= padding;
+    max_x += padding;
+    max_y += padding;
+
+    let target_pos = tauri::PhysicalPosition::new(min_x, min_y);
+    let target_size = tauri::PhysicalSize::new((max_x - min_x) as u32, (max_y - min_y) as u32);
+
+    let current_pos = window.outer_position().ok();
+    let current_size = window.outer_size().ok();
+
+    if current_pos.as_ref() == Some(&target_pos) && current_size.as_ref() == Some(&target_size) {
+        return false;
+    }
+
+    log::info!(
+        "Syncing overlay geometry to span {} monitor(s): pos=({}, {}), size={}x{}, scale={} (was pos={:?}, size={:?})",
+        monitors.len(),
+        min_x,
+        min_y,
+        target_size.width,
+        target_size.height,
+        max_scale_factor,
+        current_pos.map(|p| (p.x, p.y)),
+        current_size.map(|s| (s.width, s.height)),
+    );
+
+    if let Err(e) = window.set_position(target_pos) {
+        log::warn!("Failed to reposition overlay window: {}", e);
+    }
+    if let Err(e) = window.set_size(target_size) {
+        log::warn!("Failed to resize overlay window: {}", e);
+    }
+
+    true
+}
+
 fn is_sensitive_store_key(key: &str) -> bool {
     let k = key.to_ascii_uppercase();
     k.contains("KEY") || k.contains("TOKEN") || k.contains("SECRET") || k.contains("PASSWORD")
@@ -596,7 +686,9 @@ pub fn run() {
                 tauri_plugin_log::Builder::default()
                     .level(log::LevelFilter::Info)
                     .target(tauri_plugin_log::Target::new(
-                        tauri_plugin_log::TargetKind::LogDir { file_name: Some("Trueears.log".into()) }
+                        tauri_plugin_log::TargetKind::LogDir {
+                            file_name: Some("Trueears.log".into()),
+                        },
                     ))
                     .build(),
             )?;
@@ -617,48 +709,7 @@ pub fn run() {
                     log::info!("Configuring main window for Linux Wayland panel overlay");
                     configure_wayland_overlay_panel(&window);
                 } else {
-                    let monitors = window.available_monitors().unwrap_or_default();
-                    if !monitors.is_empty() {
-                        let mut min_x = i32::MAX;
-                        let mut min_y = i32::MAX;
-                        let mut max_x = i32::MIN;
-                        let mut max_y = i32::MIN;
-
-                        for monitor in &monitors {
-                            let pos = monitor.position();
-                            let size = monitor.size();
-                            min_x = min_x.min(pos.x);
-                            min_y = min_y.min(pos.y);
-                            max_x = max_x.max(pos.x + size.width as i32);
-                            max_y = max_y.max(pos.y + size.height as i32);
-                        }
-
-                        let max_scale_factor = monitors
-                            .iter()
-                            .map(|m| m.scale_factor())
-                            .fold(1.0_f64, |a, b| a.max(b));
-
-                        let padding = (200.0 * max_scale_factor) as i32;
-                        min_x -= padding;
-                        min_y -= padding;
-                        max_x += padding;
-                        max_y += padding;
-
-                        let total_width = (max_x - min_x) as u32;
-                        let total_height = (max_y - min_y) as u32;
-
-                        log::info!(
-                            "Setting main window to span all monitors: pos=({}, {}), size={}x{}, scale={}",
-                            min_x,
-                            min_y,
-                            total_width,
-                            total_height,
-                            max_scale_factor
-                        );
-
-                        let _ = window.set_position(tauri::PhysicalPosition::new(min_x, min_y));
-                        let _ = window.set_size(tauri::PhysicalSize::new(total_width, total_height));
-                    }
+                    sync_overlay_geometry(&window);
                 }
             }
 
@@ -668,20 +719,18 @@ pub fn run() {
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 let app_for_env = app_handle.clone();
-                let force_open_settings_on_start = tauri::async_runtime::spawn_blocking(move || {
-                    auth::load_runtime_env(&app_for_env);
-                    std::env::var("TRUEEARS_OPEN_SETTINGS_ON_START")
-                        .map(|v| {
-                            let value = v.trim().to_ascii_lowercase();
-                            value == "1"
-                                || value == "true"
-                                || value == "yes"
-                                || value == "on"
-                        })
-                        .unwrap_or(false)
-                })
-                .await
-                .unwrap_or(false);
+                let force_open_settings_on_start =
+                    tauri::async_runtime::spawn_blocking(move || {
+                        auth::load_runtime_env(&app_for_env);
+                        std::env::var("TRUEEARS_OPEN_SETTINGS_ON_START")
+                            .map(|v| {
+                                let value = v.trim().to_ascii_lowercase();
+                                value == "1" || value == "true" || value == "yes" || value == "on"
+                            })
+                            .unwrap_or(false)
+                    })
+                    .await
+                    .unwrap_or(false);
 
                 let app_for_read = app_handle.clone();
                 let onboarding_complete = match tauri::async_runtime::spawn_blocking(move || {
@@ -704,7 +753,9 @@ pub fn run() {
                     if force_open_settings_on_start {
                         log::info!("TRUEEARS_OPEN_SETTINGS_ON_START enabled. Opening settings.");
                     } else {
-                        log::info!("First run detected: onboarding not complete. Opening settings.");
+                        log::info!(
+                            "First run detected: onboarding not complete. Opening settings."
+                        );
                     }
 
                     // Small delay to ensure main window is ready
