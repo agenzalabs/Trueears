@@ -4,6 +4,29 @@ import { useAppUpdate } from '../../hooks/useAppUpdate';
 // Declare the global version injected by Vite
 declare const __APP_VERSION__: string;
 
+/**
+ * The updater renders notes as plain text. Releases published after the notes
+ * rewrite in release.yml already are plain, but manifests from earlier releases
+ * (or a hand-edited release body) still carry markdown, which would otherwise
+ * show its own syntax. Strip it rather than print it literally.
+ */
+const toPlainText = (notes: string): string =>
+  notes
+    .split('\n')
+    .map((line) =>
+      line
+        .replace(/^#{1,6}\s*/, '')
+        .replace(/^\s*[-*]\s+/, '• ')
+        .replace(/\*\*(.+?)\*\*/g, '$1')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        .trimEnd()
+    )
+    // Collapse runs of blank lines left behind by removed headings.
+    .filter((line, index, all) => line !== '' || (all[index - 1] ?? '') !== '')
+    .join('\n')
+    .trim();
+
 interface AboutSettingsProps {
   theme: 'light' | 'dark';
 }
@@ -84,9 +107,11 @@ export const AboutSettings: React.FC<AboutSettingsProps> = ({ theme }) => {
           )}
 
           {isReady && status.notes && (
-            <p className={`mt-2 text-xs whitespace-pre-line ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-              {status.notes}
-            </p>
+            <div
+              className={`mt-2 max-h-40 overflow-y-auto pr-1 text-xs whitespace-pre-line ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
+            >
+              {toPlainText(status.notes)}
+            </div>
           )}
 
           {installError && (
