@@ -15,6 +15,7 @@ jobs:
       previous_tag: ${{ steps.changelog.outputs.previous_tag }}
       should_release: ${{ steps.check_tag.outputs.should_release }}
       release_body: ${{ steps.changelog.outputs.release_body }}
+      update_notes: ${{ steps.changelog.outputs.update_notes }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -65,12 +66,12 @@ jobs:
           echo "previous_tag=$PREV_TAG" >> $GITHUB_OUTPUT
 
           # Collect commits by category using conventional commit prefixes
-          FEATURES=$(git log "$RANGE" --no-merges --format="- %s" --grep="^feat([(:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
-          FIXES=$(git log "$RANGE" --no-merges --format="- %s" --grep="^fix([(:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
-          REFACTORS=$(git log "$RANGE" --no-merges --format="- %s" --grep="^refactor([(:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
-          CHORES=$(git log "$RANGE" --no-merges --format="- %s" --grep="^(chore|docs|ci|build)([(:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
+          FEATURES=$(git log "$RANGE" --no-merges --format="- %s" --grep="^feat([(!:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
+          FIXES=$(git log "$RANGE" --no-merges --format="- %s" --grep="^fix([(!:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
+          REFACTORS=$(git log "$RANGE" --no-merges --format="- %s" --grep="^refactor([(!:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
+          CHORES=$(git log "$RANGE" --no-merges --format="- %s" --grep="^(chore|docs|ci|build)([(!:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
           # Catch commits that don't follow conventional commits
-          OTHER=$(git log "$RANGE" --no-merges --format="- %s" --invert-grep --grep="^(feat|fix|refactor|chore|docs|ci|build)([(:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
+          OTHER=$(git log "$RANGE" --no-merges --format="- %s" --invert-grep --grep="^(feat|fix|refactor|chore|docs|ci|build)([(!:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
 
           # Build the changelog body
           BODY=""
@@ -109,6 +110,37 @@ jobs:
               printf '\n[Full Changelog](%s)\n' "$COMPARE_URL"
             fi
             echo "RELEASE_BODY_EOF"
+          } >> $GITHUB_OUTPUT
+
+          # Separate, user-facing notes for the in-app update prompt.
+          #
+          # The release body above is written for the GitHub release page: it is
+          # markdown, and it carries install instructions and a changelog link
+          # that mean nothing inside the app. The updater shows `notes` as plain
+          # text, so markdown syntax would appear literally. Build a short plain
+          # text summary instead, with the conventional-commit prefixes stripped.
+          strip_prefix() {
+            sed -E 's/^[a-zA-Z]+(\([^)]*\))?!?: *//' | sed -E 's/^(.)/\u\1/' | sed 's/^/• /' | head -n 8
+          }
+
+          FEATURES_PLAIN=$(git log "$RANGE" --no-merges --format="%s" --grep="^feat([(!:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null | strip_prefix || true)
+          FIXES_PLAIN=$(git log "$RANGE" --no-merges --format="%s" --grep="^fix([(!:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null | strip_prefix || true)
+
+          {
+            echo "update_notes<<UPDATE_NOTES_EOF"
+            if [ -n "$FEATURES_PLAIN" ]; then
+              echo "What's new"
+              echo "$FEATURES_PLAIN"
+              [ -n "$FIXES_PLAIN" ] && echo
+            fi
+            if [ -n "$FIXES_PLAIN" ]; then
+              echo "Fixes"
+              echo "$FIXES_PLAIN"
+            fi
+            if [ -z "$FEATURES_PLAIN" ] && [ -z "$FIXES_PLAIN" ]; then
+              echo "Maintenance and stability improvements."
+            fi
+            echo "UPDATE_NOTES_EOF"
           } >> $GITHUB_OUTPUT
 
   # Build and release for each platform
@@ -164,3 +196,50 @@ jobs:
           releaseDraft: false
           prerelease: false
           projectPath: './backend'
+
+      # tauri-action copies the GitHub release body into latest.json's `notes`,
+      # which is what the in-app prompt displays. Swap in the plain text summary
+      # so users see a readable changelog instead of raw markdown and install
+      # instructions. Patching the published manifest rather than the app means
+      # already-installed builds get the cleaner text too.
+      - name: Replace updater notes with the user-facing summary
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.check-version.outputs.tag }}
+          UPDATE_NOTES: ${{ needs.check-version.outputs.update_notes }}
+        run: |
+          set -euo pipefail
+
+          WORK="$RUNNER_TEMP/updater-notes"
+          mkdir -p "$WORK"
+
+          # Distinguish "there is nothing to rewrite" from "something is broken".
+          # Listing the assets is allowed to fail the step: an auth, API, or
+          # network error must not quietly publish the raw markdown notes. Only a
+          # genuinely absent manifest is treated as a skip.
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets \
+            --jq '.assets[].name' > "$WORK/assets.txt"
+
+          if ! grep -qx 'latest.json' "$WORK/assets.txt"; then
+            echo "::warning::latest.json is not attached to $TAG - skipping notes rewrite"
+            exit 0
+          fi
+
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern latest.json --dir "$WORK"
+
+          node -e "
+            const fs = require('fs');
+            const path = process.argv[1];
+            const notes = process.env.UPDATE_NOTES || '';
+            if (!notes.trim()) {
+              console.log('No update notes produced - leaving latest.json untouched');
+              process.exit(0);
+            }
+            const json = JSON.parse(fs.readFileSync(path, 'utf8'));
+            json.notes = notes.trim();
+            fs.writeFileSync(path, JSON.stringify(json, null, 2));
+            console.log('Updater notes set to:\n' + json.notes);
+          " "$WORK/latest.json"
+
+          gh release upload "$TAG" "$WORK/latest.json" --repo "$GITHUB_REPOSITORY" --clobber
