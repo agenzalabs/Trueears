@@ -139,7 +139,7 @@ export const AboutSettings: React.FC<AboutSettingsProps> = ({ theme }) => {
             </div>
             <div className={`flex items-center justify-between p-3 rounded-lg border ${isDark ? 'bg-[#1a1a1a] border-[#333]' : 'bg-gray-50 border-gray-200'}`}>
               <span className={isDark ? 'text-gray-200' : 'text-gray-800'}>Toggle settings (open/close)</span>
-              <kbd className={`px-2 py-1 rounded font-mono text-xs border ${isDark ? 'bg-[#252525] text-gray-200 border-[#444]' : 'bg-gray-200 text-gray-800 border-gray-300'}`}>Ctrl+Shift+L</kbd>
+              <kbd className={`px-2 py-1 rounded font-mono text-xs border ${isDark ? 'bg-[#252525] text-gray-200 border-[#444]' : 'bg-gray-200 text-gray-800 border-gray-300'}`}>Ctrl+Shift+S</kbd>
             </div>
           </div>
         </div>
