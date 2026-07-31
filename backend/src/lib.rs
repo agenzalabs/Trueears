@@ -531,6 +531,31 @@ async fn get_installed_popular_apps() -> Result<Vec<installed_apps::InstalledApp
     Ok(tauri::async_runtime::spawn_blocking(installed_apps::get_installed_popular_apps).await?)
 }
 
+/// Bring the settings window up, creating it if needed.
+///
+/// Deliberately *not* `open_settings_window`: that one toggles, closing the
+/// window when it already exists, which is right for the keyboard shortcut but
+/// wrong here. Launching the app a second time should surface the window, never
+/// dismiss it.
+fn focus_or_open_settings(app: &tauri::AppHandle) {
+    use tauri::Manager;
+
+    if let Some(window) = app.get_webview_window("settings") {
+        log::info!("Settings window already open - focusing it");
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+        return;
+    }
+
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = open_settings_window(app).await {
+            log::error!("Failed to open settings window: {}", e);
+        }
+    });
+}
+
 #[tauri::command]
 async fn open_settings_window(app: tauri::AppHandle) -> Result<(), AppError> {
     use tauri::Manager;
@@ -675,6 +700,23 @@ async fn open_external_url(url: String) -> Result<(), AppError> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // Must be registered first so a duplicate launch is intercepted before
+        // any other setup runs.
+        //
+        // Without this, clicking the app icon while Trueears is already running
+        // started a second process that showed nothing: the main window is a
+        // hidden overlay, there is no tray icon, and settings only auto-opens
+        // during onboarding. That process then failed to claim the global
+        // shortcuts (the first instance holds them) and lingered. Now the
+        // running instance surfaces its settings window instead.
+        .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+            log::info!(
+                "Second instance launched (args={:?}, cwd={}) - focusing settings",
+                args,
+                cwd
+            );
+            focus_or_open_settings(app);
+        }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
