@@ -66,12 +66,12 @@ jobs:
           echo "previous_tag=$PREV_TAG" >> $GITHUB_OUTPUT
 
           # Collect commits by category using conventional commit prefixes
-          FEATURES=$(git log "$RANGE" --no-merges --format="- %s" --grep="^feat([(:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
-          FIXES=$(git log "$RANGE" --no-merges --format="- %s" --grep="^fix([(:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
-          REFACTORS=$(git log "$RANGE" --no-merges --format="- %s" --grep="^refactor([(:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
-          CHORES=$(git log "$RANGE" --no-merges --format="- %s" --grep="^(chore|docs|ci|build)([(:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
+          FEATURES=$(git log "$RANGE" --no-merges --format="- %s" --grep="^feat([(!:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
+          FIXES=$(git log "$RANGE" --no-merges --format="- %s" --grep="^fix([(!:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
+          REFACTORS=$(git log "$RANGE" --no-merges --format="- %s" --grep="^refactor([(!:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
+          CHORES=$(git log "$RANGE" --no-merges --format="- %s" --grep="^(chore|docs|ci|build)([(!:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
           # Catch commits that don't follow conventional commits
-          OTHER=$(git log "$RANGE" --no-merges --format="- %s" --invert-grep --grep="^(feat|fix|refactor|chore|docs|ci|build)([(:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
+          OTHER=$(git log "$RANGE" --no-merges --format="- %s" --invert-grep --grep="^(feat|fix|refactor|chore|docs|ci|build)([(!:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null || true)
 
           # Build the changelog body
           BODY=""
@@ -123,8 +123,8 @@ jobs:
             sed -E 's/^[a-zA-Z]+(\([^)]*\))?!?: *//' | sed -E 's/^(.)/\u\1/' | sed 's/^/• /' | head -n 8
           }
 
-          FEATURES_PLAIN=$(git log "$RANGE" --no-merges --format="%s" --grep="^feat([(:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null | strip_prefix || true)
-          FIXES_PLAIN=$(git log "$RANGE" --no-merges --format="%s" --grep="^fix([(:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null | strip_prefix || true)
+          FEATURES_PLAIN=$(git log "$RANGE" --no-merges --format="%s" --grep="^feat([(!:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null | strip_prefix || true)
+          FIXES_PLAIN=$(git log "$RANGE" --no-merges --format="%s" --grep="^fix([(!:]|$)" --extended-regexp --regexp-ignore-case 2>/dev/null | strip_prefix || true)
 
           {
             echo "update_notes<<UPDATE_NOTES_EOF"
@@ -214,10 +214,19 @@ jobs:
           WORK="$RUNNER_TEMP/updater-notes"
           mkdir -p "$WORK"
 
-          if ! gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern latest.json --dir "$WORK"; then
-            echo "::warning::latest.json not found on $TAG - skipping notes rewrite"
+          # Distinguish "there is nothing to rewrite" from "something is broken".
+          # Listing the assets is allowed to fail the step: an auth, API, or
+          # network error must not quietly publish the raw markdown notes. Only a
+          # genuinely absent manifest is treated as a skip.
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets \
+            --jq '.assets[].name' > "$WORK/assets.txt"
+
+          if ! grep -qx 'latest.json' "$WORK/assets.txt"; then
+            echo "::warning::latest.json is not attached to $TAG - skipping notes rewrite"
             exit 0
           fi
+
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern latest.json --dir "$WORK"
 
           node -e "
             const fs = require('fs');

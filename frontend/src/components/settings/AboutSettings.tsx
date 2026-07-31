@@ -108,6 +108,11 @@ export const AboutSettings: React.FC<AboutSettingsProps> = ({ theme }) => {
 
           {isReady && status.notes && (
             <div
+              // Scrollable regions need a tab stop, or keyboard users cannot
+              // reach the overflow when the changelog is long.
+              tabIndex={0}
+              role="region"
+              aria-label={`Release notes for version ${status.version ?? ''}`.trim()}
               className={`mt-2 max-h-40 overflow-y-auto pr-1 text-xs whitespace-pre-line ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
             >
               {toPlainText(status.notes)}
