@@ -812,8 +812,37 @@ pub fn run() {
                     }
                 };
 
-                if !onboarding_complete || force_open_settings_on_start {
-                    if force_open_settings_on_start {
+                // Did this launch follow an in-app update? The flag is cleared as
+                // soon as it is read, so a failure to open cannot make settings
+                // reappear on every subsequent launch.
+                let app_for_update_flag = app_handle.clone();
+                let reopened_after_update = tauri::async_runtime::spawn_blocking(move || {
+                    let was_set =
+                        read_store_value_sync(&app_for_update_flag, updater::REOPEN_SETTINGS_KEY)
+                            .ok()
+                            .flatten()
+                            .map(|value| value == "true")
+                            .unwrap_or(false);
+
+                    if was_set {
+                        if let Err(e) = write_store_value_sync(
+                            &app_for_update_flag,
+                            updater::REOPEN_SETTINGS_KEY,
+                            "false",
+                        ) {
+                            log::warn!("Failed to clear the post-update reopen flag: {}", e);
+                        }
+                    }
+
+                    was_set
+                })
+                .await
+                .unwrap_or(false);
+
+                if !onboarding_complete || force_open_settings_on_start || reopened_after_update {
+                    if reopened_after_update {
+                        log::info!("Launch followed an in-app update. Reopening settings.");
+                    } else if force_open_settings_on_start {
                         log::info!("TRUEEARS_OPEN_SETTINGS_ON_START enabled. Opening settings.");
                     } else {
                         log::info!(

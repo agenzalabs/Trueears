@@ -29,6 +29,10 @@ const PROGRESS_STEP: u8 = 5;
 const RECORDING_IN_PROGRESS: &str =
     "Recording is in progress. Finish dictating, then restart to update.";
 
+/// Store key telling the next launch that it followed an in-app update, so the
+/// settings window the user pressed "Restart & install" in can be restored.
+pub const REOPEN_SETTINGS_KEY: &str = "Trueears_REOPEN_SETTINGS_AFTER_UPDATE";
+
 /// Shared updater state.
 ///
 /// The installer is held in memory rather than spilled to disk: it is a single
@@ -316,6 +320,16 @@ pub async fn install_update(app: AppHandle) -> Result<(), AppError> {
 
         let (update, bytes) =
             taken.ok_or_else(|| "No update has been downloaded yet".to_string())?;
+
+        // The installer relaunches the app, and that fresh process cannot
+        // otherwise tell it was just updated: startup only opens settings while
+        // onboarding is incomplete, so the window the user pressed the button in
+        // would simply never come back. Leave a note for the next launch.
+        if let Err(e) = crate::write_store_value_sync(&app_for_install, REOPEN_SETTINGS_KEY, "true")
+        {
+            // Not fatal - the update still installs, the window just stays shut.
+            log::warn!("Failed to record the post-update reopen flag: {}", e);
+        }
 
         log::info!("Installing update {} and restarting", update.version);
         update.install(bytes).map_err(|e| e.to_string())
