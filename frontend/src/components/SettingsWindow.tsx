@@ -454,6 +454,8 @@ export const SettingsWindow: React.FC = () => {
             About
             {isUpdateReady && (
               <span
+                role="img"
+                aria-label="An update is ready to install"
                 title="An update is ready to install"
                 className="ml-auto w-2 h-2 rounded-full bg-emerald-500"
               />

@@ -26,10 +26,28 @@ const RECHECK_INTERVAL: Duration = Duration::from_secs(6 * 60 * 60);
 /// Only emit progress every N percent to avoid flooding the webview.
 const PROGRESS_STEP: u8 = 5;
 
-/// The downloaded-but-not-installed update, kept in memory until the user
-/// restarts or the app exits.
+const RECORDING_IN_PROGRESS: &str =
+    "Recording is in progress. Finish dictating, then restart to update.";
+
+/// Shared updater state.
+///
+/// The installer is held in memory rather than spilled to disk: it is a single
+/// ~6 MB NSIS package, so the resident cost is small next to the bookkeeping and
+/// cleanup a temp file would need.
 #[derive(Default)]
-pub struct PendingUpdate(Mutex<Option<(Update, Vec<u8>)>>);
+pub struct UpdaterState(Mutex<StateInner>);
+
+#[derive(Default)]
+struct StateInner {
+    /// Status of a check or download that is running right now.
+    ///
+    /// Held for the whole operation so that a second caller returns this
+    /// instead of starting a duplicate download, and so a window opened
+    /// mid-download reports progress rather than `Idle`.
+    active: Option<UpdateStatus>,
+    /// Downloaded package waiting for the user to restart.
+    pending: Option<(Update, Vec<u8>)>,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -91,6 +109,25 @@ fn emit_status(app: &AppHandle, status: &UpdateStatus) {
     }
 }
 
+/// Record the status of the running operation and push it to the windows.
+fn set_active(app: &AppHandle, status: UpdateStatus) {
+    if let Ok(mut state) = app.state::<UpdaterState>().0.lock() {
+        state.active = Some(status.clone());
+    }
+    emit_status(app, &status);
+}
+
+/// Clear the running operation, optionally storing the package it produced.
+fn finish_active(app: &AppHandle, status: UpdateStatus, downloaded: Option<(Update, Vec<u8>)>) {
+    if let Ok(mut state) = app.state::<UpdaterState>().0.lock() {
+        state.active = None;
+        if downloaded.is_some() {
+            state.pending = downloaded;
+        }
+    }
+    emit_status(app, &status);
+}
+
 /// Record whether audio is being captured right now. Called by the overlay
 /// whenever recording starts or stops.
 pub fn set_recording_active(active: bool) {
@@ -100,9 +137,25 @@ pub fn set_recording_active(active: bool) {
 /// Check for a new release and, if there is one, download it and hold it ready.
 /// Never returns an error for "no update available" - that is the happy path.
 pub async fn check_and_download(app: &AppHandle) -> UpdateStatus {
-    // Nothing to do if we already hold a downloaded update.
-    if let Some(status) = pending_status(app) {
-        return status;
+    // Claim the operation. Bails out when a package is already staged, or when
+    // another check/download is in flight - otherwise the periodic check and a
+    // user pressing "Check for updates" would both download the same package.
+    {
+        let state_handle = app.state::<UpdaterState>();
+        let mut state = match state_handle.0.lock() {
+            Ok(state) => state,
+            Err(_) => return UpdateStatus::error("Update state is poisoned"),
+        };
+
+        if let Some((update, _)) = state.pending.as_ref() {
+            return UpdateStatus::from_update(UpdateState::Ready, update);
+        }
+        if let Some(active) = state.active.clone() {
+            log::info!("Update check already in progress - skipping duplicate");
+            return active;
+        }
+
+        state.active = Some(UpdateStatus::new(UpdateState::Checking));
     }
 
     emit_status(app, &UpdateStatus::new(UpdateState::Checking));
@@ -113,7 +166,7 @@ pub async fn check_and_download(app: &AppHandle) -> UpdateStatus {
             // Expected in `tauri dev` and in any build without updater config.
             log::info!("Updater unavailable: {}", e);
             let status = UpdateStatus::idle();
-            emit_status(app, &status);
+            finish_active(app, status.clone(), None);
             return status;
         }
     };
@@ -123,13 +176,13 @@ pub async fn check_and_download(app: &AppHandle) -> UpdateStatus {
         Ok(None) => {
             log::info!("No update available");
             let status = UpdateStatus::idle();
-            emit_status(app, &status);
+            finish_active(app, status.clone(), None);
             return status;
         }
         Err(e) => {
             log::warn!("Update check failed: {}", e);
             let status = UpdateStatus::error(e.to_string());
-            emit_status(app, &status);
+            finish_active(app, status.clone(), None);
             return status;
         }
     };
@@ -142,7 +195,7 @@ pub async fn check_and_download(app: &AppHandle) -> UpdateStatus {
 
     let mut downloading = UpdateStatus::from_update(UpdateState::Downloading, &update);
     downloading.progress = Some(0);
-    emit_status(app, &downloading);
+    set_active(app, downloading.clone());
 
     let mut downloaded: u64 = 0;
     let mut last_reported: u8 = 0;
@@ -161,7 +214,7 @@ pub async fn check_and_download(app: &AppHandle) -> UpdateStatus {
                     last_reported = percent;
                     let mut status = progress_template.clone();
                     status.progress = Some(percent);
-                    emit_status(&progress_app, &status);
+                    set_active(&progress_app, status);
                 }
             },
             || log::info!("Update download finished"),
@@ -173,7 +226,7 @@ pub async fn check_and_download(app: &AppHandle) -> UpdateStatus {
         Err(e) => {
             log::warn!("Update download failed: {}", e);
             let status = UpdateStatus::error(e.to_string());
-            emit_status(app, &status);
+            finish_active(app, status.clone(), None);
             return status;
         }
     };
@@ -185,19 +238,22 @@ pub async fn check_and_download(app: &AppHandle) -> UpdateStatus {
     );
 
     let status = UpdateStatus::from_update(UpdateState::Ready, &update);
-    if let Ok(mut pending) = app.state::<PendingUpdate>().0.lock() {
-        *pending = Some((update, bytes));
-    }
-    emit_status(app, &status);
+    finish_active(app, status.clone(), Some((update, bytes)));
     status
 }
 
-/// Status derived from an already-downloaded update, if there is one.
-fn pending_status(app: &AppHandle) -> Option<UpdateStatus> {
-    let pending = app.state::<PendingUpdate>();
-    let guard = pending.0.lock().ok()?;
-    let (update, _) = guard.as_ref()?;
-    Some(UpdateStatus::from_update(UpdateState::Ready, update))
+/// Current status: a staged package, else whatever operation is running, else idle.
+fn current_status(app: &AppHandle) -> UpdateStatus {
+    let state = app.state::<UpdaterState>();
+    let Ok(guard) = state.0.lock() else {
+        return UpdateStatus::idle();
+    };
+
+    if let Some((update, _)) = guard.pending.as_ref() {
+        return UpdateStatus::from_update(UpdateState::Ready, update);
+    }
+
+    guard.active.clone().unwrap_or_else(UpdateStatus::idle)
 }
 
 /// Start the background schedule: one check shortly after launch, then periodic.
@@ -214,7 +270,7 @@ pub fn spawn_background_checks(app: &AppHandle) {
 
 #[tauri::command]
 pub async fn get_update_status(app: AppHandle) -> Result<UpdateStatus, AppError> {
-    Ok(pending_status(&app).unwrap_or_else(UpdateStatus::idle))
+    Ok(current_status(&app))
 }
 
 #[tauri::command]
@@ -231,37 +287,49 @@ pub async fn check_for_update(app: AppHandle) -> Result<UpdateStatus, AppError> 
 pub async fn install_update(app: AppHandle) -> Result<(), AppError> {
     log::info!("install_update command called");
 
+    // Fast path so the UI gets an immediate, friendly refusal. The authoritative
+    // check happens inside the worker below, as late as possible.
     if RECORDING_ACTIVE.load(Ordering::SeqCst) {
-        return Err(AppError::Generic(
-            "Recording is in progress. Finish dictating, then restart to update.".into(),
-        ));
+        return Err(AppError::Generic(RECORDING_IN_PROGRESS.into()));
     }
 
-    let pending = app.state::<PendingUpdate>();
-    let taken = {
-        let mut guard = pending
-            .0
-            .lock()
-            .map_err(|_| AppError::Generic("Update state is poisoned".into()))?;
-        guard.take()
-    };
-
-    let (update, bytes) =
-        taken.ok_or_else(|| AppError::Generic("No update has been downloaded yet".into()))?;
-
-    log::info!("Installing update {} and restarting", update.version);
-
-    if let Err(e) = update.install(bytes) {
-        // Installing failed, so put it back - the user can retry without
-        // downloading the package again.
-        log::error!("Failed to install update: {}", e);
-        if let Ok(mut guard) = pending.0.lock() {
-            // The bytes were consumed by install(); re-checking will re-download.
-            *guard = None;
+    // `Update::install` is synchronous and, on Windows, never returns - it hands
+    // off to the NSIS installer and exits the process. Keep it off the async
+    // runtime's workers.
+    let app_for_install = app.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || -> Result<(), String> {
+        // Re-check immediately before the point of no return: a recording may
+        // have started while this was being scheduled. Done before taking the
+        // package so nothing is lost when we refuse.
+        if RECORDING_ACTIVE.load(Ordering::SeqCst) {
+            return Err(RECORDING_IN_PROGRESS.to_string());
         }
-        let status = UpdateStatus::error(e.to_string());
+
+        let taken = {
+            let state = app_for_install.state::<UpdaterState>();
+            let mut guard = state
+                .0
+                .lock()
+                .map_err(|_| "Update state is poisoned".to_string())?;
+            guard.pending.take()
+        };
+
+        let (update, bytes) =
+            taken.ok_or_else(|| "No update has been downloaded yet".to_string())?;
+
+        log::info!("Installing update {} and restarting", update.version);
+        update.install(bytes).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| AppError::Generic(format!("install worker failed: {}", e)))?;
+
+    if let Err(message) = result {
+        // The package was consumed by install(), so the slot stays empty and the
+        // next check re-downloads it.
+        log::error!("Failed to install update: {}", message);
+        let status = UpdateStatus::error(message.clone());
         emit_status(&app, &status);
-        return Err(AppError::Generic(e.to_string()));
+        return Err(AppError::Generic(message));
     }
 
     // Reached only on platforms where install() does not exit the process.

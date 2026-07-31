@@ -58,13 +58,24 @@ export const AboutSettings: React.FC<AboutSettingsProps> = ({ theme }) => {
               </button>
             )}
 
-            <span className={`text-xs ${status.state === 'error' ? 'text-rose-500' : isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+            <span
+              role="status"
+              aria-live="polite"
+              className={`text-xs ${status.state === 'error' ? 'text-rose-500' : isDark ? 'text-gray-500' : 'text-gray-500'}`}
+            >
               {updateStatusLine()}
             </span>
           </div>
 
           {isDownloading && (
-            <div className={`mt-2 h-1 w-full max-w-xs rounded-full overflow-hidden ${isDark ? 'bg-[#252525]' : 'bg-gray-200'}`}>
+            <div
+              role="progressbar"
+              aria-label="Update download progress"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={status.progress ?? 0}
+              className={`mt-2 h-1 w-full max-w-xs rounded-full overflow-hidden ${isDark ? 'bg-[#252525]' : 'bg-gray-200'}`}
+            >
               <div
                 className="h-full bg-emerald-500 transition-all duration-300"
                 style={{ width: `${status.progress ?? 0}%` }}

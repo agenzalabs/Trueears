@@ -680,7 +680,7 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .manage(updater::PendingUpdate::default())
+        .manage(updater::UpdaterState::default())
         .setup(|app| {
             use tauri::Manager;
 

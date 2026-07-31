@@ -18,15 +18,23 @@ export const useAppUpdate = () => {
     let unlisten: UnlistenFn | null = null;
 
     void (async () => {
-      const current = await updateService.getStatus();
-      if (!disposed) setStatus(current);
-
+      // Subscribe before reading, otherwise an event emitted during the
+      // getStatus round trip is dropped and the UI shows a stale state until
+      // the next one - which can be hours away.
       const stop = await updateService.onStatusChange((next) => {
         if (!disposed) setStatus(next);
       });
 
-      if (disposed) stop();
-      else unlisten = stop;
+      if (disposed) {
+        stop();
+        return;
+      }
+      unlisten = stop;
+
+      // Safe to apply after: the backend derives this from the same state the
+      // events report, so it cannot move the UI backwards.
+      const current = await updateService.getStatus();
+      if (!disposed) setStatus(current);
     })();
 
     return () => {

@@ -81,7 +81,7 @@ npm run build
 `TAURI_SIGNING_PRIVATE_KEY` takes either the path to the key or its contents.
 A successful build reports two artifacts:
 
-```
+```text
 Finished 1 bundle at:
     .../bundle/nsis/Trueears_<version>_x64-setup.exe
 Finished 1 updater signature at:
@@ -97,7 +97,7 @@ Unchanged from before: bump `version` in `package.json` and merge to `main`.
 `release.yml` tags `v<version>`, builds, and publishes the release. With signing
 configured it also uploads `latest.json`, which is what installed apps read from:
 
-```
+```text
 https://github.com/agenzalabs/Trueears/releases/latest/download/latest.json
 ```
 
