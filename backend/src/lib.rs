@@ -8,6 +8,7 @@ mod linux_portal_shortcuts;
 mod linux_remote_desktop;
 mod log_mode;
 mod shortcuts;
+mod tray;
 mod updater;
 mod window;
 
@@ -768,6 +769,11 @@ pub fn run() {
 
             // Register global shortcuts
             shortcuts::register_shortcuts(app.handle())?;
+
+            // The tray is the only persistent affordance: the overlay is hidden
+            // and skips the taskbar, so this is how users reach settings and
+            // quit without the task manager.
+            tray::create(app.handle());
 
             // Look for a new release in the background. Downloads are automatic;
             // installing waits for the user to ask for it.
