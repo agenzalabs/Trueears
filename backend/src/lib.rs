@@ -8,6 +8,7 @@ mod linux_portal_shortcuts;
 mod linux_remote_desktop;
 mod log_mode;
 mod shortcuts;
+mod updater;
 mod window;
 
 pub use error::AppError;
@@ -486,6 +487,14 @@ async fn set_onboarding_trigger_active(
     Ok(())
 }
 
+/// Tell the backend whether audio is being captured, so a pending update can
+/// never be installed (which exits the process) mid-dictation.
+#[tauri::command]
+fn set_recording_active(active: bool) -> Result<(), AppError> {
+    updater::set_recording_active(active);
+    Ok(())
+}
+
 #[tauri::command]
 fn register_escape_shortcut(app: tauri::AppHandle) -> Result<(), AppError> {
     shortcuts::register_escape_shortcut(&app).map_err(|e| AppError::Generic(e.to_string()))
@@ -670,6 +679,8 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::new().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(updater::PendingUpdate::default())
         .setup(|app| {
             use tauri::Manager;
 
@@ -715,6 +726,10 @@ pub fn run() {
 
             // Register global shortcuts
             shortcuts::register_shortcuts(app.handle())?;
+
+            // Look for a new release in the background. Downloads are automatic;
+            // installing waits for the user to ask for it.
+            updater::spawn_background_checks(app.handle());
 
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
@@ -779,8 +794,13 @@ pub fn run() {
             set_store_value,
             get_settings_snapshot,
             set_onboarding_trigger_active,
+            set_recording_active,
             register_escape_shortcut,
             unregister_escape_shortcut,
+            // Updater commands
+            updater::get_update_status,
+            updater::check_for_update,
+            updater::install_update,
             search_installed_apps,
             refresh_installed_apps_cache,
             get_installed_popular_apps,

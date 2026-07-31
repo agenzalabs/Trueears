@@ -39,6 +39,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": [
       "nsis",
       "deb",
@@ -62,6 +63,15 @@
   "plugins": {
     "globalShortcut": {
       "shortcuts": []
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRBOUU1NUQzMDAwMDJBNTQKUldSVUtnQUEwMVdlU290TjIyY0dSMlJOdUtpVDk5Y1ZEL3lnb0tSMldNTkVIb3JvVXF0NUlFeTYK",
+      "endpoints": [
+        "https://github.com/agenzalabs/Trueears/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }

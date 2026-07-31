@@ -4,6 +4,7 @@ import { OnboardingWizard } from './onboarding/OnboardingWizard';
 import { useSettings } from '../hooks/useSettings';
 import { useAuth } from '../hooks/useAuth';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { useAppUpdate } from '../hooks/useAppUpdate';
 
 const LLMSettings = lazy(async () => ({
   default: (await import('./settings/LLMSettings')).LLMSettings,
@@ -43,6 +44,9 @@ export const SettingsWindow: React.FC = () => {
   const settings = useSettings();
   const auth = useAuth(); // Lift auth state to SettingsWindow level
   const { onboardingComplete, isKeyLoaded, theme } = settings;
+  // Surfaces a dot on the About tab so a downloaded update is discoverable
+  // without the user having to go looking for it.
+  const { isReady: isUpdateReady } = useAppUpdate();
 
   const changeTab = (tab: SettingsTab) => {
     startTransition(() => {
@@ -448,6 +452,12 @@ export const SettingsWindow: React.FC = () => {
               />
             </svg>
             About
+            {isUpdateReady && (
+              <span
+                title="An update is ready to install"
+                className="ml-auto w-2 h-2 rounded-full bg-emerald-500"
+              />
+            )}
           </button>
         </nav>
       </div>

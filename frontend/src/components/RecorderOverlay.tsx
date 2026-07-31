@@ -14,6 +14,7 @@ import { AppProfileService } from '../services/appProfileService';
 import { debug } from '../utils/debug';
 import { getCurrentWindow, PhysicalSize } from '@tauri-apps/api/window';
 import { useOverlayAnchor } from '../hooks/useOverlayAnchor';
+import { updateService } from '../services/updateService';
 
 /** Upper bound on how long showing the overlay may wait for fresh window geometry. */
 const ANCHOR_REFRESH_TIMEOUT_MS = 250;
@@ -136,6 +137,12 @@ export const RecorderOverlay: React.FC = () => {
       50% { opacity: 0.88; }
     }
   `;
+
+  // -- Effect: Report mic state so a pending update never installs mid-recording --
+  // Installing exits the process, so the backend refuses while this is true.
+  useEffect(() => {
+    void updateService.setRecordingActive(isCapturingAudio);
+  }, [isCapturingAudio]);
 
   // -- Effect: Debug Tauri availability --
   useEffect(() => {
