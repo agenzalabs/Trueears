@@ -62,6 +62,33 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
+      # The bundle produces signed updater artifacts, so both halves of a keypair
+      # must be present: the private key to sign with, and a matching public key
+      # in tauri.conf.json (the bundler validates it and fails on a placeholder).
+      #
+      # A throwaway pair is generated here on purpose. The smoke build's output is
+      # discarded, and pull requests from forks cannot read repository secrets, so
+      # this keeps the job self-contained. Real releases are signed with the actual
+      # key in release.yml. The config edit stays in the workspace and is never
+      # committed.
+      #
+      # The password must be non-empty: an empty one is rejected as incorrect, and
+      # an empty TAURI_SIGNING_PRIVATE_KEY_PASSWORD makes the tooling fall back to
+      # an interactive prompt, which would hang the job instead of failing it.
+      - name: Generate throwaway updater signing key
+        shell: bash
+        run: |
+          npm run tauri -- signer generate -w "$RUNNER_TEMP/ci-updater.key" --password "ci-smoke-build"
+          node -e "
+            const fs = require('fs');
+            const conf = 'backend/tauri.conf.json';
+            const json = JSON.parse(fs.readFileSync(conf, 'utf8'));
+            json.plugins.updater.pubkey = fs.readFileSync(process.argv[1], 'utf8').trim();
+            fs.writeFileSync(conf, JSON.stringify(json, null, 2) + '\n');
+          " "$RUNNER_TEMP/ci-updater.key.pub"
+          echo "TAURI_SIGNING_PRIVATE_KEY=$RUNNER_TEMP/ci-updater.key" >> "$GITHUB_ENV"
+          echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=ci-smoke-build" >> "$GITHUB_ENV"
+
       - name: Build Windows app smoke
         run: npm run build
 

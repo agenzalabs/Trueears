@@ -46,6 +46,7 @@ docs/
 - **[Architecture Overview](architecture/overview.md)** - System design with diagrams
 - **[Tauri Commands Reference](reference/tauri-commands.md)** - Backend API documentation
 - **[Auth System](architecture/auth-system.md)** - OAuth implementation details
+- **[Auto-update](AUTO_UPDATE.md)** - Update flow, signing keys, release requirements
 
 ## For Contributors
 
