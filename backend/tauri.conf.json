@@ -1,6 +1,6 @@
 {
   "productName": "Trueears",
-  "version": "0.3.11",
+  "version": "0.3.12",
   "identifier": "com.Trueears",
   "build": {
     "frontendDist": "../frontend/dist",
